@@ -4,7 +4,9 @@ import numpy as np
 
 from mushroom.algorithms.agent import Agent
 from mushroom.approximators.regressor import Ensemble, Regressor
-from mushroom.utils.replay_memory import Buffer, ReplayMemory
+from mushroom.utils.replay_memory import Buffer
+
+from replay_memory import ReplayMemory
 
 
 class DQN(Agent):
@@ -42,7 +44,6 @@ class DQN(Agent):
         apprx_params_target = deepcopy(approximator_params)
         self.approximator = Regressor(approximator, **apprx_params_train)
         self.target_approximator = Regressor(approximator,
-                                             n_models=self._n_approximators,
                                              **apprx_params_target)
         policy.set_q(self.approximator)
 
@@ -52,18 +53,54 @@ class DQN(Agent):
         super().__init__(policy, mdp_info)
 
     def fit(self, dataset):
-        self._replay_memory.add(dataset)
-        if self._replay_memory.initialized:
-            state, action, reward, next_state, absorbing, _ =\
-                self._replay_memory.get(self._batch_size)
+        s = np.array([d[0][0] for d in dataset]).ravel()
+        games = np.unique(s)
+        for g in games:
+            idxs = np.argwhere(s == g).ravel()
+            d = list()
+            for idx in idxs:
+                d.append(dataset[idx])
+            self._replay_memory[g].add(d)
+
+        fit_condition = np.all([rm.initialized for rm in self._replay_memory])
+
+        if fit_condition:
+            state_idxs = list()
+            state = list()
+            action = list()
+            reward = list()
+            next_state_idxs = list()
+            next_state = list()
+            absorbing = list()
+            for i in range(len(self._replay_memory)):
+                game_state, game_action, game_reward, game_next_state,\
+                    game_absorbing, _ = self._replay_memory[i].get(
+                        self._batch_size)
+
+                state_idxs += [gs[0] for gs in game_state]
+                state += [gs[1] for gs in game_state]
+                action += game_action
+                reward += game_reward
+                next_state_idxs += [gns[0] for gns in game_next_state]
+                next_state += [gns[1] for gns in game_next_state]
+                absorbing += game_absorbing
+
+            state_idxs = np.array(state_idxs)
+            state = np.array(state)
+            action = np.array(action)
+            reward = np.array(reward)
+            next_state_idxs = np.array(next_state_idxs)
+            next_state = np.array(next_state)
+            absorbing = np.array(absorbing)
 
             if self._clip_reward:
                 reward = np.clip(reward, -1, 1)
 
-            q_next = self._next_q(next_state, absorbing)
+            q_next = self._next_q(next_state, next_state_idxs, absorbing)
             q = reward + self.mdp_info.gamma * q_next
 
-            self.approximator.fit(state, action, q, **self._fit_params)
+            self.approximator.fit(state, action, q, idx=state_idxs,
+                                  **self._fit_params)
 
             self._n_updates += 1
 
@@ -78,33 +115,23 @@ class DQN(Agent):
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
 
-    def _next_q(self, next_state, absorbing):
-        """
-        Args:
-            next_state (np.ndarray): the states where next action has to be
-                evaluated;
-            absorbing (np.ndarray): the absorbing flag for the states in
-                ``next_state``.
-
-        Returns:
-            Maximum action-value for each state in ``next_state``.
-
-        """
-        q = self.target_approximator.predict(next_state)
+    def _next_q(self, next_state, next_state_idxs, absorbing):
+        q = self.target_approximator.predict(next_state, idx=next_state_idxs)
         if np.any(absorbing):
             q *= 1 - absorbing.reshape(-1, 1)
 
         return np.max(q, axis=1)
 
     def draw_action(self, state):
-        self._buffer.add(state)
+        self._buffer.add(state[1])
 
         if self._episode_steps < self._no_op_actions:
             action = np.array([self._no_op_action_value])
-            self.policy.update()
+            self.policy.update(state)
         else:
             extended_state = self._buffer.get()
 
+            extended_state = np.array([state[0], extended_state])
             action = super(DQN, self).draw_action(extended_state)
 
         self._episode_steps += 1
@@ -121,17 +148,12 @@ class DQN(Agent):
 
 
 class DoubleDQN(DQN):
-    """
-    Double DQN algorithm.
-    "Deep Reinforcement Learning with Double Q-Learning".
-    Hasselt H. V. et al.. 2016.
-
-    """
-    def _next_q(self, next_state, absorbing):
+    def _next_q(self, next_state, next_state_idxs, absorbing):
         q = self.approximator.predict(next_state)
         max_a = np.argmax(q, axis=1)
 
-        double_q = self.target_approximator.predict(next_state, max_a)
+        double_q = self.target_approximator.predict(next_state, max_a,
+                                                    idx=next_state_idxs)
         if np.any(absorbing):
             double_q *= 1 - absorbing
 
