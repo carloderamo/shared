@@ -8,13 +8,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from mushroom.algorithms.value import AveragedDQN, DQN, DoubleDQN
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.core import Core
-from mushroom.environments import *
 from mushroom.policy import EpsGreedy
 from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
+
+from atari import AtariMultiple
+from dqn import DQN, DoubleDQN
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -24,17 +25,31 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape):
+    def __init__(self, input_shape, output_shape, n_games, use_cuda):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
-        n_output = output_shape[0]
+        n_output = output_shape
+        self._n_games = n_games
+        self._use_cuda = use_cuda
+
+        class IdentityGradNorm(torch.autograd.Function):
+            @staticmethod
+            def forward(_, x):
+                return x
+
+            @staticmethod
+            def backward(_, grad_output):
+                return grad_output / self._n_games
 
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
         self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self._h3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self._h4 = nn.Linear(3136, 512)
-        self._h5 = nn.Linear(512, n_output)
+        self._h3_id = IdentityGradNorm
+        self._h4 = nn.ModuleList([nn.Linear(3136, 512) for _ in range(
+            self._n_games)])
+        self._h5 = nn.ModuleList([nn.Linear(512, n_output[i]) for i in range(
+            self._n_games)])
 
         nn.init.xavier_uniform_(self._h1.weight,
                                 gain=nn.init.calculate_gain('relu'))
@@ -42,24 +57,35 @@ class Network(nn.Module):
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._h3.weight,
                                 gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h4.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h5.weight,
-                                gain=nn.init.calculate_gain('linear'))
+        for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._h4[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self._h5[i].weight,
+                                    gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None):
+    def forward(self, state, action=None, idx=None):
         h = F.relu(self._h1(state.float() / 255.))
         h = F.relu(self._h2(h))
         h = F.relu(self._h3(h))
-        h = F.relu(self._h4(h.view(-1, 3136)))
-        q = self._h5(h)
+        h = self._h3_id.apply(h)
 
-        if action is None:
-            return q
-        else:
-            q_acted = torch.squeeze(q.gather(1, action.long()))
+        features = list()
+        q = list()
 
-            return q_acted
+        for i in range(self._n_games):
+            features.append(F.relu(self._h4[i](h.view(-1, 3136))))
+            q.append(self._h5[i](features[i]))
+
+        q = torch.stack(q, dim=1)
+
+        if action is not None:
+            action = action.long()
+            q_acted = torch.squeeze(
+                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)))
+
+            q = q_acted
+
+        return q[:, idx] if idx is not None else q
 
 
 def print_epoch(epoch):
@@ -83,9 +109,10 @@ def experiment():
     parser = argparse.ArgumentParser()
 
     arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--name",
-                          type=str,
-                          default='BreakoutDeterministic-v4',
+    arg_game.add_argument("--names",
+                          type=list,
+                          nargs='+',
+                          default=['BreakoutDeterministic-v4'],
                           help='Gym ID of the Atari game.')
     arg_game.add_argument("--screen-width", type=int, default=84,
                           help='Width of the game screen.')
@@ -117,14 +144,10 @@ def experiment():
                               'rmsprop')
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn', 'adqn'],
-                         default='dqn',
+    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
+                         default='ddqn',
                          help='Name of the algorithm. dqn is for standard'
-                              'DQN, ddqn is for Double DQN and adqn is for'
-                              'Averaged DQN.')
-    arg_alg.add_argument("--n-approximators", type=int, default=1,
-                         help="Number of approximators used in the ensemble for"
-                              "Averaged DQN.")
+                              'DQN, ddqn is for Double DQN.')
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
@@ -210,8 +233,8 @@ def experiment():
     # Evaluation of the model provided by the user.
     if args.load_path:
         # MDP
-        mdp = Atari(args.name, args.screen_width, args.screen_height,
-                    ends_at_life=False)
+        mdp = AtariMultiple(args.names, args.screen_width, args.screen_height,
+                            ends_at_life=False)
 
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
@@ -284,13 +307,14 @@ def experiment():
             max_steps = args.max_steps
 
         # MDP
-        mdp = Atari(args.name, args.screen_width, args.screen_height,
-                    ends_at_life=True)
+        mdp = AtariMultiple(args.names, args.screen_width, args.screen_height,
+                            ends_at_life=True)
 
         # Policy
         epsilon = LinearDecayParameter(value=args.initial_exploration_rate,
                                        min_value=args.final_exploration_rate,
-                                       n=args.final_exploration_frame)
+                                       n=args.final_exploration_frame,
+                                       size=)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
         pi = EpsGreedy(epsilon=epsilon_random)
@@ -313,7 +337,7 @@ def experiment():
         # Agent
         algorithm_params = dict(
             batch_size=args.batch_size,
-            n_approximators=args.n_approximators,
+            n_games=len(args.n_games),
             initial_replay_size=initial_replay_size,
             max_replay_size=max_replay_size,
             history_length=args.history_length,
@@ -331,10 +355,6 @@ def experiment():
             agent = DoubleDQN(approximator, pi, mdp.info,
                               approximator_params=approximator_params,
                               **algorithm_params)
-        elif args.algorithm == 'adqn':
-            agent = AveragedDQN(approximator, pi, mdp.info,
-                                approximator_params=approximator_params,
-                                **algorithm_params)
 
         # Algorithm
         core = Core(agent, mdp)
