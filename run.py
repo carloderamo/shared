@@ -108,9 +108,9 @@ def print_epoch(epoch):
     print('----------------------------------------------------------------')
 
 
-def get_stats(dataset):
+def get_stats(dataset, idx, games):
     score = compute_scores(dataset)
-    print(('min_reward: %f, max_reward: %f, mean_reward: %f,'
+    print((games[idx] + ': min_reward: %f, max_reward: %f, mean_reward: %f,'
           ' games_completed: %d' % score))
 
     return score
@@ -300,7 +300,7 @@ def experiment():
         dataset = core_test.evaluate(n_steps=args.test_samples,
                                      render=args.render,
                                      quiet=args.quiet)
-        get_stats(dataset)
+        #get_stats(dataset)
     else:
         # DQN learning run
 
@@ -408,7 +408,7 @@ def experiment():
             pi.set_epsilon(epsilon_test)
             dataset = core.evaluate(n_steps=test_samples, render=args.render,
                                     quiet=args.quiet)
-            scores[idx].append(get_stats(dataset))
+            scores[idx].append(get_stats(dataset, idx, args.games))
 
         if args.algorithm == 'ddqn':
             agent.policy.set_q(agent.approximator)
@@ -440,7 +440,7 @@ def experiment():
                 pi.set_epsilon(epsilon_test)
                 dataset = core.evaluate(n_steps=test_samples,
                                         render=args.render, quiet=args.quiet)
-                scores[idx].append(get_stats(dataset))
+                scores[idx].append(get_stats(dataset, idx, args.games))
 
             if args.algorithm == 'ddqn':
                 agent.policy.set_q(agent.approximator)

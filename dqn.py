@@ -30,6 +30,7 @@ class DQN(Agent):
         self._n_action_per_head = n_actions_per_head
         self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
+        self._history_length = history_length
         self._max_no_op_actions = max_no_op_actions
         self._no_op_action_value = no_op_action_value
 
@@ -75,33 +76,33 @@ class DQN(Agent):
         fit_condition = np.all([rm.initialized for rm in self._replay_memory])
 
         if fit_condition:
-            state_idxs = list()
-            state = list()
-            action = list()
-            reward = list()
-            next_state_idxs = list()
-            next_state = list()
-            absorbing = list()
+            n_samples = self._batch_size * self._n_games
+            state_idxs = np.zeros(n_samples, dtype=np.int)
+            state = np.zeros(
+                (n_samples,
+                 self._history_length) + self.mdp_info.observation_space.shape)
+            action = np.zeros((n_samples, 1))
+            reward = np.zeros(n_samples)
+            next_state_idxs = np.zeros(n_samples, dtype=np.int)
+            next_state = np.zeros(
+                (n_samples,
+                 self._history_length) + self.mdp_info.observation_space.shape)
+            absorbing = np.zeros(n_samples)
             for i in range(len(self._replay_memory)):
                 game_state, game_action, game_reward, game_next_state,\
                     game_absorbing, _ = self._replay_memory[i].get(
                         self._batch_size)
 
-                state_idxs += [i] * self._batch_size
-                state += game_state.tolist()
-                action += game_action.tolist()
-                reward += game_reward.tolist()
-                next_state_idxs += [i] * self._batch_size
-                next_state += game_next_state.tolist()
-                absorbing += game_absorbing.tolist()
+                start = self._batch_size * i
+                stop = self._batch_size * i + self._batch_size
 
-            state_idxs = np.array(state_idxs)
-            state = np.array(state)
-            action = np.array(action)
-            reward = np.array(reward)
-            next_state_idxs = np.array(next_state_idxs)
-            next_state = np.array(next_state)
-            absorbing = np.array(absorbing)
+                state_idxs[start:stop] = np.ones(self._batch_size) * i
+                state[start:stop] = game_state
+                action[start:stop] = game_action
+                reward[start:stop] = game_reward
+                next_state_idxs[start:stop] = np.ones(self._batch_size) * i
+                next_state[start:stop] = game_next_state
+                absorbing[start:stop] = game_absorbing
 
             if self._clip_reward:
                 reward = np.clip(reward, -1, 1)
