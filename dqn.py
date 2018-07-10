@@ -60,6 +60,7 @@ class DQN(Agent):
             d = list()
             for idx in idxs:
                 d.append(dataset[idx])
+
             self._replay_memory[g].add(d)
 
         fit_condition = np.all([rm.initialized for rm in self._replay_memory])
@@ -77,13 +78,13 @@ class DQN(Agent):
                     game_absorbing, _ = self._replay_memory[i].get(
                         self._batch_size)
 
-                state_idxs += [gs[0] for gs in game_state]
-                state += [gs[1] for gs in game_state]
-                action += game_action
-                reward += game_reward
-                next_state_idxs += [gns[0] for gns in game_next_state]
-                next_state += [gns[1] for gns in game_next_state]
-                absorbing += game_absorbing
+                state_idxs += [i] * self._batch_size
+                state += game_state.tolist()
+                action += game_action.tolist()
+                reward += game_reward.tolist()
+                next_state_idxs += [i] * self._batch_size
+                next_state += game_next_state.tolist()
+                absorbing += game_absorbing.tolist()
 
             state_idxs = np.array(state_idxs)
             state = np.array(state)
@@ -99,6 +100,7 @@ class DQN(Agent):
             q_next = self._next_q(next_state, next_state_idxs, absorbing)
             q = reward + self.mdp_info.gamma * q_next
 
+            print(state.shape, action.shape, q.shape, state_idxs.shape)
             self.approximator.fit(state, action, q, idx=state_idxs,
                                   **self._fit_params)
 
@@ -150,7 +152,7 @@ class DQN(Agent):
 class DoubleDQN(DQN):
     def _next_q(self, next_state, next_state_idxs, absorbing):
         q = self.approximator.predict(next_state)
-        max_a = np.argmax(q, axis=1)
+        max_a = np.argmax(q, axis=2)[np.arange(len(q)), next_state_idxs]
 
         double_q = self.target_approximator.predict(next_state, max_a,
                                                     idx=next_state_idxs)

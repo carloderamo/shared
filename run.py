@@ -25,11 +25,13 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape, n_games, n_actions_per_head):
+    def __init__(self, input_shape, output_shape, n_actions_per_head):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
-        self._n_games = n_games
+        self._n_action_per_head = n_actions_per_head
+        self._n_games = len(n_actions_per_head)
+        self._max_actions = np.array(n_actions_per_head).max()
 
         class IdentityGradNorm(torch.autograd.Function):
             @staticmethod
@@ -68,14 +70,15 @@ class Network(nn.Module):
         h = F.relu(self._h3(h))
         h = self._h3_id.apply(h)
 
-        features = list()
-        q = list()
+        min_float = -1e20
+        features = torch.ones(state.shape[0], self._n_games, 512) * min_float
+        q = torch.ones(state.shape[0], self._n_games,
+                       self._max_actions) * min_float
 
         for i in range(self._n_games):
-            features.append(F.relu(self._h4[i](h.view(-1, 3136))))
-            q.append(self._h5[i](features[i]))
-
-        q = torch.stack(q, dim=1)
+            features[:, i] = F.relu(self._h4[i](h.view(-1, 3136)))
+            stop = self._n_action_per_head[i][0]
+            q[:, i, :stop] = self._h5[i](features[:, i])
 
         if action is not None:
             action = action.long()
@@ -84,7 +87,17 @@ class Network(nn.Module):
 
             q = q_acted
 
-        return q[:, idx] if idx is not None else q
+        if idx is not None:
+            idx = torch.from_numpy(idx)
+            if q.dim() == 2:
+                q_idx = q.gather(1, idx.unsqueeze(-1))
+            else:
+                q_idx = q.gather(1, idx.view(-1, 1).repeat(
+                    1, self._max_actions).unsqueeze(1))
+
+            q = torch.squeeze(q_idx)
+
+        return q
 
 
 def print_epoch(epoch):
@@ -208,7 +221,7 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    scores = [None] * len(args.games)
+    scores = [list()] * len(args.games)
 
     optimizer = dict()
     if args.optimizer == 'adam':
@@ -331,7 +344,6 @@ def experiment():
             network=Network,
             input_shape=input_shape,
             output_shape=(mdp.info.action_space.n,),
-            n_games=len(args.games),
             n_actions=mdp.info.action_space.n,
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
@@ -371,7 +383,7 @@ def experiment():
         # Fill replay memory with random dataset
         print_epoch(0)
         mdp.freeze_env(True)
-        for idx in range(mdp.n_games):
+        for idx in range(len(args.games)):
             mdp.set_env(idx)
             pi.set_epsilon(epsilon_random)
             core.learn(n_steps=initial_replay_size,
@@ -384,7 +396,7 @@ def experiment():
         if args.algorithm == 'ddqn':
             agent.policy.set_q(agent.target_approximator)
 
-        for idx in range(mdp.n_games):
+        for idx in range(len(args.games)):
             mdp.set_episode_end(False)
             mdp.set_env(idx)
             pi.set_epsilon(epsilon_test)
@@ -402,6 +414,7 @@ def experiment():
             # learning step
             mdp.freeze_env(False)
             mdp.set_episode_end(True)
+            mdp.set_env(0)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
@@ -415,7 +428,7 @@ def experiment():
                 agent.policy.set_q(agent.target_approximator)
 
             mdp.freeze_env(True)
-            for idx in range(mdp.n_games):
+            for idx in range(len(args.games)):
                 mdp.set_episode_end(False)
                 mdp.set_env(idx)
                 pi.set_epsilon(epsilon_test)

@@ -1,6 +1,5 @@
 import cv2
 cv2.ocl.setUseOpenCL(False)
-import gym
 import numpy as np
 
 from mushroom.environments import Atari, Environment, MDPInfo
@@ -15,12 +14,14 @@ class AtariMultiple(Environment):
         for n in name:
             self.envs.append(Atari(n, width, height, ends_at_life, max_pooling))
 
+        max_actions = np.array([e.info.action_space.n for e in self.envs]).max()
+
         self._env_idxs = np.arange(len(self.envs))
         self._reset_envs_list()
         self._freezed_env = False
 
         # MDP properties
-        action_space = Discrete(len(gym.envs.atari.atari_env.ACTION_MEANING))
+        action_space = Discrete(max_actions)
         observation_space = Box(low=0., high=255., shape=(width, height))
         horizon = np.inf  # the gym time limit is used.
         gamma = .99
@@ -60,10 +61,6 @@ class AtariMultiple(Environment):
 
     def freeze_env(self, freeze):
         self._freezed_env = freeze
-
-    @property
-    def n_games(self):
-        return len(self.envs)
 
     def _reset_envs_list(self):
         np.random.shuffle(self._env_idxs)
