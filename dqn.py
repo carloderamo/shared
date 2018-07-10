@@ -100,7 +100,6 @@ class DQN(Agent):
             q_next = self._next_q(next_state, next_state_idxs, absorbing)
             q = reward + self.mdp_info.gamma * q_next
 
-            print(state.shape, action.shape, q.shape, state_idxs.shape)
             self.approximator.fit(state, action, q, idx=state_idxs,
                                   **self._fit_params)
 

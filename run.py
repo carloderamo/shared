@@ -83,7 +83,7 @@ class Network(nn.Module):
         if action is not None:
             action = action.long()
             q_acted = torch.squeeze(
-                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)))
+                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
 
             q = q_acted
 
@@ -95,7 +95,7 @@ class Network(nn.Module):
                 q_idx = q.gather(1, idx.view(-1, 1).repeat(
                     1, self._max_actions).unsqueeze(1))
 
-            q = torch.squeeze(q_idx)
+            q = torch.squeeze(q_idx, 1)
 
         return q
 
