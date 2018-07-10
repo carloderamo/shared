@@ -17,16 +17,18 @@ class DQN(Agent):
 
     """
     def __init__(self, approximator, policy, mdp_info, batch_size,
-                 initial_replay_size, max_replay_size,
+                 initial_replay_size, max_replay_size, n_actions_per_head,
                  target_update_frequency=2500, fit_params=None,
-                 approximator_params=None, n_games=1,
-                 history_length=1, clip_reward=True, max_no_op_actions=0,
-                 no_op_action_value=0, dtype=np.float32):
+                 approximator_params=None, n_games=1, history_length=1,
+                 clip_reward=True, max_no_op_actions=0, no_op_action_value=0,
+                 dtype=np.float32):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
         self._n_games = n_games
         self._clip_reward = clip_reward
+        self._n_action_per_head = n_actions_per_head
+        self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
         self._max_no_op_actions = max_no_op_actions
         self._no_op_action_value = no_op_action_value
@@ -49,6 +51,13 @@ class DQN(Agent):
 
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
+
+        self._mask = np.zeros((self._batch_size * self._n_games, self._n_games,
+                               self._max_actions))
+        for i in range(self._n_games):
+            self._mask[
+                self._batch_size * i:self._batch_size * i + self._batch_size,
+                i, self._n_action_per_head[i][0]:] -= np.inf
 
         super().__init__(policy, mdp_info)
 
@@ -117,7 +126,8 @@ class DQN(Agent):
             self.approximator.model.get_weights())
 
     def _next_q(self, next_state, next_state_idxs, absorbing):
-        q = self.target_approximator.predict(next_state, idx=next_state_idxs)
+        q = self.target_approximator.predict(
+            next_state, idx=next_state_idxs) - self._mask
         if np.any(absorbing):
             q *= 1 - absorbing.reshape(-1, 1)
 
@@ -150,11 +160,11 @@ class DQN(Agent):
 
 class DoubleDQN(DQN):
     def _next_q(self, next_state, next_state_idxs, absorbing):
-        q = self.approximator.predict(next_state)
+        q = self.approximator.predict(next_state) - self._mask
         max_a = np.argmax(q, axis=2)[np.arange(len(q)), next_state_idxs]
 
-        double_q = self.target_approximator.predict(next_state, max_a,
-                                                    idx=next_state_idxs)
+        double_q = self.target_approximator.predict(
+            next_state, max_a, idx=next_state_idxs)
         if np.any(absorbing):
             double_q *= 1 - absorbing
 

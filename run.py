@@ -25,13 +25,12 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape, n_actions_per_head):
+    def __init__(self, input_shape, _, n_actions_per_head):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
-        self._n_action_per_head = n_actions_per_head
         self._n_games = len(n_actions_per_head)
-        self._max_actions = np.array(n_actions_per_head).max()
+        self._max_actions = max(n_actions_per_head)[0]
 
         class IdentityGradNorm(torch.autograd.Function):
             @staticmethod
@@ -49,7 +48,7 @@ class Network(nn.Module):
         self._h4 = nn.ModuleList([nn.Linear(3136, 512) for _ in range(
             self._n_games)])
         self._h5 = nn.ModuleList(
-            [nn.Linear(512, n_actions_per_head[i][0]) for i in range(
+            [nn.Linear(512, self._max_actions) for _ in range(
                 self._n_games)])
 
         nn.init.xavier_uniform_(self._h1.weight,
@@ -70,15 +69,14 @@ class Network(nn.Module):
         h = F.relu(self._h3(h))
         h = self._h3_id.apply(h)
 
-        min_float = -1e20
-        features = torch.ones(state.shape[0], self._n_games, 512) * min_float
-        q = torch.ones(state.shape[0], self._n_games,
-                       self._max_actions) * min_float
+        features = list()
+        q = list()
 
         for i in range(self._n_games):
-            features[:, i] = F.relu(self._h4[i](h.view(-1, 3136)))
-            stop = self._n_action_per_head[i][0]
-            q[:, i, :stop] = self._h5[i](features[:, i])
+            features.append(F.relu(self._h4[i](h.view(-1, 3136))))
+            q.append(self._h5[i](features[i]))
+
+        q = torch.stack(q, dim=1)
 
         if action is not None:
             action = action.long()
@@ -278,6 +276,7 @@ def experiment():
             batch_size=1,
             train_frequency=1,
             target_update_frequency=1,
+            n_actions_per_head=n_actions_per_head,
             initial_replay_size=0,
             max_replay_size=0,
             history_length=args.history_length,
@@ -361,6 +360,7 @@ def experiment():
             max_replay_size=max_replay_size,
             history_length=args.history_length,
             target_update_frequency=target_update_frequency // train_frequency,
+            n_actions_per_head=n_actions_per_head,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
             dtype=np.uint8

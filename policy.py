@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from mushroom.policy import TDPolicy, EpsGreedy
+from mushroom.policy import TDPolicy
 from mushroom.utils.parameters import Parameter
 
 
@@ -13,14 +13,14 @@ class EpsGreedyMultiple(TDPolicy):
         assert isinstance(epsilon, Parameter) and isinstance(n_actions_per_head,
                                                              list)
         self._n_actions_per_head = n_actions_per_head
-        self._pis = [EpsGreedy(deepcopy(epsilon))] * len(n_actions_per_head)
-        self._epsilons = [eg._epsilon for eg in self._pis]
+        self._epsilons = [deepcopy(epsilon)] * len(n_actions_per_head)
 
     def __call__(self, *args):
         idx = args[0]
         state = args[1]
-        q = self._approximator.predict(np.expand_dims(state, axis=0),
-                                       idx=idx).ravel()
+        q = self._approximator.predict(
+            np.expand_dims(state, axis=0),
+            idx=idx).ravel()[:self._n_actions_per_head[idx][0]]
         max_a = np.argwhere(q == np.max(q)).ravel()
 
         p = self._epsilon.get_value(state) / self._n_actions_per_head[idx][0]
@@ -40,8 +40,9 @@ class EpsGreedyMultiple(TDPolicy):
     def draw_action(self, state):
         idx = np.asscalar(state[0])
         state = state[1]
-        if not np.random.uniform() < self._pis[idx]._epsilon(state):
-            q = self._approximator.predict(state, idx=np.array([idx]))
+        if not np.random.uniform() < self._epsilons[idx](state):
+            q = self._approximator.predict(
+                state, idx=np.array([idx]))[:self._n_actions_per_head[idx][0]]
             max_a = np.argwhere(q == np.max(q)).ravel()
 
             if len(max_a) > 1:
@@ -55,12 +56,12 @@ class EpsGreedyMultiple(TDPolicy):
         assert isinstance(epsilon, Parameter) or epsilon is None
 
         if epsilon is None:
-            for i in range(len(self._pis)):
-                self._pis[i]._epsilon = self._epsilons[i]
+            for i in range(len(self._epsilons)):
+                self._epsilons[i] = self._epsilons[i]
         else:
-            for i in range(len(self._pis)):
-                self._pis[i]._epsilon = epsilon
+            for i in range(len(self._epsilons)):
+                self._epsilons[i] = epsilon
 
     def update(self, state):
         idx = np.asscalar(state[0])
-        self._pis[idx]._epsilon.update(state)
+        self._epsilons[idx].update(state)
