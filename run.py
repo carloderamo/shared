@@ -87,7 +87,7 @@ class Network(nn.Module):
             q = q_acted
 
         if idx is not None:
-            if self._use_cuda:
+            if self._device is not None:
                 idx = torch.from_numpy(idx).cuda(self._device)
             else:
                 idx = torch.from_numpy(idx)
