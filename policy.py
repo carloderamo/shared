@@ -58,7 +58,8 @@ class EpsGreedyMultiple(TDPolicy):
         assert isinstance(epsilon, Parameter) or epsilon is None
 
         if epsilon is None:
-            self._epsilons = self._explorative_epsilons
+            for i in range(len(self._epsilons)):
+                self._epsilons[i] = self._explorative_epsilons[i]
         else:
             for i in range(len(self._epsilons)):
                 self._epsilons[i] = epsilon
