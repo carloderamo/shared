@@ -25,13 +25,13 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda):
+    def __init__(self, input_shape, _, n_actions_per_head, device):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
-        self._use_cuda = use_cuda
+        self._device = device
 
         class IdentityGradNorm(torch.autograd.Function):
             @staticmethod
@@ -88,7 +88,7 @@ class Network(nn.Module):
 
         if idx is not None:
             if self._use_cuda:
-                idx = torch.from_numpy(idx).cuda()
+                idx = torch.from_numpy(idx).cuda(self._device)
             else:
                 idx = torch.from_numpy(idx)
             if q.dim() == 2:
@@ -270,8 +270,7 @@ def experiment():
             load_path=args.load_path,
             optimizer=optimizer,
             loss=F.smooth_l1_loss,
-            device=args.device,
-            use_cuda=args.device is not None
+            device=args.device
         )
 
         approximator = PyTorchApproximator
@@ -352,8 +351,7 @@ def experiment():
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=F.smooth_l1_loss,
-            device=args.device,
-            use_cuda=args.device is not None
+            device=args.device
         )
 
         approximator = PyTorchApproximator
