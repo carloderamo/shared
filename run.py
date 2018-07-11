@@ -25,13 +25,12 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, device):
+    def __init__(self, input_shape, _, n_actions_per_head):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
-        self._device = device
 
         class IdentityGradNorm(torch.autograd.Function):
             @staticmethod
@@ -87,10 +86,7 @@ class Network(nn.Module):
             q = q_acted
 
         if idx is not None:
-            if self._device is not None:
-                idx = torch.from_numpy(idx).cuda(self._device)
-            else:
-                idx = torch.from_numpy(idx)
+            idx = torch.from_numpy(idx).cuda()
             if q.dim() == 2:
                 q_idx = q.gather(1, idx.unsqueeze(-1))
             else:
@@ -203,9 +199,8 @@ def experiment():
                          help='Value of the no-op action.')
 
     arg_utils = parser.add_argument_group('Utils')
-    arg_utils.add_argument('--device', type=int, default=None,
-                           help='ID of the GPU device to use. If None, CPU is'
-                                'used.')
+    arg_utils.add_argument('--use-cuda', action='store_true',
+                           help='Flag specifying whether to use the GPU.')
     arg_utils.add_argument('--load-path', type=str,
                            help='Path of the model to be loaded.')
     arg_utils.add_argument('--save', action='store_true',
@@ -270,7 +265,7 @@ def experiment():
             load_path=args.load_path,
             optimizer=optimizer,
             loss=F.smooth_l1_loss,
-            device=args.device
+            use_cuda=args.use_cuda
         )
 
         approximator = PyTorchApproximator
@@ -351,7 +346,7 @@ def experiment():
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=F.smooth_l1_loss,
-            device=args.device
+            use_cuda=args.use_cuda
         )
 
         approximator = PyTorchApproximator
