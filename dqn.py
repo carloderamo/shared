@@ -62,6 +62,23 @@ class DQN(Agent):
 
         super().__init__(policy, mdp_info)
 
+        n_samples = self._batch_size * self._n_games
+        self._state_idxs = np.zeros(n_samples, dtype=np.int)
+        self._state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape),
+            dtype=dtype
+        )
+        self._action = np.zeros((n_samples, 1))
+        self._reward = np.zeros(n_samples)
+        self._next_state_idxs = np.zeros(n_samples, dtype=np.int)
+        self._next_state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape),
+            dtype=dtype
+        )
+        self._absorbing = np.zeros(n_samples)
+
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
@@ -76,18 +93,6 @@ class DQN(Agent):
         fit_condition = np.all([rm.initialized for rm in self._replay_memory])
 
         if fit_condition:
-            n_samples = self._batch_size * self._n_games
-            state_idxs = np.zeros(n_samples, dtype=np.int)
-            state = np.zeros(
-                (n_samples,
-                 self._history_length) + self.mdp_info.observation_space.shape)
-            action = np.zeros((n_samples, 1))
-            reward = np.zeros(n_samples)
-            next_state_idxs = np.zeros(n_samples, dtype=np.int)
-            next_state = np.zeros(
-                (n_samples,
-                 self._history_length) + self.mdp_info.observation_space.shape)
-            absorbing = np.zeros(n_samples)
             for i in range(len(self._replay_memory)):
                 game_state, game_action, game_reward, game_next_state,\
                     game_absorbing, _ = self._replay_memory[i].get(
@@ -96,22 +101,24 @@ class DQN(Agent):
                 start = self._batch_size * i
                 stop = self._batch_size * i + self._batch_size
 
-                state_idxs[start:stop] = np.ones(self._batch_size) * i
-                state[start:stop] = game_state
-                action[start:stop] = game_action
-                reward[start:stop] = game_reward
-                next_state_idxs[start:stop] = np.ones(self._batch_size) * i
-                next_state[start:stop] = game_next_state
-                absorbing[start:stop] = game_absorbing
+                self._state_idxs[start:stop] = np.ones(self._batch_size) * i
+                self._state[start:stop] = game_state
+                self._action[start:stop] = game_action
+                self._reward[start:stop] = game_reward
+                self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
+                self._next_state[start:stop] = game_next_state
+                self._absorbing[start:stop] = game_absorbing
 
             if self._clip_reward:
-                reward = np.clip(reward, -1, 1)
+                reward = np.clip(self._reward, -1, 1)
+            else:
+                reward = self._reward
 
-            q_next = self._next_q(next_state, next_state_idxs, absorbing)
+            q_next = self._next_q()
             q = reward + self.mdp_info.gamma * q_next
 
-            self.approximator.fit(state, action, q, idx=state_idxs,
-                                  **self._fit_params)
+            self.approximator.fit(self._state, self._action, q,
+                                  idx=self._state_idxs, **self._fit_params)
 
             self._n_updates += 1
 
@@ -126,11 +133,11 @@ class DQN(Agent):
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
 
-    def _next_q(self, next_state, next_state_idxs, absorbing):
+    def _next_q(self):
         q = self.target_approximator.predict(
-            next_state, idx=next_state_idxs) + self._mask
-        if np.any(absorbing):
-            q *= 1 - absorbing.reshape(-1, 1)
+            self._next_state, idx=self._next_state_idxs) + self._mask
+        if np.any(self._absorbing):
+            q *= 1 - self._absorbing.reshape(-1, 1)
 
         return np.max(q, axis=1)
 
@@ -160,13 +167,13 @@ class DQN(Agent):
 
 
 class DoubleDQN(DQN):
-    def _next_q(self, next_state, next_state_idxs, absorbing):
-        q = self.approximator.predict(next_state) + self._mask
-        max_a = np.argmax(q, axis=2)[np.arange(len(q)), next_state_idxs]
+    def _next_q(self):
+        q = self.approximator.predict(self._next_state) + self._mask
+        max_a = np.argmax(q, axis=2)[np.arange(len(q)), self._next_state_idxs]
 
         double_q = self.target_approximator.predict(
-            next_state, max_a, idx=next_state_idxs)
-        if np.any(absorbing):
-            double_q *= 1 - absorbing
+            self._next_state, max_a, idx=self._next_state_idxs)
+        if np.any(self._absorbing):
+            double_q *= 1 - self._absorbing
 
         return double_q
