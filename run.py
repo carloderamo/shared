@@ -218,7 +218,9 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    scores = [list()] * len(args.games)
+    scores = list()
+    for _ in range(len(args.games)):
+        scores.append(list())
 
     optimizer = dict()
     if args.optimizer == 'adam':
