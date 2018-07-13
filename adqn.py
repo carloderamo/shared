@@ -64,6 +64,12 @@ class DQN(Agent):
 
         super().__init__(policy, mdp_info)
 
+        self._state = np.zeros((self._batch_size * self._n_games,
+                                self._history_length)
+                               + self.mdp_info.observation_space.shape,
+                               dtype=dtype)
+
+
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
@@ -78,23 +84,17 @@ class DQN(Agent):
         fit_condition = np.all([rm.initialized for rm in self._replay_memory])
 
         if fit_condition:
-            state = np.zeros((self._batch_size * self._n_games,
-                              self._history_length)
-                             + self.mdp_info.observation_space.shape)
-
-
             # Fit autoencoder
             for i in range(len(self._replay_memory)):
-                game_state, game_action, game_reward, game_next_state,\
-                    game_absorbing, _ = self._replay_memory[i].get(
+                game_state, _, _, _, _, _ = self._replay_memory[i].get(
                         self._batch_size)
 
                 start = self._batch_size * i
                 stop = self._batch_size * i + self._batch_size
 
-                state[start:stop] = game_state
+                self._state[start:stop] = game_state
 
-                self.autoencoder.fit(state, state)
+            self.autoencoder.fit(self._state, self._state)
 
             # Fit DQN
             for i in range(len(self._replay_memory)):

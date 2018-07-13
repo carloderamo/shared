@@ -48,7 +48,7 @@ class Autoencoder(nn.Module):
         nn.init.xavier_uniform_(self._d2.weight,
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._d3.weight,
-                                gain=nn.init.calculate_gain('relu'))
+                                gain=nn.init.calculate_gain('sigmoid'))
 
     def forward(self, state, encode=False):
         features = self._encode(state)
@@ -84,7 +84,7 @@ class Network(nn.Module):
         nn.init.xavier_uniform_(self._h1.weight,
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
+                                gain=nn.init.calculate_gain('linear'))
 
     def forward(self, features, action=None):
         h = F.relu(self._h1(features.float()))
