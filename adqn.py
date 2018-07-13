@@ -96,7 +96,7 @@ class DQN(Agent):
 
                 self._state[start:stop] = game_state
 
-            self.autoencoder.fit(self._state, self._state)
+            self.autoencoder.fit(self._state, self._state / 255.)
 
             # Fit DQN
             for i in range(len(self._replay_memory)):
