@@ -122,8 +122,9 @@ class DQN(Agent):
         Update the target network.
 
         """
-        self.target_approximator.model.set_weights(
-            self.approximator.model.get_weights())
+        for i in range(len(self.target_approximator)):
+            self.target_approximator[i].model.set_weights(
+                self.approximator[i].model.get_weights())
 
     def _next_q(self, next_state, i, absorbing):
         q = self.target_approximator[i].predict(next_state)
@@ -139,7 +140,7 @@ class DQN(Agent):
             action = np.array([self._no_op_action_value])
             self.policy.update(state)
         else:
-            extended_state = self.autoencoder(self._buffer.get())
+            extended_state = self.autoencoder(self._buffer.get(), encode=True)
 
             extended_state = np.array([state[0], extended_state])
             action = super(DQN, self).draw_action(extended_state)
