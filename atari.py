@@ -8,7 +8,7 @@ from mushroom.utils.spaces import Box, Discrete
 
 class AtariMultiple(Environment):
     def __init__(self, name, width=84, height=84, ends_at_life=False,
-                 max_pooling=True):
+                 max_pooling=True, n_steps_per_game=32):
         # MPD creation
         self.envs = list()
         for n in name:
@@ -16,9 +16,12 @@ class AtariMultiple(Environment):
 
         max_actions = np.array([e.info.action_space.n for e in self.envs]).max()
 
-        self._env_idxs = np.arange(len(self.envs))
-        self._reset_envs_list()
+        self._current_idx = 0
+        self._current_step = 0
         self._freezed_env = False
+        self._learn_idx = None
+        self._n_steps_per_game = n_steps_per_game
+        self._state = [None] * len(self.envs)
 
         # MDP properties
         action_space = Discrete(max_actions)
@@ -30,22 +33,26 @@ class AtariMultiple(Environment):
         super().__init__(mdp_info)
 
     def reset(self, state=None):
-        self._state = self.envs[self._current_idx].reset(state)
-        self._state = self._augment_state(self._state)
+        state = self.envs[self._current_idx].reset(state)
+        self._state[self._current_idx] = self._augment_state(state)
 
-        return self._state
+        return self._state[self._current_idx]
 
     def step(self, action):
-        self._state, reward, absorbing, info = self.envs[
+        if not self._freezed_env:
+            self._current_step += 1
+            if self._current_step == self._n_steps_per_game:
+                self._current_idx += 1
+                if self._current_idx == len(self.envs):
+                    self._current_idx = 0
+                self._current_step = 0
+
+                return self.reset(), 0, 0, {}
+        state, reward, absorbing, info = self.envs[
             self._current_idx].step(action)
-        self._state = self._augment_state(self._state)
+        self._state[self._current_idx] = self._augment_state(state)
 
-        if absorbing and not self._freezed_env:
-            self._current_idx += 1
-            if self._current_idx == len(self.envs):
-                self._reset_envs_list()
-
-        return self._state, reward, absorbing, info
+        return self._state[self._current_idx], reward, absorbing, info
 
     def render(self, mode='human'):
         self.envs[self._current_idx].render(mode=mode)
@@ -53,18 +60,20 @@ class AtariMultiple(Environment):
     def stop(self):
         self.envs[self._current_idx].stop()
 
-    def set_env(self, idx):
-        self._current_idx = idx
+    def set_env(self, idx=None):
+        if idx is None:
+            self._current_idx = self._learn_idx
+            self._learn_idx = None
+        else:
+            if self._learn_idx is None:
+                self._learn_idx = self._current_idx
+            self._current_idx = idx
 
     def set_episode_end(self, ends_at_life):
         self.envs[self._current_idx].set_episode_end(ends_at_life)
 
     def freeze_env(self, freeze):
         self._freezed_env = freeze
-
-    def _reset_envs_list(self):
-        np.random.shuffle(self._env_idxs)
-        self._current_idx = 0
 
     def _augment_state(self, state):
         return np.array([np.array([self._current_idx]), state])

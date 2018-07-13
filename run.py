@@ -236,7 +236,8 @@ def experiment():
     if args.load_path:
         # MDP
         mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=False)
+                            ends_at_life=False,
+                            n_steps_per_game=args.batch_size)
         n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
 
         # Policy
@@ -314,7 +315,7 @@ def experiment():
 
         # MDP
         mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=True)
+                            ends_at_life=True, n_steps_per_game=args.batch_size)
         n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
 
         # Policy
@@ -404,7 +405,7 @@ def experiment():
             # learning step
             mdp.freeze_env(False)
             mdp.set_episode_end(True)
-            mdp.set_env(0)
+            mdp.set_env(None)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
