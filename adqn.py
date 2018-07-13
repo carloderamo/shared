@@ -44,7 +44,6 @@ class DQN(Agent):
         self._episode_steps = 0
         self._no_op_actions = None
 
-
         self.autoencoder = Regressor(autoencoder, **autoencoder_params)
         self.approximator = list()
         self.target_approximator = list()
@@ -70,7 +69,6 @@ class DQN(Agent):
                                 self._history_length)
                                + self.mdp_info.observation_space.shape,
                                dtype=dtype)
-
 
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
