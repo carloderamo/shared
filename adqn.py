@@ -36,7 +36,9 @@ class DQN(Agent):
         self._replay_memory = [
             ReplayMemory(mdp_info, initial_replay_size, max_replay_size,
                          history_length, dtype) for _ in range(self._n_games)]
-        self._buffer = Buffer(history_length, dtype)
+        self._buffer = [
+            Buffer(history_length, dtype) for _ in range(self._n_games)
+        ]
 
         self._n_updates = 0
         self._episode_steps = 0
@@ -134,13 +136,15 @@ class DQN(Agent):
         return np.max(q, axis=1)
 
     def draw_action(self, state):
-        self._buffer.add(state[1])
+        self._buffer[np.asscalar(state[0])].add(state[1])
 
         if self._episode_steps < self._no_op_actions:
             action = np.array([self._no_op_action_value])
             self.policy.update(state)
         else:
-            extended_state = self.autoencoder(self._buffer.get(), encode=True)
+            extended_state = self.autoencoder(
+                self._buffer[np.asscalar(state[0])].get(), encode=True
+            )
 
             extended_state = np.array([state[0], extended_state])
             action = super(DQN, self).draw_action(extended_state)
@@ -154,7 +158,7 @@ class DQN(Agent):
             self._no_op_actions = 0
         else:
             self._no_op_actions = np.random.randint(
-                self._buffer.size, self._max_no_op_actions + 1)
+                self._history_length, self._max_no_op_actions + 1)
         self._episode_steps = 0
 
 
