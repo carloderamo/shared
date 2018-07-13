@@ -15,7 +15,7 @@ from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from atari import AtariMultiple
 from adqn import DQN, DoubleDQN
-from policy import EpsGreedyMultiple
+from policy import EpsGreedyEnsamble
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -69,7 +69,7 @@ class Autoencoder(nn.Module):
     def _decode(self, features):
         h = F.relu(self._d1(features.float()))
         h = F.relu(self._d2(h))
-        h = F.relu(self._d3(h))
+        h = F.sigmoid(self._d3(h))
 
         return h
 
@@ -88,7 +88,7 @@ class Network(nn.Module):
 
     def forward(self, features, action=None):
         h = F.relu(self._h1(features.float()))
-        q = F.relu(self._h2(h))
+        q = self._h2(h)
 
         if action is not None:
             action = action.long()
@@ -251,8 +251,7 @@ def experiment():
 
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
-        pi = EpsGreedyMultiple(epsilon=epsilon_test,
-                               n_actions_per_head=n_actions_per_head)
+        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
 
         # Approximator
         input_shape_approx = (3136,)
@@ -276,7 +275,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(input_shape,),
             optimizer=optimizer,
-            loss=F.mse_loss,
+            loss=F.binary_cross_entropy,
             use_cuda=args.use_cuda
         )
 
@@ -345,8 +344,7 @@ def experiment():
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyMultiple(epsilon=epsilon,
-                               n_actions_per_head=n_actions_per_head)
+        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
 
         # Approximator
         input_shape_approx = (3136,)
@@ -370,7 +368,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(input_shape,),
             optimizer=optimizer,
-            loss=F.mse_loss,
+            loss=F.binary_cross_entropy,
             use_cuda=args.use_cuda
         )
 

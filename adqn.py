@@ -139,7 +139,7 @@ class DQN(Agent):
             action = np.array([self._no_op_action_value])
             self.policy.update(state)
         else:
-            extended_state = self._buffer.get()
+            extended_state = self.autoencoder(self._buffer.get())
 
             extended_state = np.array([state[0], extended_state])
             action = super(DQN, self).draw_action(extended_state)
