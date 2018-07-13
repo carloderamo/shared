@@ -32,19 +32,9 @@ class Network(nn.Module):
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
 
-        class IdentityGradNorm(torch.autograd.Function):
-            @staticmethod
-            def forward(_, x):
-                return x
-
-            @staticmethod
-            def backward(_, grad_output):
-                return grad_output / self._n_games
-
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
         self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self._h3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self._h3_id = IdentityGradNorm
         self._h4 = nn.ModuleList([nn.Linear(3136, 512) for _ in range(
             self._n_games)])
         self._h5 = nn.ModuleList(
@@ -67,7 +57,6 @@ class Network(nn.Module):
         h = F.relu(self._h1(state.float() / 255.))
         h = F.relu(self._h2(h))
         h = F.relu(self._h3(h))
-        h = self._h3_id.apply(h)
 
         features = list()
         q = list()
@@ -218,7 +207,9 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    scores = [list()] * len(args.games)
+    scores = list()
+    for _ in range(len(args.games)):
+        scores.append(list())
 
     optimizer = dict()
     if args.optimizer == 'adam':
