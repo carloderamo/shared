@@ -23,6 +23,7 @@ This script runs Atari experiments with DQN as presented in:
 
 """
 
+
 class Autoencoder(nn.Module):
     def __init__(self, input_shape, _):
         super().__init__()
@@ -57,7 +58,6 @@ class Autoencoder(nn.Module):
             return features.view(-1, 3136)
         else:
             return self._decode(features)
-
 
     def _encode(self, state):
         h = F.relu(self._e1(state.float() / 255.))
