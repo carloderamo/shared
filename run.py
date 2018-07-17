@@ -24,6 +24,11 @@ This script runs Atari experiments with DQN as presented in:
 """
 
 
+def regularized_loss(args, y):
+    yhat, h_f = args
+    return F.smooth_l1_loss(yhat, y) + torch.norm(h_f, 1)
+
+
 class Network(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head):
         super(Network, self).__init__()
@@ -53,16 +58,18 @@ class Network(nn.Module):
             nn.init.xavier_uniform_(self._h5[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, idx=None):
+    def forward(self, state, action=None, idx=None, get_features=False):
         h = F.relu(self._h1(state.float() / 255.))
         h = F.relu(self._h2(h))
         h = F.relu(self._h3(h))
+
+        h_f = h.view(-1, 3136)
 
         features = list()
         q = list()
 
         for i in range(self._n_games):
-            features.append(F.relu(self._h4[i](h.view(-1, 3136))))
+            features.append(F.relu(self._h4[i](h_f)))
             q.append(self._h5[i](features[i]))
 
         q = torch.stack(q, dim=1)
@@ -84,7 +91,10 @@ class Network(nn.Module):
 
             q = torch.squeeze(q_idx, 1)
 
-        return q
+        if get_features:
+            return q, h_f
+        else:
+            return q
 
 
 def print_epoch(epoch):
@@ -256,7 +266,7 @@ def experiment():
             n_actions_per_head=n_actions_per_head,
             load_path=args.load_path,
             optimizer=optimizer,
-            loss=F.smooth_l1_loss,
+            loss=regularized_loss,
             use_cuda=args.use_cuda
         )
 
@@ -337,7 +347,7 @@ def experiment():
             n_actions=mdp.info.action_space.n,
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
-            loss=F.smooth_l1_loss,
+            loss=regularized_loss,
             use_cuda=args.use_cuda
         )
 

@@ -121,7 +121,8 @@ class DQN(Agent):
             q = reward + self.mdp_info.gamma * q_next
 
             self.approximator.fit(self._state, self._action, q,
-                                  idx=self._state_idxs, **self._fit_params)
+                                  idx=self._state_idxs,
+                                  get_features=True, **self._fit_params)
 
             self._n_updates += 1
 
