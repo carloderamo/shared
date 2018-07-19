@@ -24,11 +24,6 @@ This script runs Atari experiments with DQN as presented in:
 """
 
 
-def regularized_loss(args, y):
-    yhat, h_f = args
-    return F.smooth_l1_loss(yhat, y) + torch.norm(h_f, 1)
-
-
 class Network(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head):
         super(Network, self).__init__()
@@ -151,6 +146,7 @@ def experiment():
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered and'
                               'rmsprop')
+    arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
@@ -216,6 +212,12 @@ def experiment():
     args = parser.parse_args()
 
     args.games = [''.join(g) for g in args.games]
+
+    def regularized_loss(arg, y):
+        yhat, h_f = arg
+        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
+
+        return loss + args.reg_coeff * torch.norm(h_f, 1)
 
     scores = list()
     for _ in range(len(args.games)):
