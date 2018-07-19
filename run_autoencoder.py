@@ -219,6 +219,12 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
+    def regularized_loss(arg, y):
+        yhat, h_f = arg
+        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
+
+        return loss + args.reg_coeff * torch.norm(h_f, 1)
+
     scores = [list()] * len(args.games)
 
     optimizer = dict()
@@ -262,7 +268,7 @@ def experiment():
             output_shape=(m.info.action_space.n,),
             n_actions=m.info.action_space.n,
             optimizer=optimizer,
-            loss=F.smooth_l1_loss,
+            loss=regularized_loss,
             use_cuda=args.use_cuda) for m in mdp.envs]
 
         approximator = PyTorchApproximator
@@ -355,7 +361,7 @@ def experiment():
             output_shape=(m.info.action_space.n,),
             n_actions=m.info.action_space.n,
             optimizer=optimizer,
-            loss=F.smooth_l1_loss,
+            loss=regularized_loss,
             use_cuda=args.use_cuda) for m in mdp.envs]
 
         approximator = PyTorchApproximator
