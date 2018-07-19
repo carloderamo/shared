@@ -51,13 +51,16 @@ class Autoencoder(nn.Module):
         nn.init.xavier_uniform_(self._d3.weight,
                                 gain=nn.init.calculate_gain('sigmoid'))
 
-    def forward(self, state, encode=False):
+    def forward(self, state, encode=False, get_features=False):
         features = self._encode(state)
 
         if encode:
             return features.view(-1, 3136)
         else:
-            return self._decode(features)
+            if get_features:
+                return self._decode(features), features.view(-1, 3136)
+            else:
+                return self._decode(features)
 
     def _encode(self, state):
         h = F.relu(self._e1(state.float() / 255.))
@@ -153,6 +156,7 @@ def experiment():
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered and'
                               'rmsprop')
+    arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
@@ -221,7 +225,7 @@ def experiment():
 
     def regularized_loss(arg, y):
         yhat, h_f = arg
-        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
+        loss = F.binary_cross_entropy(yhat, y)
 
         return loss + args.reg_coeff * torch.norm(h_f, 1)
 
@@ -268,7 +272,7 @@ def experiment():
             output_shape=(m.info.action_space.n,),
             n_actions=m.info.action_space.n,
             optimizer=optimizer,
-            loss=regularized_loss,
+            loss=F.smooth_l1_loss,
             use_cuda=args.use_cuda) for m in mdp.envs]
 
         approximator = PyTorchApproximator
@@ -281,7 +285,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(input_shape,),
             optimizer=optimizer,
-            loss=F.binary_cross_entropy,
+            loss=regularized_loss,
             use_cuda=args.use_cuda
         )
 
@@ -361,7 +365,7 @@ def experiment():
             output_shape=(m.info.action_space.n,),
             n_actions=m.info.action_space.n,
             optimizer=optimizer,
-            loss=regularized_loss,
+            loss=F.smooth_l1_loss,
             use_cuda=args.use_cuda) for m in mdp.envs]
 
         approximator = PyTorchApproximator
@@ -374,7 +378,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(input_shape,),
             optimizer=optimizer,
-            loss=F.binary_cross_entropy,
+            loss=regularized_loss,
             use_cuda=args.use_cuda
         )
 
