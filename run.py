@@ -25,12 +25,13 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, dropout):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
+        self._use_cuda = use_cuda
         self._dropout = dropout
 
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
@@ -87,7 +88,9 @@ class Network(nn.Module):
             q = q_acted
 
         if idx is not None:
-            idx = torch.from_numpy(idx).cuda()
+            idx = torch.from_numpy(idx)
+            if self._use_cuda:
+                idx = idx.cuda()
             if q.dim() == 2:
                 q_idx = q.gather(1, idx.unsqueeze(-1))
             else:
