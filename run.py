@@ -25,12 +25,13 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head):
+    def __init__(self, input_shape, _, n_actions_per_head, dropout):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
+        self._dropout = dropout
 
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
         self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
@@ -40,6 +41,11 @@ class Network(nn.Module):
         self._h5 = nn.ModuleList(
             [nn.Linear(512, self._max_actions) for _ in range(
                 self._n_games)])
+
+        if self._dropout:
+            self._h1_dropout = nn.Dropout2d()
+            self._h2_dropout = nn.Dropout2d()
+            self._h3_dropout = nn.Dropout2d()
 
         nn.init.xavier_uniform_(self._h1.weight,
                                 gain=nn.init.calculate_gain('relu'))
@@ -55,10 +61,14 @@ class Network(nn.Module):
 
     def forward(self, state, action=None, idx=None, get_features=False):
         h = F.relu(self._h1(state.float() / 255.))
-        h = F.relu(self._h2(h))
-        h = F.relu(self._h3(h))
-
-        h_f = h.view(-1, 3136)
+        if self._dropout:
+            h = F.relu(self._h2(self._h1_dropout(h)))
+            h = F.relu(self._h3(self._h2_dropout(h)))
+            h_f = self._h3_dropout(h).view(-1, 3136)
+        else:
+            h = F.relu(self._h2(h))
+            h = F.relu(self._h3(h))
+            h_f = h.view(-1, 3136)
 
         features = list()
         q = list()
@@ -153,6 +163,7 @@ def experiment():
                          default='ddqn',
                          help='Name of the algorithm. dqn is for standard'
                               'DQN, ddqn is for Double DQN.')
+    arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
@@ -269,7 +280,8 @@ def experiment():
             load_path=args.load_path,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
         )
 
         approximator = PyTorchApproximator
@@ -350,7 +362,8 @@ def experiment():
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
         )
 
         approximator = PyTorchApproximator
