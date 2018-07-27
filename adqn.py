@@ -122,6 +122,7 @@ class DQN(Agent):
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
                 image = self._replay_memory[i].get(1)
+                print('saving image...')
                 encoded_image = self.autoencoder.forward(image, encode=False)
                 scipy.misc.imsave('original_' + str(tmp_var) + '.png',
                                   image.data[0, :, :, 0])
