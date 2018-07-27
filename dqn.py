@@ -21,7 +21,7 @@ class DQN(Agent):
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, history_length=1,
                  clip_reward=True, max_no_op_actions=0, no_op_action_value=0,
-                 dtype=np.float32):
+                 dtype=np.float32, distill=False):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -33,6 +33,8 @@ class DQN(Agent):
         self._history_length = history_length
         self._max_no_op_actions = max_no_op_actions
         self._no_op_action_value = no_op_action_value
+        self._distill = distill
+        self._freeze_shared_weights = False
 
         self._replay_memory = [
             ReplayMemory(mdp_info, initial_replay_size, max_replay_size,
@@ -128,6 +130,8 @@ class DQN(Agent):
 
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
+                if self._distill:
+                    self._switch_freezed_weights()
 
     def _update_target(self):
         """
@@ -136,6 +140,23 @@ class DQN(Agent):
         """
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
+
+    def _switch_freezed_weights(self):
+        n_shared = self.approximator.model._network._n_shared
+        if self._freeze_shared_weights:
+            for i, p in enumerate(self.approximator.model._network.parameters()):
+                if i < n_shared:
+                    p.requires_grad = False
+                else:
+                    p.requires_grad = True
+        else:
+            for i, p in enumerate(self.approximator.model._network.parameters()):
+                if i < n_shared:
+                    p.requires_grad = True
+                else:
+                    p.requires_grad = False
+
+        self._freeze_shared_weights = not self._freeze_shared_weights
 
     def _next_q(self):
         q = self.target_approximator.predict(

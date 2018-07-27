@@ -33,6 +33,7 @@ class Network(nn.Module):
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
         self._dropout = dropout
+        self._n_shared = 6
 
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
         self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
@@ -167,6 +168,7 @@ def experiment():
                          help='Name of the algorithm. dqn is for standard'
                               'DQN, ddqn is for Double DQN.')
     arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--distill", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
@@ -300,7 +302,8 @@ def experiment():
             history_length=args.history_length,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
-            dtype=np.uint8
+            dtype=np.uint8,
+            distill=args.distill
         )
         agent = DQN(approximator, pi, mdp.info,
                     approximator_params=approximator_params, **algorithm_params)
@@ -382,7 +385,8 @@ def experiment():
             n_actions_per_head=n_actions_per_head,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
-            dtype=np.uint8
+            dtype=np.uint8,
+            distill=args.distill
         )
 
         if args.algorithm == 'dqn':
