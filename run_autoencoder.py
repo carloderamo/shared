@@ -25,7 +25,7 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Autoencoder(nn.Module):
-    def __init__(self, input_shape, **kwargs):
+    def __init__(self, input_shape, _, **kwargs):
         super().__init__()
 
         self._e1 = nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4)
