@@ -11,8 +11,6 @@ from replay_memory import ReplayMemory
 import scipy
 
 
-tmp_var = 0
-
 class DQN(Agent):
     """
     Deep Q-Network algorithm.
@@ -73,6 +71,7 @@ class DQN(Agent):
                                 self._history_length)
                                + self.mdp_info.observation_space.shape,
                                dtype=dtype)
+        self.tmp_var = 0
 
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
@@ -121,14 +120,16 @@ class DQN(Agent):
 
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
-                image = self._replay_memory[i].get(1)
+                image = self._replay_memory[i].get(1)[0]
                 print('saving image...')
+                print(image.shape)
+
                 encoded_image = self.autoencoder(image, encode=False)
-                scipy.misc.imsave('original_' + str(tmp_var) + '.png',
-                                  image.data[0, :, :, 0])
-                scipy.misc.imsave('encoded_' + str(tmp_var) + '.png',
-                                  encoded_image.data[0, :, :, 0])
-                tmp_var += 1
+                scipy.misc.imsave('original_' + str(self.tmp_var) + '.png',
+                                  image[0, 0, :, :])
+                scipy.misc.imsave('encoded_' + str(self.tmp_var) + '.png',
+                                  encoded_image[0, 0, :, :])
+                self.tmp_var += 1
 
     def _update_target(self):
         """
