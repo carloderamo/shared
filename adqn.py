@@ -123,7 +123,7 @@ class DQN(Agent):
                 self._update_target()
                 image = self._replay_memory[i].get(1)
                 print('saving image...')
-                encoded_image = self.autoencoder.forward(image, encode=False)
+                encoded_image = self.autoencoder(image, encode=False)
                 scipy.misc.imsave('original_' + str(tmp_var) + '.png',
                                   image.data[0, :, :, 0])
                 scipy.misc.imsave('encoded_' + str(tmp_var) + '.png',
