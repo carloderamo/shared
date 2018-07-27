@@ -8,6 +8,9 @@ from mushroom.utils.replay_memory import Buffer
 
 from replay_memory import ReplayMemory
 
+import scipy
+
+
 tmp_var = 0
 
 class DQN(Agent):
@@ -118,13 +121,12 @@ class DQN(Agent):
 
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
-                from torchvision.utils import save_image
                 image = self._replay_memory[i].get(1)
                 encoded_image = self.autoencoder.forward(image, encode=False)
-                save_image(image[0, :, :, 0], '/tmp/msh/original' + str(tmp_var)
-                           + '.png')
-                save_image(encoded_image[0, :, :, 0], '/tmp/msh/encoded'
-                           + str(tmp_var) +'.png')
+                scipy.misc.imsave('original_' + str(tmp_var) + '.png',
+                                  image.data[0, :, :, 0])
+                scipy.misc.imsave('encoded_' + str(tmp_var) + '.png',
+                                  encoded_image.data[0, :, :, 0])
                 tmp_var += 1
 
     def _update_target(self):
