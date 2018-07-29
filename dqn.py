@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import numpy as np
+from scipy.special import logsumexp
 
 from mushroom.algorithms.agent import Agent
 from mushroom.approximators.regressor import Ensemble, Regressor
@@ -21,7 +22,7 @@ class DQN(Agent):
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, history_length=1,
                  clip_reward=True, max_no_op_actions=0, no_op_action_value=0,
-                 dtype=np.float32, distill=False):
+                 dtype=np.float32, distill=False, entropy_coeff=np.inf):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -35,6 +36,7 @@ class DQN(Agent):
         self._no_op_action_value = no_op_action_value
         self._distill = distill
         self._freeze_shared_weights = False
+        self._entropy_coeff = entropy_coeff
 
         self._replay_memory = [
             ReplayMemory(mdp_info, initial_replay_size, max_replay_size,
@@ -57,13 +59,6 @@ class DQN(Agent):
 
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
-
-        self._mask = np.zeros((self._batch_size * self._n_games, self._n_games,
-                               self._max_actions))
-        for i in range(self._n_games):
-            self._mask[
-                self._batch_size * i:self._batch_size * i + self._batch_size,
-                i, self._n_action_per_head[i][0]:] -= np.inf
 
         super().__init__(policy, mdp_info)
 
@@ -104,7 +99,7 @@ class DQN(Agent):
                         self._batch_size)
 
                 start = self._batch_size * i
-                stop = self._batch_size * i + self._batch_size
+                stop = start + self._batch_size
 
                 self._state_idxs[start:stop] = np.ones(self._batch_size) * i
                 self._state[start:stop] = game_state
@@ -159,12 +154,29 @@ class DQN(Agent):
         self._freeze_shared_weights = not self._freeze_shared_weights
 
     def _next_q(self):
-        q = self.target_approximator.predict(
-            self._next_state, idx=self._next_state_idxs) + self._mask
-        if np.any(self._absorbing):
-            q *= 1 - self._absorbing.reshape(-1, 1)
+        q = self.target_approximator.predict(self._next_state,
+                                             idx=self._next_state_idxs)
 
-        return np.max(q, axis=1)
+        out_q = np.zeros(self._batch_size * self._n_games)
+        for i in range(self._n_games):
+            start = self._batch_size * i
+            stop = start + self._batch_size
+            if np.any(self._absorbing[start:stop]):
+                q[start:stop] *= 1 - self._absorbing[start:stop].reshape(-1, 1)
+
+            n_actions = self._n_action_per_head[i][0]
+            if self._entropy_coeff == np.inf:
+                out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
+            elif self._entropy_coeff == 0:
+                out_q[start:stop] = np.mean(q[start:stop, :n_actions], axis=1)
+            elif self._entropy_coeff == -np.inf:
+                out_q[start:stop] = np.min(q[start:stop, :n_actions], axis=1)
+            else:
+                out_q[start:stop] = logsumexp(
+                    self._entropy_coeff * q[start:stop, :n_actions], axis=1
+                ) / self._entropy_coeff
+
+        return out_q
 
     def draw_action(self, state):
         self._buffer[np.asscalar(state[0])].add(state[1])
@@ -189,16 +201,3 @@ class DQN(Agent):
             self._no_op_actions = np.random.randint(
                 self._history_length, self._max_no_op_actions + 1)
         self._episode_steps = 0
-
-
-class DoubleDQN(DQN):
-    def _next_q(self):
-        q = self.approximator.predict(self._next_state) + self._mask
-        max_a = np.argmax(q, axis=2)[np.arange(len(q)), self._next_state_idxs]
-
-        double_q = self.target_approximator.predict(
-            self._next_state, max_a, idx=self._next_state_idxs)
-        if np.any(self._absorbing):
-            double_q *= 1 - self._absorbing
-
-        return double_q

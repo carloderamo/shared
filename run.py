@@ -14,7 +14,7 @@ from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from atari import AtariMultiple
-from dqn import DQN, DoubleDQN
+from dqn import DQN
 from policy import EpsGreedyMultiple
 
 """
@@ -149,7 +149,7 @@ def experiment():
                                   'adam',
                                   'rmsprop',
                                   'rmspropcentered'],
-                         default='rmsprop',
+                         default='rmspropcentered',
                          help='Name of the optimizer to use.')
     arg_net.add_argument("--learning-rate", type=float, default=.00025,
                          help='Learning rate value of the optimizer.')
@@ -163,12 +163,9 @@ def experiment():
     arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
-                         default='ddqn',
-                         help='Name of the algorithm. dqn is for standard'
-                              'DQN, ddqn is for Double DQN.')
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--distill", action='store_true')
+    arg_alg.add_argument("--entropy-coeff", type=float, default=np.inf)
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
@@ -303,7 +300,8 @@ def experiment():
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
-            distill=args.distill
+            distill=args.distill,
+            entropy_coeff=args.entropy_coeff
         )
         agent = DQN(approximator, pi, mdp.info,
                     approximator_params=approximator_params, **algorithm_params)
@@ -386,17 +384,13 @@ def experiment():
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
-            distill=args.distill
+            distill=args.distill,
+            entropy_coeff=args.entropy_coeff
         )
 
-        if args.algorithm == 'dqn':
-            agent = DQN(approximator, pi, mdp.info,
-                        approximator_params=approximator_params,
-                        **algorithm_params)
-        elif args.algorithm == 'ddqn':
-            agent = DoubleDQN(approximator, pi, mdp.info,
-                              approximator_params=approximator_params,
-                              **algorithm_params)
+        agent = DQN(approximator, pi, mdp.info,
+                    approximator_params=approximator_params,
+                    **algorithm_params)
 
         # Algorithm
         core = Core(agent, mdp)
@@ -416,9 +410,6 @@ def experiment():
             agent.approximator.model.save()
 
         # Evaluate initial policy
-        if args.algorithm == 'ddqn':
-            agent.policy.set_q(agent.target_approximator)
-
         for idx in range(len(args.games)):
             mdp.set_episode_end(False)
             mdp.set_env(idx)
@@ -426,9 +417,6 @@ def experiment():
             dataset = core.evaluate(n_steps=test_samples, render=args.render,
                                     quiet=args.quiet)
             scores[idx].append(get_stats(dataset, idx, args.games))
-
-        if args.algorithm == 'ddqn':
-            agent.policy.set_q(agent.approximator)
 
         np.save(folder_name + '/scores.npy', scores)
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
@@ -447,9 +435,6 @@ def experiment():
 
             print('- Evaluation:')
             # evaluation step
-            if args.algorithm == 'ddqn':
-                agent.policy.set_q(agent.target_approximator)
-
             mdp.freeze_env(True)
             for idx in range(len(args.games)):
                 mdp.set_episode_end(False)
@@ -458,9 +443,6 @@ def experiment():
                 dataset = core.evaluate(n_steps=test_samples,
                                         render=args.render, quiet=args.quiet)
                 scores[idx].append(get_stats(dataset, idx, args.games))
-
-            if args.algorithm == 'ddqn':
-                agent.policy.set_q(agent.approximator)
 
             np.save(folder_name + '/scores.npy', scores)
 
