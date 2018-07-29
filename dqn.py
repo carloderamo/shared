@@ -121,12 +121,17 @@ class DQN(Agent):
                                   idx=self._state_idxs,
                                   get_features=True, **self._fit_params)
 
+            if self._distill:
+                self._switch_freezed_weights()
+                self.approximator.fit(self._state, self._action, q,
+                                      idx=self._state_idxs,
+                                      get_features=True, **self._fit_params)
+                self._switch_freezed_weights()
+
             self._n_updates += 1
 
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
-                if self._distill:
-                    self._switch_freezed_weights()
 
     def _update_target(self):
         """
