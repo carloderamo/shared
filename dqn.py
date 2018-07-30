@@ -122,7 +122,6 @@ class DQN(Agent):
                                   get_features=True, **self._fit_params)
 
             if self._distill:
-                self._switch_freezed_weights()
                 self.approximator.fit(self._state, self._action, q,
                                       idx=self._state_idxs,
                                       get_features=True, **self._fit_params)
