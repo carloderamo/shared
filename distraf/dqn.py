@@ -116,7 +116,7 @@ class DQN(Agent):
                 self._features[start:stop] = self.target_approximator[
                     i].predict(state, get_features=True)
 
-            self._distilled_network.fit(self._all_states, self._features)
+            self._distilled.fit(self._all_states, self._features)
 
     def _update_target(self, idx):
         """

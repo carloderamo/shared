@@ -65,7 +65,7 @@ class Network(nn.Module):
             if get_features:
                 if features is not None:
                     return q, h_f, features
-                return q, h_f
+                return h_f
             return q
         else:
             q_acted = torch.squeeze(q.gather(1, action.long()))
@@ -73,7 +73,7 @@ class Network(nn.Module):
             if get_features:
                 if features is not None:
                     return q_acted, h_f, features
-                return q_acted, h_f
+                return h_f
             return q_acted
 
 
