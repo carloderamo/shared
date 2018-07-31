@@ -354,7 +354,7 @@ def experiment():
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
+        pi = EpsGreedyEnsamble(epsilon=epsilon, n=len(mdp.envs))
 
         # Approximator
         input_shape_approx = (3136,)
