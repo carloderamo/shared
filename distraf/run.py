@@ -160,7 +160,7 @@ def experiment():
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered and'
                               'rmsprop')
-    arg_net.add_argument("--reg-coeff", type=float, default=0.)
+    arg_net.add_argument("--reg-coeff", type=float, default=.5)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--entropy-coeff", type=float, default=np.inf)
