@@ -224,9 +224,10 @@ def experiment():
 
     def regularized_loss(loss_args, y):
         y_hat, f_hat, f = loss_args
-        loss = F.smooth_l1_loss(y_hat, y) + F.mse_loss(f_hat, f)
+        f = torch.from_numpy(f)
 
-        return loss + args.reg_coeff
+        return F.smooth_l1_loss(y_hat, y) + args.reg_coeff * F.mse_loss(f_hat,
+                                                                        f)
 
     scores = list()
     for _ in range(len(args.games)):
