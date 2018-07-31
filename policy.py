@@ -69,7 +69,7 @@ class EpsGreedyMultiple(TDPolicy):
         self._epsilons[idx].update(state)
 
 
-class EpsGreedyEnsamble(TDPolicy):
+class EpsGreedyEnsemble(TDPolicy):
     def __init__(self, epsilon, n):
         """
         Constructor.

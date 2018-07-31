@@ -14,8 +14,8 @@ from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from atari import AtariMultiple
-from adqn import DQN, DoubleDQN
-from policy import EpsGreedyEnsamble
+from shared.dqn import DQN
+from policy import EpsGreedyMultiple
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -24,82 +24,86 @@ This script runs Atari experiments with DQN as presented in:
 """
 
 
-class Autoencoder(nn.Module):
-    def __init__(self, input_shape, _, **kwargs):
-        super().__init__()
-
-        self._e1 = nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4)
-        self._e2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self._e3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-
-        self._d1 = nn.ConvTranspose2d(64, 64, kernel_size=3, stride=1)
-        self._d2 = nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2)
-        self._d3 = nn.ConvTranspose2d(32, input_shape[0], kernel_size=8,
-                                      stride=4)
-
-        nn.init.xavier_uniform_(self._e1.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._e2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._e3.weight,
-                                gain=nn.init.calculate_gain('relu'))
-
-        nn.init.xavier_uniform_(self._d1.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._d2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._d3.weight,
-                                gain=nn.init.calculate_gain('sigmoid'))
-
-    def forward(self, state, encode=False, get_features=False):
-        features = self._encode(state)
-
-        if encode:
-            return features.view(-1, 3136)
-        else:
-            if get_features:
-                return self._decode(features), features.view(-1, 3136)
-            else:
-                return self._decode(features)
-
-    def _encode(self, state):
-        h = F.relu(self._e1(state.float() / 255.))
-        h = F.relu(self._e2(h))
-        h = F.relu(self._e3(h))
-
-        return h
-
-    def _decode(self, features):
-        h = F.relu(self._d1(features.float()))
-        h = F.relu(self._d2(h))
-        h = F.sigmoid(self._d3(h))
-
-        return h
-
-
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape, **kwargs):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
         super(Network, self).__init__()
 
-        self._h1 = nn.Linear(input_shape[0], 512)
-        self._h2 = nn.Linear(512, output_shape[0])
+        n_input = input_shape[0]
+        self._n_games = len(n_actions_per_head)
+        self._max_actions = max(n_actions_per_head)[0]
+        self._use_cuda = use_cuda
+        self._dropout = dropout
+        self._n_shared = 6
+
+        self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
+        self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
+        self._h3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        self._h4 = nn.ModuleList([nn.Linear(3136, 512) for _ in range(
+            self._n_games)])
+        self._h5 = nn.ModuleList(
+            [nn.Linear(512, self._max_actions) for _ in range(
+                self._n_games)])
+
+        if self._dropout:
+            self._h1_dropout = nn.Dropout2d()
+            self._h2_dropout = nn.Dropout2d()
+            self._h3_dropout = nn.Dropout2d()
 
         nn.init.xavier_uniform_(self._h1.weight,
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('linear'))
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._h3.weight,
+                                gain=nn.init.calculate_gain('relu'))
+        for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._h4[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self._h5[i].weight,
+                                    gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, features, action=None):
-        h = F.relu(self._h1(features.float()))
-        q = self._h2(h)
+    def forward(self, state, action=None, idx=None, get_features=False):
+        h = F.relu(self._h1(state.float() / 255.))
+        if self._dropout:
+            h = F.relu(self._h2(self._h1_dropout(h)))
+            h = F.relu(self._h3(self._h2_dropout(h)))
+            h_f = self._h3_dropout(h).view(-1, 3136)
+        else:
+            h = F.relu(self._h2(h))
+            h = F.relu(self._h3(h))
+            h_f = h.view(-1, 3136)
+
+        features = list()
+        q = list()
+
+        for i in range(self._n_games):
+            features.append(F.relu(self._h4[i](h_f)))
+            q.append(self._h5[i](features[i]))
+
+        q = torch.stack(q, dim=1)
 
         if action is not None:
             action = action.long()
-            q_acted = torch.squeeze(q.gather(1, action), -1)
+            q_acted = torch.squeeze(
+                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
 
             q = q_acted
 
-        return q
+        if idx is not None:
+            idx = torch.from_numpy(idx)
+            if self._use_cuda:
+                idx = idx.cuda()
+            if q.dim() == 2:
+                q_idx = q.gather(1, idx.unsqueeze(-1))
+            else:
+                q_idx = q.gather(1, idx.view(-1, 1).repeat(
+                    1, self._max_actions).unsqueeze(1))
+
+            q = torch.squeeze(q_idx, 1)
+
+        if get_features:
+            return q, h_f
+        else:
+            return q
 
 
 def print_epoch(epoch):
@@ -145,7 +149,7 @@ def experiment():
                                   'adam',
                                   'rmsprop',
                                   'rmspropcentered'],
-                         default='rmsprop',
+                         default='rmspropcentered',
                          help='Name of the optimizer to use.')
     arg_net.add_argument("--learning-rate", type=float, default=.00025,
                          help='Learning rate value of the optimizer.')
@@ -159,10 +163,9 @@ def experiment():
     arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
-                         default='ddqn',
-                         help='Name of the algorithm. dqn is for standard'
-                              'DQN, ddqn is for Double DQN.')
+    arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--distill", action='store_true')
+    arg_alg.add_argument("--entropy-coeff", type=float, default=np.inf)
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
@@ -225,11 +228,13 @@ def experiment():
 
     def regularized_loss(arg, y):
         yhat, h_f = arg
-        loss = F.binary_cross_entropy(yhat, y)
+        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
 
         return loss + args.reg_coeff * torch.norm(h_f, 1)
 
-    scores = [list()] * len(args.games)
+    scores = list()
+    for _ in range(len(args.games)):
+        scores.append(list())
 
     optimizer = dict()
     if args.optimizer == 'adam':
@@ -256,57 +261,50 @@ def experiment():
     if args.load_path:
         # MDP
         mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=False)
+                            ends_at_life=False,
+                            n_steps_per_game=args.batch_size)
         n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
 
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
-        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
+        pi = EpsGreedyMultiple(epsilon=epsilon_test,
+                               n_actions_per_head=n_actions_per_head)
 
         # Approximator
-        input_shape_approx = (3136,)
-
-        approximator_params = [dict(
-            network=Network,
-            input_shape=input_shape_approx,
-            output_shape=(m.info.action_space.n,),
-            n_actions=m.info.action_space.n,
-            optimizer=optimizer,
-            loss=F.smooth_l1_loss,
-            use_cuda=args.use_cuda) for m in mdp.envs]
-
-        approximator = PyTorchApproximator
-
         input_shape = (args.history_length, args.screen_height,
                        args.screen_width)
-
-        autoencoder_params = dict(
-            network=Autoencoder,
+        approximator_params = dict(
+            network=Network,
             input_shape=input_shape,
-            output_shape=(input_shape,),
+            output_shape=(mdp.info.action_space.n,),
+            n_actions=mdp.info.action_space.n,
+            n_actions_per_head=n_actions_per_head,
+            load_path=args.load_path,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
         )
 
-        autoencoder = PyTorchApproximator
+        approximator = PyTorchApproximator
 
         # Agent
         algorithm_params = dict(
             batch_size=1,
             train_frequency=1,
             target_update_frequency=1,
+            n_actions_per_head=n_actions_per_head,
             initial_replay_size=0,
             max_replay_size=0,
             history_length=args.history_length,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
-            dtype=np.uint8
+            dtype=np.uint8,
+            distill=args.distill,
+            entropy_coeff=args.entropy_coeff
         )
-        agent = DQN(approximator, autoencoder, pi, mdp.info,
-                    approximator_params=approximator_params,
-                    autoencoder_params=autoencoder_params,
-                    **algorithm_params)
+        agent = DQN(approximator, pi, mdp.info,
+                    approximator_params=approximator_params, **algorithm_params)
 
         # Algorithm
         core_test = Core(agent, mdp)
@@ -345,7 +343,7 @@ def experiment():
 
         # MDP
         mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=True)
+                            ends_at_life=True, n_steps_per_game=args.batch_size)
         n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
 
         # Policy
@@ -354,35 +352,25 @@ def experiment():
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
+        pi = EpsGreedyMultiple(epsilon=epsilon,
+                               n_actions_per_head=n_actions_per_head)
 
         # Approximator
-        input_shape_approx = (3136,)
-
-        approximator_params = [dict(
-            network=Network,
-            input_shape=input_shape_approx,
-            output_shape=(m.info.action_space.n,),
-            n_actions=m.info.action_space.n,
-            optimizer=optimizer,
-            loss=F.smooth_l1_loss,
-            use_cuda=args.use_cuda) for m in mdp.envs]
-
-        approximator = PyTorchApproximator
-
         input_shape = (args.history_length, args.screen_height,
                        args.screen_width)
-
-        autoencoder_params = dict(
-            network=Autoencoder,
+        approximator_params = dict(
+            network=Network,
             input_shape=input_shape,
-            output_shape=(input_shape,),
+            output_shape=(mdp.info.action_space.n,),
+            n_actions=mdp.info.action_space.n,
+            n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
         )
 
-        autoencoder = PyTorchApproximator
+        approximator = PyTorchApproximator
 
         # Agent
         algorithm_params = dict(
@@ -392,21 +380,17 @@ def experiment():
             max_replay_size=max_replay_size,
             history_length=args.history_length,
             target_update_frequency=target_update_frequency // train_frequency,
+            n_actions_per_head=n_actions_per_head,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
-            dtype=np.uint8
+            dtype=np.uint8,
+            distill=args.distill,
+            entropy_coeff=args.entropy_coeff
         )
 
-        if args.algorithm == 'dqn':
-            agent = DQN(approximator, autoencoder, pi, mdp.info,
-                        approximator_params=approximator_params,
-                        autoencoder_params=autoencoder_params,
-                        **algorithm_params)
-        elif args.algorithm == 'ddqn':
-            agent = DoubleDQN(approximator, autoencoder, pi, mdp.info,
-                              approximator_params=approximator_params,
-                              autoencoder_params=autoencoder_params,
-                              **algorithm_params)
+        agent = DQN(approximator, pi, mdp.info,
+                    approximator_params=approximator_params,
+                    **algorithm_params)
 
         # Algorithm
         core = Core(agent, mdp)
@@ -426,9 +410,6 @@ def experiment():
             agent.approximator.model.save()
 
         # Evaluate initial policy
-        if args.algorithm == 'ddqn':
-            agent.policy.set_q(agent.target_approximator)
-
         for idx in range(len(args.games)):
             mdp.set_episode_end(False)
             mdp.set_env(idx)
@@ -437,9 +418,6 @@ def experiment():
                                     quiet=args.quiet)
             scores[idx].append(get_stats(dataset, idx, args.games))
 
-        if args.algorithm == 'ddqn':
-            agent.policy.set_q(agent.approximator)
-
         np.save(folder_name + '/scores.npy', scores)
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
             print_epoch(n_epoch)
@@ -447,7 +425,7 @@ def experiment():
             # learning step
             mdp.freeze_env(False)
             mdp.set_episode_end(True)
-            mdp.set_env(0)
+            mdp.set_env(None)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
@@ -457,9 +435,6 @@ def experiment():
 
             print('- Evaluation:')
             # evaluation step
-            if args.algorithm == 'ddqn':
-                agent.policy.set_q(agent.target_approximator)
-
             mdp.freeze_env(True)
             for idx in range(len(args.games)):
                 mdp.set_episode_end(False)
@@ -468,9 +443,6 @@ def experiment():
                 dataset = core.evaluate(n_steps=test_samples,
                                         render=args.render, quiet=args.quiet)
                 scores[idx].append(get_stats(dataset, idx, args.games))
-
-            if args.algorithm == 'ddqn':
-                agent.policy.set_q(agent.approximator)
 
             np.save(folder_name + '/scores.npy', scores)
 

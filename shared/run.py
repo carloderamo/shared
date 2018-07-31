@@ -14,7 +14,7 @@ from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from atari import AtariMultiple
-from dqn import DQN
+from shared.dqn import DQN
 from policy import EpsGreedyMultiple
 
 """
