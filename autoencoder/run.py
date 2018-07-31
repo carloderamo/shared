@@ -15,7 +15,7 @@ from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from atari import AtariMultiple
 from autoencoder.adqn import DQN, DoubleDQN
-from policy import EpsGreedyEnsamble
+from policy import EpsGreedyEnsemble
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -261,7 +261,7 @@ def experiment():
 
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
-        pi = EpsGreedyEnsamble(epsilon=epsilon_test, n=len(mdp.envs))
+        pi = EpsGreedyEnsemble(epsilon=epsilon_test, n=len(mdp.envs))
 
         # Approximator
         input_shape_approx = (3136,)
@@ -354,7 +354,7 @@ def experiment():
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyEnsamble(epsilon=epsilon, n=len(mdp.envs))
+        pi = EpsGreedyEnsemble(epsilon=epsilon, n=len(mdp.envs))
 
         # Approximator
         input_shape_approx = (3136,)
