@@ -18,24 +18,20 @@ class DQN(Agent):
 
     """
     def __init__(self, approximator, policy, mdp_info, batch_size,
-                 initial_replay_size, max_replay_size, n_actions_per_head,
+                 distilled_params, initial_replay_size, max_replay_size,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, history_length=1,
                  clip_reward=True, max_no_op_actions=0, no_op_action_value=0,
-                 dtype=np.float32, distill=False, entropy_coeff=np.inf):
+                 dtype=np.float32, entropy_coeff=np.inf):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
         self._n_games = n_games
         self._clip_reward = clip_reward
-        self._n_action_per_head = n_actions_per_head
-        self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
         self._history_length = history_length
         self._max_no_op_actions = max_no_op_actions
         self._no_op_action_value = no_op_action_value
-        self._distill = distill
-        self._freeze_shared_weights = False
         self._entropy_coeff = entropy_coeff
 
         self._replay_memory = [
@@ -50,34 +46,33 @@ class DQN(Agent):
         self._episode_steps = 0
         self._no_op_actions = None
 
-        apprx_params_train = deepcopy(approximator_params)
-        apprx_params_target = deepcopy(approximator_params)
-        self.approximator = Regressor(approximator, **apprx_params_train)
-        self.target_approximator = Regressor(approximator,
-                                             **apprx_params_target)
+        self._distilled = Regressor(approximator, **distilled_params)
+        self.approximator = list()
+        self.target_approximator = list()
+        for i in range(self._n_games):
+            apprx_params_train = deepcopy(approximator_params[i])
+            apprx_params_target = deepcopy(approximator_params[i])
+            self.approximator.append(
+                Regressor(approximator, **apprx_params_train)
+            )
+            self.target_approximator.append(
+                Regressor(approximator, **apprx_params_target)
+            )
         policy.set_q(self.approximator)
 
-        self.target_approximator.model.set_weights(
-            self.approximator.model.get_weights())
+        for i in range(self._n_games):
+            self.target_approximator[i].model.set_weights(
+                self.approximator[i].model.get_weights())
 
         super().__init__(policy, mdp_info)
 
-        n_samples = self._batch_size * self._n_games
-        self._state_idxs = np.zeros(n_samples, dtype=np.int)
-        self._state = np.zeros(
-            ((n_samples,
+        self._all_states = np.zeros(
+            ((self._batch_size * self._n_games,
              self._history_length) + self.mdp_info.observation_space.shape),
             dtype=dtype
         )
-        self._action = np.zeros((n_samples, 1))
-        self._reward = np.zeros(n_samples)
-        self._next_state_idxs = np.zeros(n_samples, dtype=np.int)
-        self._next_state = np.zeros(
-            ((n_samples,
-             self._history_length) + self.mdp_info.observation_space.shape),
-            dtype=dtype
-        )
-        self._absorbing = np.zeros(n_samples)
+        self._features = np.zeros((self._batch_size * self._n_games,
+                                   self._distilled.model._network.n_features))
 
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
@@ -94,91 +89,58 @@ class DQN(Agent):
 
         if fit_condition:
             for i in range(len(self._replay_memory)):
-                game_state, game_action, game_reward, game_next_state,\
-                    game_absorbing, _ = self._replay_memory[i].get(
-                        self._batch_size)
+                state, action, reward, next_state, absorbing, _ =\
+                    self._replay_memory[i].get(self._batch_size)
 
                 start = self._batch_size * i
                 stop = start + self._batch_size
+                self._all_states[start:stop] = state
 
-                self._state_idxs[start:stop] = np.ones(self._batch_size) * i
-                self._state[start:stop] = game_state
-                self._action[start:stop] = game_action
-                self._reward[start:stop] = game_reward
-                self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
-                self._next_state[start:stop] = game_next_state
-                self._absorbing[start:stop] = game_absorbing
+                if self._clip_reward:
+                    reward = np.clip(reward, -1, 1)
 
-            if self._clip_reward:
-                reward = np.clip(self._reward, -1, 1)
-            else:
-                reward = self._reward
+                q_next = self._next_q(next_state, absorbing, idx=i)
+                q = reward + self.mdp_info.gamma * q_next
 
-            q_next = self._next_q()
-            q = reward + self.mdp_info.gamma * q_next
+                features = self._distilled.predict(state)
+                self.approximator[i].model.fit(state, action, q,
+                                               get_features=True,
+                                               features=features,
+                                               **self._fit_params)
 
-            self.approximator.fit(self._state, self._action, q,
-                                  idx=self._state_idxs,
-                                  get_features=True, **self._fit_params)
+                self._n_updates += 1
 
-            if self._distill:
-                self.approximator.fit(self._state, self._action, q,
-                                      idx=self._state_idxs,
-                                      get_features=True, **self._fit_params)
-                self._switch_freezed_weights()
+                if self._n_updates % self._target_update_frequency == 0:
+                    self._update_target(i)
 
-            self._n_updates += 1
+                self._features[start:stop] = self.target_approximator[
+                    i].predict(state, get_features=True)
 
-            if self._n_updates % self._target_update_frequency == 0:
-                self._update_target()
+            self._distilled_network.fit(self._all_states, self._features)
 
-    def _update_target(self):
+    def _update_target(self, idx):
         """
         Update the target network.
 
         """
-        self.target_approximator.model.set_weights(
-            self.approximator.model.get_weights())
+        self.target_approximator[idx].model.set_weights(
+            self.approximator[idx].model.get_weights())
 
-    def _switch_freezed_weights(self):
-        n_shared = self.approximator.model._network._n_shared
-        if self._freeze_shared_weights:
-            for i, p in enumerate(self.approximator.model._network.parameters()):
-                if i < n_shared:
-                    p.requires_grad = False
-                else:
-                    p.requires_grad = True
+    def _next_q(self, next_state, absorbing, idx):
+        q = self.target_approximator[idx].predict(next_state)
+
+        if np.any(absorbing):
+            q *= 1 - absorbing.reshape(-1, 1)
+
+        if self._entropy_coeff == np.inf:
+            out_q = np.max(q, axis=1)
+        elif self._entropy_coeff == 0:
+            out_q = np.mean(q, axis=1)
+        elif self._entropy_coeff == -np.inf:
+            out_q = np.min(q, axis=1)
         else:
-            for i, p in enumerate(self.approximator.model._network.parameters()):
-                if i < n_shared:
-                    p.requires_grad = True
-                else:
-                    p.requires_grad = False
-
-        self._freeze_shared_weights = not self._freeze_shared_weights
-
-    def _next_q(self):
-        q = self.target_approximator.predict(self._next_state,
-                                             idx=self._next_state_idxs)
-
-        out_q = np.zeros(self._batch_size * self._n_games)
-        for i in range(self._n_games):
-            start = self._batch_size * i
-            stop = start + self._batch_size
-            if np.any(self._absorbing[start:stop]):
-                q[start:stop] *= 1 - self._absorbing[start:stop].reshape(-1, 1)
-
-            n_actions = self._n_action_per_head[i][0]
-            if self._entropy_coeff == np.inf:
-                out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
-            elif self._entropy_coeff == 0:
-                out_q[start:stop] = np.mean(q[start:stop, :n_actions], axis=1)
-            elif self._entropy_coeff == -np.inf:
-                out_q[start:stop] = np.min(q[start:stop, :n_actions], axis=1)
-            else:
-                out_q[start:stop] = logsumexp(
-                    self._entropy_coeff * q[start:stop, :n_actions], axis=1
-                ) / self._entropy_coeff
+            out_q = logsumexp(self._entropy_coeff * q,
+                              axis=1) / self._entropy_coeff
 
         return out_q
 
