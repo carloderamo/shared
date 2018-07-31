@@ -53,7 +53,7 @@ class Network(nn.Module):
         nn.init.xavier_uniform_(self._h5.weight,
                                 gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, get_features=False, features=None):
+    def forward(self, state, action=None, get_type=0):
         h = F.relu(self._h1(state.float() / 255.))
         h = F.relu(self._h2(h))
         h = F.relu(self._h3(h))
@@ -62,19 +62,21 @@ class Network(nn.Module):
         q = self._h5(h)
 
         if action is None:
-            if get_features:
-                if features is not None:
-                    return q, h_f, features
+            if get_type == 0:
+                return q
+            elif get_type == 1:
                 return h_f
-            return q
+            elif get_type == 2:
+                return q, h_f
         else:
             q_acted = torch.squeeze(q.gather(1, action.long()))
 
-            if get_features:
-                if features is not None:
-                    return q_acted, h_f, features
+            if get_type == 0:
+                return q_acted
+            elif get_type == 1:
                 return h_f
-            return q_acted
+            elif get_type == 2:
+                return q_acted, h_f
 
 
 class DistilledNetwork(nn.Module):
@@ -222,9 +224,8 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    def regularized_loss(loss_args, y):
-        y_hat, f_hat, f = loss_args
-        f = torch.from_numpy(f)
+    def regularized_loss(loss_args, y, f):
+        y_hat, f_hat = loss_args
 
         return F.smooth_l1_loss(y_hat, y) + args.reg_coeff * F.mse_loss(f_hat,
                                                                         f)
@@ -273,6 +274,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(mdp.envs[i].info.action_space.n,),
             n_actions=mdp.envs[i].info.action_space.n,
+            n_fit_targets=2,
             optimizer=optimizer,
             loss=regularized_loss,
             use_cuda=args.use_cuda
@@ -360,6 +362,7 @@ def experiment():
             input_shape=input_shape,
             output_shape=(mdp.envs[i].info.action_space.n,),
             n_actions=mdp.envs[i].info.action_space.n,
+            n_fit_targets=2,
             optimizer=optimizer,
             loss=regularized_loss,
             use_cuda=args.use_cuda

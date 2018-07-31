@@ -103,10 +103,8 @@ class DQN(Agent):
                 q = reward + self.mdp_info.gamma * q_next
 
                 features = self._distilled.predict(state)
-                self.approximator[i].model.fit(state, action, q,
-                                               get_features=True,
-                                               features=features,
-                                               **self._fit_params)
+                self.approximator[i].model.fit(state, action, q, features,
+                                               get_type=2, **self._fit_params)
 
                 self._n_updates += 1
 
@@ -114,7 +112,7 @@ class DQN(Agent):
                     self._update_target(i)
 
                 self._features[start:stop] = self.target_approximator[
-                    i].predict(state, get_features=True)
+                    i].predict(state, get_type=1)
 
             self._distilled.fit(self._all_states, self._features)
 
