@@ -12,11 +12,11 @@ import torch.nn.functional as F
 sys.path.append('..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
-from mushroom.core import Core
+from mushroom.environments import *
 from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
-from atari import AtariMultiple
+from core import Core
 from shared.dqn import DQN
 from policy import EpsGreedyMultiple
 
@@ -260,14 +260,17 @@ def experiment():
     else:
         raise ValueError
 
+    # MDP
+    mdp = list()
+    for g in args.games:
+        mdp.append(Atari(g, args.screen_width, args.screen_height,
+                         ends_at_life=False))
+    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
+
+    mdp_info = [m.info for m in mdp]
+
     # Evaluation of the model provided by the user.
     if args.load_path:
-        # MDP
-        mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=False,
-                            n_steps_per_game=args.batch_size)
-        n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
-
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
         pi = EpsGreedyMultiple(epsilon=epsilon_test,
@@ -279,8 +282,8 @@ def experiment():
         approximator_params = dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp.info.action_space.n,),
-            n_actions=mdp.info.action_space.n,
+            output_shape=(max(n_actions_per_head)[0],),
+            n_actions=max(n_actions_per_head)[0],
             n_actions_per_head=n_actions_per_head,
             load_path=args.load_path,
             optimizer=optimizer,
@@ -306,7 +309,7 @@ def experiment():
             distill=args.distill,
             entropy_coeff=args.entropy_coeff
         )
-        agent = DQN(approximator, pi, mdp.info,
+        agent = DQN(approximator, pi, mdp_info,
                     approximator_params=approximator_params, **algorithm_params)
 
         # Algorithm
@@ -344,11 +347,6 @@ def experiment():
             evaluation_frequency = args.evaluation_frequency
             max_steps = args.max_steps
 
-        # MDP
-        mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=True, n_steps_per_game=args.batch_size)
-        n_actions_per_head = [(m.info.action_space.n,) for m in mdp.envs]
-
         # Policy
         epsilon = LinearDecayParameter(value=args.initial_exploration_rate,
                                        min_value=args.final_exploration_rate,
@@ -364,8 +362,8 @@ def experiment():
         approximator_params = dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp.info.action_space.n,),
-            n_actions=mdp.info.action_space.n,
+            output_shape=(max(n_actions_per_head)[0],),
+            n_actions=max(n_actions_per_head)[0],
             n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=regularized_loss,
@@ -391,7 +389,7 @@ def experiment():
             entropy_coeff=args.entropy_coeff
         )
 
-        agent = DQN(approximator, pi, mdp.info,
+        agent = DQN(approximator, pi, mdp_info,
                     approximator_params=approximator_params,
                     **algorithm_params)
 
@@ -402,33 +400,30 @@ def experiment():
 
         # Fill replay memory with random dataset
         print_epoch(0)
-        mdp.freeze_env(True)
-        for idx in range(len(args.games)):
-            mdp.set_env(idx)
-            pi.set_epsilon(epsilon_random)
-            core.learn(n_steps=initial_replay_size,
-                       n_steps_per_fit=initial_replay_size, quiet=args.quiet)
+        pi.set_epsilon(epsilon_random)
+        core.learn(n_steps=initial_replay_size,
+                   n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
         if args.save:
             agent.approximator.model.save()
 
+        for m in mdp:
+            m.set_episode_end(False)
         # Evaluate initial policy
-        for idx in range(len(args.games)):
-            mdp.set_episode_end(False)
-            mdp.set_env(idx)
-            pi.set_epsilon(epsilon_test)
-            dataset = core.evaluate(n_steps=test_samples, render=args.render,
-                                    quiet=args.quiet)
-            scores[idx].append(get_stats(dataset, idx, args.games))
+        pi.set_epsilon(epsilon_test)
+        dataset = core.evaluate(n_steps=test_samples, render=args.render,
+                                quiet=args.quiet)
+        for i in range(len(mdp)):
+            d = dataset[i::len(mdp)]
+            scores[i].append(get_stats(d, i, args.games))
 
         np.save(folder_name + '/scores.npy', scores)
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
             print_epoch(n_epoch)
             print('- Learning:')
             # learning step
-            mdp.freeze_env(False)
-            mdp.set_episode_end(True)
-            mdp.set_env(None)
+            for m in mdp:
+                m.set_episode_end(True)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
@@ -438,14 +433,14 @@ def experiment():
 
             print('- Evaluation:')
             # evaluation step
-            mdp.freeze_env(True)
-            for idx in range(len(args.games)):
-                mdp.set_episode_end(False)
-                mdp.set_env(idx)
-                pi.set_epsilon(epsilon_test)
-                dataset = core.evaluate(n_steps=test_samples,
-                                        render=args.render, quiet=args.quiet)
-                scores[idx].append(get_stats(dataset, idx, args.games))
+            for m in mdp:
+                m.set_episode_end(False)
+            pi.set_epsilon(epsilon_test)
+            dataset = core.evaluate(n_steps=test_samples,
+                                    render=args.render, quiet=args.quiet)
+            for i in range(len(mdp)):
+                d = dataset[i::len(mdp)]
+                scores[i].append(get_stats(d, i, args.games))
 
             np.save(folder_name + '/scores.npy', scores)
 

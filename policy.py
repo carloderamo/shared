@@ -40,7 +40,7 @@ class EpsGreedyMultiple(TDPolicy):
             return probs
 
     def draw_action(self, state):
-        idx = np.asscalar(state[0])
+        idx = state[0]
         state = state[1]
         if not np.random.uniform() < self._epsilons[idx](state):
             q = self._approximator.predict(
@@ -65,7 +65,7 @@ class EpsGreedyMultiple(TDPolicy):
                 self._epsilons[i] = epsilon
 
     def update(self, state):
-        idx = np.asscalar(state[0])
+        idx = state[0]
         self._epsilons[idx].update(state)
 
 
@@ -108,7 +108,7 @@ class EpsGreedyEnsemble(TDPolicy):
             return probs
 
     def draw_action(self, state):
-        idx = np.asscalar(state[0])
+        idx = state[0]
         state = state[1]
         if not np.random.uniform() < self._epsilons[idx](state):
             q = self._approximator[idx].predict(state)
@@ -132,5 +132,5 @@ class EpsGreedyEnsemble(TDPolicy):
                 self._epsilons[i] = epsilon
 
     def update(self, state):
-        idx = np.asscalar(state[0])
+        idx = state[0]
         self._epsilons[idx].update(state)

@@ -39,15 +39,15 @@ class DQN(Agent):
         self._entropy_coeff = entropy_coeff
 
         self._replay_memory = [
-            ReplayMemory(mdp_info, initial_replay_size, max_replay_size,
-                         history_length, dtype) for _ in range(self._n_games)
+            ReplayMemory(mdp_info[i], initial_replay_size, max_replay_size,
+                         history_length, dtype) for i in range(self._n_games)
         ]
         self._buffer = [
             Buffer(history_length, dtype) for _ in range(self._n_games)
         ]
 
         self._n_updates = 0
-        self._episode_steps = 0
+        self._episode_steps = [0 for _ in range(self._n_games)]
         self._no_op_actions = None
 
         apprx_params_train = deepcopy(approximator_params)
@@ -60,7 +60,7 @@ class DQN(Agent):
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
 
-        super().__init__(policy, mdp_info)
+        super().__init__(policy, mdp_info[np.argmax(self._n_action_per_head)])
 
         n_samples = self._batch_size * self._n_games
         self._state_idxs = np.zeros(n_samples, dtype=np.int)
@@ -183,25 +183,26 @@ class DQN(Agent):
         return out_q
 
     def draw_action(self, state):
-        self._buffer[np.asscalar(state[0])].add(state[1])
+        idx = state[0]
+        self._buffer[idx].add(state[1])
 
-        if self._episode_steps < self._no_op_actions:
+        if self._episode_steps[idx] < self._no_op_actions:
             action = np.array([self._no_op_action_value])
             self.policy.update(state)
         else:
-            extended_state = self._buffer[np.asscalar(state[0])].get()
+            extended_state = self._buffer[idx].get()
 
-            extended_state = np.array([state[0], extended_state])
+            extended_state = [idx, np.array([extended_state])]
             action = super(DQN, self).draw_action(extended_state)
 
-        self._episode_steps += 1
+        self._episode_steps[idx] += 1
 
         return action
 
-    def episode_start(self):
+    def episode_start(self, idx):
         if self._max_no_op_actions == 0:
             self._no_op_actions = 0
         else:
             self._no_op_actions = np.random.randint(
                 self._history_length, self._max_no_op_actions + 1)
-        self._episode_steps = 0
+        self._episode_steps[idx] = 0
