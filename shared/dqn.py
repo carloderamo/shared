@@ -48,7 +48,7 @@ class DQN(Agent):
 
         self._n_updates = 0
         self._episode_steps = [0 for _ in range(self._n_games)]
-        self._no_op_actions = None
+        self._no_op_actions = [None for _ in range(self._n_games)]
 
         apprx_params_train = deepcopy(approximator_params)
         apprx_params_target = deepcopy(approximator_params)
@@ -186,7 +186,7 @@ class DQN(Agent):
         idx = state[0]
         self._buffer[idx].add(state[1])
 
-        if self._episode_steps[idx] < self._no_op_actions:
+        if self._episode_steps[idx] < self._no_op_actions[idx]:
             action = np.array([self._no_op_action_value])
             self.policy.update(state)
         else:
@@ -201,8 +201,8 @@ class DQN(Agent):
 
     def episode_start(self, idx):
         if self._max_no_op_actions == 0:
-            self._no_op_actions = 0
+            self._no_op_actions[idx] = 0
         else:
-            self._no_op_actions = np.random.randint(
+            self._no_op_actions[idx] = np.random.randint(
                 self._history_length, self._max_no_op_actions + 1)
         self._episode_steps[idx] = 0
