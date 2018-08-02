@@ -63,16 +63,16 @@ class Core(object):
             self._current_steps_counter += 1
             steps_progress_bar.update(1)
 
-        if fit_condition():
-            self.agent.fit(dataset)
-            self._current_episodes_counter = 0
-            self._current_steps_counter = 0
+            if fit_condition():
+                self.agent.fit(dataset)
+                self._current_episodes_counter = 0
+                self._current_steps_counter = 0
 
-            for c in self.callbacks:
-                callback_pars = dict(dataset=dataset)
-                c(**callback_pars)
+                for c in self.callbacks:
+                    callback_pars = dict(dataset=dataset)
+                    c(**callback_pars)
 
-            dataset = list()
+                dataset = list()
 
         self.agent.stop()
         for i in range(self._n_mdp):
