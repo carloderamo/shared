@@ -65,7 +65,6 @@ class Core(object):
 
             if fit_condition():
                 self.agent.fit(dataset)
-                self._current_episodes_counter = 0
                 self._current_steps_counter = 0
 
                 for c in self.callbacks:

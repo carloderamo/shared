@@ -48,7 +48,9 @@ class EpsGreedyMultiple(TDPolicy):
             max_a = np.argwhere(q == np.max(q)).ravel()
 
             if len(max_a) > 1:
-                max_a = np.array([np.random.choice(max_a)])
+                max_a = np.array([np.random.choice(
+                    max_a[max_a < self._n_actions_per_head[idx][0]]
+                )])
 
             return max_a
 
