@@ -206,8 +206,6 @@ def experiment():
                               'consider the first 30 frames without frame'
                               'skipping and that the number of skipped frames'
                               'is generally 4, we set it to 8.')
-    arg_alg.add_argument("--no-op-action-value", type=int, default=0,
-                         help='Value of the no-op action.')
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -264,7 +262,9 @@ def experiment():
     mdp = list()
     for g in args.games:
         mdp.append(Atari(g, args.screen_width, args.screen_height,
-                         ends_at_life=False))
+                         ends_at_life=False, history_length=args.history_length,
+                         max_no_op_actions=args.max_no_op_actions)
+                   )
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
     mdp_info = [m.info for m in mdp]
@@ -303,8 +303,6 @@ def experiment():
             initial_replay_size=0,
             max_replay_size=0,
             history_length=args.history_length,
-            max_no_op_actions=args.max_no_op_actions,
-            no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
             distill=args.distill,
             entropy_coeff=args.entropy_coeff
@@ -379,11 +377,9 @@ def experiment():
             n_games=len(args.games),
             initial_replay_size=initial_replay_size,
             max_replay_size=max_replay_size,
-            history_length=args.history_length,
             target_update_frequency=target_update_frequency // train_frequency,
             n_actions_per_head=n_actions_per_head,
-            max_no_op_actions=args.max_no_op_actions,
-            no_op_action_value=args.no_op_action_value,
+            history_length=args.history_length,
             dtype=np.uint8,
             distill=args.distill,
             entropy_coeff=args.entropy_coeff

@@ -19,7 +19,7 @@ class EpsGreedyMultiple(TDPolicy):
 
     def __call__(self, *args):
         idx = args[0]
-        state = args[1]
+        state = np.array(args[1])
         q = self._approximator.predict(
             np.expand_dims(state, axis=0),
             idx=idx).ravel()[:self._n_actions_per_head[idx][0]]
@@ -41,7 +41,7 @@ class EpsGreedyMultiple(TDPolicy):
 
     def draw_action(self, state):
         idx = state[0]
-        state = state[1]
+        state = np.array(state[1])
         if not np.random.uniform() < self._epsilons[idx](state):
             q = self._approximator.predict(
                 state, idx=np.array([idx]))[:self._n_actions_per_head[idx][0]]
@@ -90,7 +90,7 @@ class EpsGreedyEnsemble(TDPolicy):
     def __call__(self, *args):
         state = args[0]
         idx = np.asscalar(state[0])
-        state = state[1]
+        state = np.array(state[1])
 
         q = self._approximator[idx].predict(np.expand_dims(state, axis=0)).ravel()
         max_a = np.argwhere(q == np.max(q)).ravel()
@@ -111,7 +111,7 @@ class EpsGreedyEnsemble(TDPolicy):
 
     def draw_action(self, state):
         idx = state[0]
-        state = state[1]
+        state = np.array(state[1])
         if not np.random.uniform() < self._epsilons[idx](state):
             q = self._approximator[idx].predict(state)
             max_a = np.argwhere(q == np.max(q)).ravel()

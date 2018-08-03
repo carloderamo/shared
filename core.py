@@ -92,12 +92,12 @@ class Core(object):
             self._episode_steps[i] < self.mdp[i].info.horizon and not absorbing)
 
         state = self._state[i]
-        self._state[i] = np.array(next_state)  # Copy for safety reasons
+        self._state[i] = next_state.copy()
 
         return [i, state], action, reward, [i, next_state], absorbing, last
 
     def reset(self, i):
         self._state[i] = self.mdp[i].reset()
-        self.agent.episode_start(i)
+        self.agent.episode_start()
         self.agent.next_action = None
         self._episode_steps[i] = 0
