@@ -262,7 +262,7 @@ def experiment():
     mdp = list()
     for g in args.games:
         mdp.append(Atari(g, args.screen_width, args.screen_height,
-                         ends_at_life=False, history_length=args.history_length,
+                         ends_at_life=True, history_length=args.history_length,
                          max_no_op_actions=args.max_no_op_actions)
                    )
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]

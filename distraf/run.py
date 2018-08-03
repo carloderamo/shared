@@ -12,11 +12,12 @@ import torch.nn.functional as F
 sys.path.append('..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
-from mushroom.core import Core
+
+from mushroom.environments import *
 from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
-from atari import AtariMultiple
+from core import Core
 from dqn import DQN
 from policy import EpsGreedyEnsemble
 
@@ -201,8 +202,6 @@ def experiment():
                               'consider the first 30 frames without frame'
                               'skipping and that the number of skipped frames'
                               'is generally 4, we set it to 8.')
-    arg_alg.add_argument("--no-op-action-value", type=int, default=0,
-                         help='Value of the no-op action.')
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -255,16 +254,21 @@ def experiment():
     else:
         raise ValueError
 
+    mdp = list()
+    for g in args.games:
+        mdp.append(Atari(g, args.screen_width, args.screen_height,
+                         ends_at_life=True, history_length=args.history_length,
+                         max_no_op_actions=args.max_no_op_actions)
+                   )
+    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
+
+    mdp_info = [m.info for m in mdp]
+
     # Evaluation of the model provided by the user.
     if args.load_path:
-        # MDP
-        mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=False,
-                            n_steps_per_game=args.batch_size)
-
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
-        pi = EpsGreedyEnsemble(epsilon=epsilon_test, n=len(mdp.envs))
+        pi = EpsGreedyEnsemble(epsilon=epsilon_test, n=len(mdp))
 
         # Approximator
         input_shape = (args.history_length, args.screen_height,
@@ -272,8 +276,8 @@ def experiment():
         approximator_params = [dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp.envs[i].info.action_space.n,),
-            n_actions=mdp.envs[i].info.action_space.n,
+            output_shape=(mdp[i].info.action_space.n,),
+            n_actions=mdp[i].info.action_space.n,
             n_fit_targets=2,
             optimizer=optimizer,
             loss=regularized_loss,
@@ -298,13 +302,14 @@ def experiment():
             target_update_frequency=1,
             initial_replay_size=0,
             max_replay_size=0,
+            n_actions_per_head=n_actions_per_head,
             history_length=args.history_length,
             max_no_op_actions=args.max_no_op_actions,
             no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
             entropy_coeff=args.entropy_coeff
         )
-        agent = DQN(approximator, pi, mdp.info,
+        agent = DQN(approximator, pi, mdp_info,
                     approximator_params=approximator_params, **algorithm_params)
 
         # Algorithm
@@ -342,17 +347,13 @@ def experiment():
             evaluation_frequency = args.evaluation_frequency
             max_steps = args.max_steps
 
-        # MDP
-        mdp = AtariMultiple(args.games, args.screen_width, args.screen_height,
-                            ends_at_life=True, n_steps_per_game=args.batch_size)
-
         # Policy
         epsilon = LinearDecayParameter(value=args.initial_exploration_rate,
                                        min_value=args.final_exploration_rate,
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyEnsemble(epsilon=epsilon, n=len(mdp.envs))
+        pi = EpsGreedyEnsemble(epsilon=epsilon, n=len(mdp))
 
         # Approximator
         input_shape = (args.history_length, args.screen_height,
@@ -360,9 +361,9 @@ def experiment():
         approximator_params = [dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp.envs[i].info.action_space.n,),
-            n_actions=mdp.envs[i].info.action_space.n,
+            output_shape=(mdp[i].info.action_space.n,),
             n_fit_targets=2,
+            n_actions=mdp[i].info.action_space.n,
             optimizer=optimizer,
             loss=regularized_loss,
             use_cuda=args.use_cuda
@@ -385,15 +386,14 @@ def experiment():
             n_games=len(args.games),
             initial_replay_size=initial_replay_size,
             max_replay_size=max_replay_size,
+            n_actions_per_head=n_actions_per_head,
             history_length=args.history_length,
             target_update_frequency=target_update_frequency // train_frequency,
-            max_no_op_actions=args.max_no_op_actions,
-            no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
             entropy_coeff=args.entropy_coeff
         )
 
-        agent = DQN(approximator, pi, mdp.info,
+        agent = DQN(approximator, pi, mdp_info,
                     approximator_params=approximator_params,
                     **algorithm_params)
 
@@ -404,33 +404,30 @@ def experiment():
 
         # Fill replay memory with random dataset
         print_epoch(0)
-        mdp.freeze_env(True)
-        for idx in range(len(args.games)):
-            mdp.set_env(idx)
-            pi.set_epsilon(epsilon_random)
-            core.learn(n_steps=initial_replay_size,
-                       n_steps_per_fit=initial_replay_size, quiet=args.quiet)
+        pi.set_epsilon(epsilon_random)
+        core.learn(n_steps=initial_replay_size,
+                   n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
         if args.save:
             agent.approximator.model.save()
 
+        for m in mdp:
+            m.set_episode_end(False)
         # Evaluate initial policy
-        for idx in range(len(args.games)):
-            mdp.set_episode_end(False)
-            mdp.set_env(idx)
-            pi.set_epsilon(epsilon_test)
-            dataset = core.evaluate(n_steps=test_samples, render=args.render,
-                                    quiet=args.quiet)
-            scores[idx].append(get_stats(dataset, idx, args.games))
+        pi.set_epsilon(epsilon_test)
+        dataset = core.evaluate(n_steps=test_samples, render=args.render,
+                                quiet=args.quiet)
+        for i in range(len(mdp)):
+            d = dataset[i::len(mdp)]
+            scores[i].append(get_stats(d, i, args.games))
 
         np.save(folder_name + '/scores.npy', scores)
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
             print_epoch(n_epoch)
             print('- Learning:')
             # learning step
-            mdp.freeze_env(False)
-            mdp.set_episode_end(True)
-            mdp.set_env(None)
+            for m in mdp:
+                m.set_episode_end(True)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
@@ -440,14 +437,14 @@ def experiment():
 
             print('- Evaluation:')
             # evaluation step
-            mdp.freeze_env(True)
-            for idx in range(len(args.games)):
-                mdp.set_episode_end(False)
-                mdp.set_env(idx)
-                pi.set_epsilon(epsilon_test)
-                dataset = core.evaluate(n_steps=test_samples,
-                                        render=args.render, quiet=args.quiet)
-                scores[idx].append(get_stats(dataset, idx, args.games))
+            for m in mdp:
+                m.set_episode_end(False)
+            pi.set_epsilon(epsilon_test)
+            dataset = core.evaluate(n_steps=test_samples,
+                                    render=args.render, quiet=args.quiet)
+            for i in range(len(mdp)):
+                d = dataset[i::len(mdp)]
+                scores[i].append(get_stats(d, i, args.games))
 
             np.save(folder_name + '/scores.npy', scores)
 
