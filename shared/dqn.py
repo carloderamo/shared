@@ -41,8 +41,6 @@ class DQN(Agent):
         ]
 
         self._n_updates = 0
-        self._episode_steps = [0 for _ in range(self._n_games)]
-        self._no_op_actions = [None for _ in range(self._n_games)]
 
         apprx_params_train = deepcopy(approximator_params)
         apprx_params_target = deepcopy(approximator_params)
