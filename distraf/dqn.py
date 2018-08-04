@@ -20,7 +20,7 @@ class DQN(Agent):
                  distilled_params, initial_replay_size, max_replay_size,
                  n_actions_per_head, target_update_frequency=2500,
                  fit_params=None, approximator_params=None, n_games=1,
-                 history_length=1, clip_reward=True, dtype=np.float32,
+                 history_length=1, clip_reward=True, dtype=np.uint8,
                  entropy_coeff=np.inf):
         self._fit_params = dict() if fit_params is None else fit_params
 
@@ -38,8 +38,6 @@ class DQN(Agent):
         ]
 
         self._n_updates = 0
-        self._episode_steps = 0
-        self._no_op_actions = None
 
         self._distilled = Regressor(approximator, **distilled_params)
         self.approximator = list()

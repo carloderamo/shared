@@ -194,14 +194,9 @@ def experiment():
     arg_alg.add_argument("--test-samples", type=int, default=125000,
                          help='Number of collected samples for each'
                               'evaluation.')
-    arg_alg.add_argument("--max-no-op-actions", type=int, default=8,
+    arg_alg.add_argument("--max-no-op-actions", type=int, default=30,
                          help='Maximum number of no-op actions performed at the'
-                              'beginning of the episodes. The minimum number is'
-                              'history_length. This number is reported to be 30'
-                              'in the DQN Deepmind paper but, since they'
-                              'consider the first 30 frames without frame'
-                              'skipping and that the number of skipped frames'
-                              'is generally 4, we set it to 8.')
+                              'beginning of the episodes.')
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -304,8 +299,6 @@ def experiment():
             max_replay_size=0,
             n_actions_per_head=n_actions_per_head,
             history_length=args.history_length,
-            max_no_op_actions=args.max_no_op_actions,
-            no_op_action_value=args.no_op_action_value,
             dtype=np.uint8,
             entropy_coeff=args.entropy_coeff
         )
