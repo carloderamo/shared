@@ -99,13 +99,13 @@ class DQN(Agent):
                 self.approximator[i].model.fit(state, action, q, features,
                                                get_type=2, **self._fit_params)
 
-                self._n_updates += 1
-
                 if self._n_updates % self._target_update_frequency == 0:
                     self._update_target(i)
 
                 self._features[start:stop] = self.target_approximator[
                     i].predict(state, get_type=1)
+
+            self._n_updates += 1
 
             self._distilled.fit(self._all_states, self._features)
 
