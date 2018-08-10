@@ -139,9 +139,9 @@ def experiment():
                           help='Height of the game screen.')
 
     arg_mem = parser.add_argument_group('Replay Memory')
-    arg_mem.add_argument("--initial-replay-size", type=int, default=50e3,
+    arg_mem.add_argument("--initial-replay-size", type=int, default=50000,
                          help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=5e5,
+    arg_mem.add_argument("--max-replay-size", type=int, default=500000,
                          help='Max size of the replay memory.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
@@ -169,19 +169,19 @@ def experiment():
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=4,
                          help='Number of frames composing a state.')
-    arg_alg.add_argument("--target-update-frequency", type=int, default=10e3,
+    arg_alg.add_argument("--target-update-frequency", type=int, default=10000,
                          help='Number of collected samples before each update'
                               'of the target network.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=250e3,
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=250000,
                          help='Number of collected samples before each'
                               'evaluation. An epoch ends after this number of'
                               'steps')
     arg_alg.add_argument("--train-frequency", type=int, default=4,
                          help='Number of collected samples before each fit of'
                               'the neural network.')
-    arg_alg.add_argument("--max-steps", type=int, default=50e6,
+    arg_alg.add_argument("--max-steps", type=int, default=50000000,
                          help='Total number of collected samples.')
-    arg_alg.add_argument("--final-exploration-frame", type=int, default=1e6,
+    arg_alg.add_argument("--final-exploration-frame", type=int, default=1000000,
                          help='Number of collected samples until the exploration'
                               'rate stops decreasing.')
     arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
@@ -191,7 +191,7 @@ def experiment():
                               'reaches this values, it stays constant.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=.05,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=125e3,
+    arg_alg.add_argument("--test-samples", type=int, default=125000,
                          help='Number of collected samples for each'
                               'evaluation.')
     arg_alg.add_argument("--max-no-op-actions", type=int, default=30,
