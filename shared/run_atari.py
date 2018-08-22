@@ -12,14 +12,13 @@ import torch.nn.functional as F
 sys.path.append('..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
-
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from core import Core
-from dqn import DQN
-from policy import EpsGreedyEnsemble
+from shared.dqn import DQN
+from policy import EpsGreedyMultiple
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -29,19 +28,29 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, output_shape, **kwargs):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
         super(Network, self).__init__()
 
         n_input = input_shape[0]
-        n_output = int(output_shape[0])
-
-        self.n_features = 3136
+        self._n_games = len(n_actions_per_head)
+        self._max_actions = max(n_actions_per_head)[0]
+        self._use_cuda = use_cuda
+        self._dropout = dropout
+        self._n_shared = 6
 
         self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
         self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
         self._h3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
-        self._h4 = nn.Linear(self.n_features, 512)
-        self._h5 = nn.Linear(512, n_output)
+        self._h4 = nn.ModuleList([nn.Linear(3136, 512) for _ in range(
+            self._n_games)])
+        self._h5 = nn.ModuleList(
+            [nn.Linear(512, self._max_actions) for _ in range(
+                self._n_games)])
+
+        if self._dropout:
+            self._h1_dropout = nn.Dropout2d()
+            self._h2_dropout = nn.Dropout2d()
+            self._h3_dropout = nn.Dropout2d()
 
         nn.init.xavier_uniform_(self._h1.weight,
                                 gain=nn.init.calculate_gain('relu'))
@@ -49,62 +58,55 @@ class Network(nn.Module):
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._h3.weight,
                                 gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h4.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h5.weight,
-                                gain=nn.init.calculate_gain('linear'))
+        for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._h4[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self._h5[i].weight,
+                                    gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, get_type=0):
+    def forward(self, state, action=None, idx=None, get_features=False):
         h = F.relu(self._h1(state.float() / 255.))
-        h = F.relu(self._h2(h))
-        h = F.relu(self._h3(h))
-        h_f = h.view(-1, self.n_features)
-        h = F.relu(self._h4(h_f))
-        q = self._h5(h)
-
-        if action is None:
-            if get_type == 0:
-                return q
-            elif get_type == 1:
-                return h_f
-            elif get_type == 2:
-                return q, h_f
+        if self._dropout:
+            h = F.relu(self._h2(self._h1_dropout(h)))
+            h = F.relu(self._h3(self._h2_dropout(h)))
+            h_f = self._h3_dropout(h).view(-1, 3136)
         else:
-            q_acted = torch.squeeze(q.gather(1, action.long()))
+            h = F.relu(self._h2(h))
+            h = F.relu(self._h3(h))
+            h_f = h.view(-1, 3136)
 
-            if get_type == 0:
-                return q_acted
-            elif get_type == 1:
-                return h_f
-            elif get_type == 2:
-                return q_acted, h_f
+        features = list()
+        q = list()
 
+        for i in range(self._n_games):
+            features.append(F.relu(self._h4[i](h_f)))
+            q.append(self._h5[i](features[i]))
 
-class DistilledNetwork(nn.Module):
-    def __init__(self, input_shape, output_shape, **kwargs):
-        super(DistilledNetwork, self).__init__()
+        q = torch.stack(q, dim=1)
 
-        n_input = input_shape[0]
+        if action is not None:
+            action = action.long()
+            q_acted = torch.squeeze(
+                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
 
-        self.n_features = 3136
+            q = q_acted
 
-        self._h1 = nn.Conv2d(n_input, 32, kernel_size=8, stride=4)
-        self._h2 = nn.Conv2d(32, 64, kernel_size=4, stride=2)
-        self._h3 = nn.Conv2d(64, 64, kernel_size=3, stride=1)
+        if idx is not None:
+            idx = torch.from_numpy(idx)
+            if self._use_cuda:
+                idx = idx.cuda()
+            if q.dim() == 2:
+                q_idx = q.gather(1, idx.unsqueeze(-1))
+            else:
+                q_idx = q.gather(1, idx.view(-1, 1).repeat(
+                    1, self._max_actions).unsqueeze(1))
 
-        nn.init.xavier_uniform_(self._h1.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h3.weight,
-                                gain=nn.init.calculate_gain('relu'))
+            q = torch.squeeze(q_idx, 1)
 
-    def forward(self, state, action=None):
-        h = F.relu(self._h1(state.float() / 255.))
-        h = F.relu(self._h2(h))
-        features = F.relu(self._h3(h))
-
-        return features.view(-1, self.n_features)
+        if get_features:
+            return q, h_f
+        else:
+            return q
 
 
 def print_epoch(epoch):
@@ -161,9 +163,11 @@ def experiment():
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered and'
                               'rmsprop')
-    arg_net.add_argument("--reg-coeff", type=float, default=.5)
+    arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--distill", action='store_true')
     arg_alg.add_argument("--entropy-coeff", type=float, default=np.inf)
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')
@@ -218,11 +222,11 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    def regularized_loss(loss_args, y, f):
-        y_hat, f_hat = loss_args
+    def regularized_loss(arg, y):
+        yhat, h_f = arg
+        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
 
-        return F.smooth_l1_loss(y_hat, y) + args.reg_coeff * F.mse_loss(f_hat,
-                                                                        f)
+        return loss + args.reg_coeff * torch.norm(h_f, 1)
 
     scores = list()
     for _ in range(len(args.games)):
@@ -249,6 +253,7 @@ def experiment():
     else:
         raise ValueError
 
+    # MDP
     mdp = list()
     for g in args.games:
         mdp.append(Atari(g, args.screen_width, args.screen_height,
@@ -276,43 +281,38 @@ def experiment():
     if args.load_path:
         # Policy
         epsilon_test = Parameter(value=args.test_exploration_rate)
-        pi = EpsGreedyEnsemble(epsilon=epsilon_test, n=len(mdp))
+        pi = EpsGreedyMultiple(epsilon=epsilon_test,
+                               n_actions_per_head=n_actions_per_head)
 
         # Approximator
         input_shape = (args.history_length, args.screen_height,
                        args.screen_width)
-        approximator_params = [dict(
+        approximator_params = dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp[i].info.action_space.n,),
-            n_actions=mdp[i].info.action_space.n,
-            n_fit_targets=2,
+            output_shape=(max(n_actions_per_head)[0],),
+            n_actions=max(n_actions_per_head)[0],
+            n_actions_per_head=n_actions_per_head,
+            load_path=args.load_path,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
-        ) for i in range(len(args.games))]
-
-        distilled_params = dict(
-            network=DistilledNetwork,
-            input_shape=input_shape,
-            output_shape=3136,
-            optimizer=optimizer,
-            loss=F.mse_loss,
-            use_cuda=args.use_cuda)
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
+        )
 
         approximator = PyTorchApproximator
 
         # Agent
         algorithm_params = dict(
-            distilled_params=distilled_params,
             batch_size=1,
             train_frequency=1,
             target_update_frequency=1,
+            n_actions_per_head=n_actions_per_head,
             initial_replay_size=0,
             max_replay_size=0,
-            n_actions_per_head=n_actions_per_head,
             history_length=args.history_length,
             dtype=np.uint8,
+            distill=args.distill,
             entropy_coeff=args.entropy_coeff
         )
         agent = DQN(approximator, pi, mdp_info,
@@ -359,43 +359,37 @@ def experiment():
                                        n=args.final_exploration_frame)
         epsilon_test = Parameter(value=args.test_exploration_rate)
         epsilon_random = Parameter(value=1)
-        pi = EpsGreedyEnsemble(epsilon=epsilon, n=len(mdp))
+        pi = EpsGreedyMultiple(epsilon=epsilon,
+                               n_actions_per_head=n_actions_per_head)
 
         # Approximator
         input_shape = (args.history_length, args.screen_height,
                        args.screen_width)
-        approximator_params = [dict(
+        approximator_params = dict(
             network=Network,
             input_shape=input_shape,
-            output_shape=(mdp[i].info.action_space.n,),
-            n_fit_targets=2,
-            n_actions=mdp[i].info.action_space.n,
+            output_shape=(max(n_actions_per_head)[0],),
+            n_actions=max(n_actions_per_head)[0],
+            n_actions_per_head=n_actions_per_head,
             optimizer=optimizer,
             loss=regularized_loss,
-            use_cuda=args.use_cuda
-        ) for i in range(len(args.games))]
-
-        distilled_params = dict(
-            network=DistilledNetwork,
-            input_shape=input_shape,
-            output_shape=3136,
-            optimizer=optimizer,
-            loss=F.mse_loss,
-            use_cuda=args.use_cuda)
+            use_cuda=args.use_cuda,
+            dropout=args.dropout
+        )
 
         approximator = PyTorchApproximator
 
         # Agent
         algorithm_params = dict(
-            distilled_params=distilled_params,
             batch_size=args.batch_size,
             n_games=len(args.games),
             initial_replay_size=initial_replay_size,
             max_replay_size=max_replay_size,
+            target_update_frequency=target_update_frequency // train_frequency,
             n_actions_per_head=n_actions_per_head,
             history_length=args.history_length,
-            target_update_frequency=target_update_frequency // train_frequency,
             dtype=np.uint8,
+            distill=args.distill,
             entropy_coeff=args.entropy_coeff
         )
 

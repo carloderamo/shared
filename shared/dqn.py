@@ -18,15 +18,21 @@ class DQN(Agent):
     """
     def __init__(self, approximator, policy, mdp_info, batch_size,
                  initial_replay_size, max_replay_size, n_actions_per_head,
-                 history_length=4, target_update_frequency=2500,
-                 fit_params=None, approximator_params=None, n_games=1,
-                 clip_reward=True, dtype=np.uint8, distill=False,
-                 entropy_coeff=np.inf):
+                 history_length=4, n_input_per_mdp=None,
+                 target_update_frequency=2500, fit_params=None,
+                 approximator_params=None, n_games=1, clip_reward=True,
+                 dtype=np.uint8, distill=False, entropy_coeff=np.inf):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
         self._n_games = n_games
         self._clip_reward = clip_reward
+        if n_input_per_mdp is None:
+            self._n_input_per_mdp = [
+                (mdp_info.action_space.n,) for _ in range(self._n_games)
+            ]
+        else:
+            self._n_input_per_mdp = n_input_per_mdp
         self._n_action_per_head = n_actions_per_head
         self._history_length = history_length
         self._max_actions = max(n_actions_per_head)[0]
@@ -52,7 +58,7 @@ class DQN(Agent):
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
 
-        super().__init__(policy, mdp_info[np.argmax(self._n_action_per_head)])
+        super().__init__(policy, mdp_info)
 
         n_samples = self._batch_size * self._n_games
         self._state_idxs = np.zeros(n_samples, dtype=np.int)
@@ -60,7 +66,7 @@ class DQN(Agent):
             ((n_samples,
              self._history_length) + self.mdp_info.observation_space.shape),
             dtype=dtype
-        )
+        ).squeeze()
         self._action = np.zeros((n_samples, 1))
         self._reward = np.zeros(n_samples)
         self._next_state_idxs = np.zeros(n_samples, dtype=np.int)
@@ -68,7 +74,7 @@ class DQN(Agent):
             ((n_samples,
              self._history_length) + self.mdp_info.observation_space.shape),
             dtype=dtype
-        )
+        ).squeeze()
         self._absorbing = np.zeros(n_samples)
 
     def fit(self, dataset):
@@ -94,11 +100,11 @@ class DQN(Agent):
                 stop = start + self._batch_size
 
                 self._state_idxs[start:stop] = np.ones(self._batch_size) * i
-                self._state[start:stop] = game_state
+                self._state[start:stop, :self._n_input_per_mdp[i][0]] = game_state
                 self._action[start:stop] = game_action
                 self._reward[start:stop] = game_reward
                 self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
-                self._next_state[start:stop] = game_next_state
+                self._next_state[start:stop, :self._n_input_per_mdp[i][0]] = game_next_state
                 self._absorbing[start:stop] = game_absorbing
 
             if self._clip_reward:
