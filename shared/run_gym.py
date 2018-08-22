@@ -29,10 +29,11 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
+    def __init__(self, input_shape, _, n_actions_per_head,
+                 use_cuda, dropout):
         super(Network, self).__init__()
 
-        n_input = input_shape
+        self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
@@ -42,7 +43,7 @@ class Network(nn.Module):
         n_features = 80
 
         self._h1 = nn.ModuleList(
-            [nn.Linear(n_input[i][0], n_features) for i in range(
+            [nn.Linear(self._n_input[i][0], n_features) for i in range(
                 len(input_shape))]
         )
         self._h2 = nn.Linear(n_features, n_features)
@@ -63,25 +64,19 @@ class Network(nn.Module):
                                     gain=nn.init.calculate_gain('linear'))
 
     def forward(self, state, action=None, idx=None, get_features=False):
+        state = state.float()
 
-        exit()
-        h = F.relu(self._h1(state.float() / 255.))
+        h1 = list()
+        for i in np.unique(idx):
+            idxs = np.argwhere(idx == i).ravel()
+            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
+        cat_h1 = torch.cat(h1)
+
+        h_f = F.relu(self._h2(cat_h1))
         if self._dropout:
-            h = F.relu(self._h2(self._h1_dropout(h)))
-            h = F.relu(self._h3(self._h2_dropout(h)))
-            h_f = self._h3_dropout(h).view(-1, 3136)
-        else:
-            h = F.relu(self._h2(h))
-            h = F.relu(self._h3(h))
-            h_f = h.view(-1, 3136)
+            h_f = self._h2_dropout(h_f)
 
-        features = list()
-        q = list()
-
-        for i in range(self._n_games):
-            features.append(F.relu(self._h4[i](h_f)))
-            q.append(self._h5[i](features[i]))
-
+        q = [self._h3[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
 
         if action is not None:
@@ -160,6 +155,7 @@ def experiment():
                               'gradient momentum in rmspropcentered')
     arg_net.add_argument("--epsilon", type=float, default=.01,
                          help='Epsilon term used in rmspropcentered')
+    arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--dropout", action='store_true')
@@ -404,8 +400,6 @@ def experiment():
         if args.save:
             agent.approximator.model.save()
 
-        for m in mdp:
-            m.set_episode_end(False)
         # Evaluate initial policy
         pi.set_epsilon(epsilon_test)
         dataset = core.evaluate(n_steps=test_samples, render=args.render,
@@ -418,8 +412,6 @@ def experiment():
             print_epoch(n_epoch)
             print('- Learning:')
             # learning step
-            for m in mdp:
-                m.set_episode_end(True)
             pi.set_epsilon(None)
             core.learn(n_steps=evaluation_frequency,
                        n_steps_per_fit=train_frequency, quiet=args.quiet)
@@ -429,8 +421,6 @@ def experiment():
 
             print('- Evaluation:')
             # evaluation step
-            for m in mdp:
-                m.set_episode_end(False)
             pi.set_epsilon(epsilon_test)
             dataset = core.evaluate(n_steps=test_samples,
                                     render=args.render, quiet=args.quiet)
