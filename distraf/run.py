@@ -260,7 +260,7 @@ def experiment():
     max_obs_dim = 0
     max_act_n = 0
     for i in range(len(args.games)):
-        n = len(mdp[i].info.observation_space.shape)
+        n = mdp[i].info.observation_space.shape[0]
         m = mdp[i].info.action_space.n
         if n > max_obs_dim:
             max_obs_dim = n
