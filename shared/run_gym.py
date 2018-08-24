@@ -139,7 +139,6 @@ def experiment():
                          help='Max size of the replay memory.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
-    arg_net.add_argument("--n-features", type=int, default=80)
     arg_net.add_argument("--optimizer",
                          choices=['adadelta',
                                   'adam',
@@ -147,7 +146,7 @@ def experiment():
                                   'rmspropcentered'],
                          default='adam',
                          help='Name of the optimizer to use to learn.')
-    arg_net.add_argument("--learning-rate", type=float, default=.0001,
+    arg_net.add_argument("--learning-rate", type=float, default=.001,
                          help='Learning rate value of the optimizer. Only used'
                               'in rmspropcentered')
     arg_net.add_argument("--decay", type=float, default=.95,
@@ -176,7 +175,7 @@ def experiment():
                               'neural network.')
     arg_alg.add_argument("--max-steps", type=int, default=50000,
                          help='Total number of learning steps.')
-    arg_alg.add_argument("--final-exploration-frame", type=int, default=10000,
+    arg_alg.add_argument("--final-exploration-frame", type=int, default=5000,
                          help='Number of steps until the exploration rate stops'
                               'decreasing.')
     arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
@@ -186,7 +185,7 @@ def experiment():
                               'reaches this values, it stays constant.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=1000,
+    arg_alg.add_argument("--test-samples", type=int, default=5000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--max-no-op-actions", type=int, default=0,
                          help='Maximum number of no-op action performed at the'
