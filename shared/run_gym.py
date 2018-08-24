@@ -185,7 +185,7 @@ def experiment():
                               'reaches this values, it stays constant.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=5000,
+    arg_alg.add_argument("--test-samples", type=int, default=2000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--max-no-op-actions", type=int, default=0,
                          help='Maximum number of no-op action performed at the'
