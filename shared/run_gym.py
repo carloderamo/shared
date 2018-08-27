@@ -47,20 +47,24 @@ class Network(nn.Module):
                 len(input_shape))]
         )
         self._h2 = nn.Linear(n_features, n_features)
-        self._h3 = nn.ModuleList(
+        self._h3 = nn.Linear(n_features, n_features)
+        self._h4 = nn.ModuleList(
             [nn.Linear(n_features, self._max_actions) for _ in range(
                 self._n_games)]
         )
 
         if self._dropout:
             self._h2_dropout = nn.Dropout2d()
+            self._h3_dropout = nn.Dropout2d()
 
         nn.init.xavier_uniform_(self._h2.weight,
+                                gain=nn.init.calculate_gain('relu'))
+        nn.init.xavier_uniform_(self._h3.weight,
                                 gain=nn.init.calculate_gain('relu'))
         for i in range(self._n_games):
             nn.init.xavier_uniform_(self._h1[i].weight,
                                     gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h3[i].weight,
+            nn.init.xavier_uniform_(self._h4[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
 
     def forward(self, state, action=None, idx=None, get_features=False):
@@ -75,8 +79,11 @@ class Network(nn.Module):
         h_f = F.relu(self._h2(cat_h1))
         if self._dropout:
             h_f = self._h2_dropout(h_f)
+        h_f = F.relu(self._h3(h_f))
+        if self._dropout:
+            h_f = self._h3_dropout(h_f)
 
-        q = [self._h3[i](h_f) for i in range(self._n_games)]
+        q = [self._h4[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
 
         if action is not None:
@@ -246,7 +253,13 @@ def experiment():
     # MDP
     mdp = list()
     for i, g in enumerate(args.games):
-        mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+        if g == 'pendulum':
+            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
+                                                gamma=args.gamma[i]))
+        elif g == 'caronhill':
+            mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
+        else:
+            mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
