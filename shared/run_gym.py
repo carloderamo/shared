@@ -118,7 +118,7 @@ def print_epoch(epoch):
 
 
 def get_stats(dataset, gamma, idx, games):
-    J = np.mean(compute_J(dataset, gamma))
+    J = np.mean(compute_J(dataset, gamma[idx]))
     print(games[idx] + ': J: %f' % J)
 
     return J
@@ -252,6 +252,7 @@ def experiment():
 
     # MDP
     mdp = list()
+    gamma_eval = list()
     for i, g in enumerate(args.games):
         if g == 'pendulum':
             mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
@@ -260,6 +261,8 @@ def experiment():
             mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
         else:
             mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+
+        gamma_eval.append(args.gamma[i])
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
@@ -278,8 +281,6 @@ def experiment():
     mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
                        mdp[max_act_idx].info.action_space, mdp[0].info.gamma,
                        mdp[0].info.horizon)
-
-    gamma_eval = 1.
 
     # Evaluation of the model provided by the user.
     if args.load_path:
