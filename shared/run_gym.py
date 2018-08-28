@@ -135,6 +135,18 @@ class Network(nn.Module):
             w_tensor = torch.from_numpy(w).type(p.data.dtype)
             p.data = w_tensor
 
+    def freeze_shared_weights(self):
+        for p in self._h2.parameters():
+            p.requires_grad = False
+        for p in self._h3.parameters():
+            p.requires_grad = False
+
+    def unfreeze_shared_weights(self):
+        for p in self._h2.parameters():
+            p.requires_grad = True
+        for p in self._h3.parameters():
+            p.requires_grad = True
+
 
 def print_epoch(epoch):
     print('################################################################')
@@ -226,6 +238,8 @@ def experiment():
                               'layers to be loaded')
     arg_alg.add_argument("--save-shared", type=str, default='',
                          help='filename where to save the shared weights')
+    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
+                         help="Number of epoch where to unfreeze shared weights.")
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -450,7 +464,13 @@ def experiment():
             d = dataset[i::len(mdp)]
             scores[i].append(get_stats(d, gamma_eval, i, args.games))
 
+        if args.unfreeze_epoch > 0:
+            agent.freeze_shared_weights()
+
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
+            if n_epoch >= args.unfreeze_epoch > 0:
+                agent.unfreeze_shared_weights()
+
             print_epoch(n_epoch)
             print('- Learning:')
             # learning step
