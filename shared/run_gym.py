@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+import pickle
+
 sys.path.append('..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
@@ -110,6 +112,29 @@ class Network(nn.Module):
         else:
             return q
 
+    def get_shared_weights(self):
+        p2 = list()
+        p3 = list()
+
+        for p in self._h2.parameters():
+            p2.append(p.data.detach().cpu().numpy())
+
+        for p in self._h3.parameters():
+            p3.append(p.data.detach().cpu().numpy())
+
+        return p2, p3
+
+    def set_shared_weights(self, weights):
+        w2, w3 = weights
+
+        for p, w in zip(self._h2.parameters(), w2):
+            w_tensor = torch.from_numpy(w).type(p.data.dtype)
+            p.data = w_tensor
+
+        for p, w in zip(self._h3.parameters(), w3):
+            w_tensor = torch.from_numpy(w).type(p.data.dtype)
+            p.data = w_tensor
+
 
 def print_epoch(epoch):
     print('################################################################')
@@ -197,6 +222,11 @@ def experiment():
                          help='Maximum number of no-op action performed at the'
                               'beginning of the episodes. The minimum number is'
                               'history_length.')
+    arg_alg.add_argument("--transfer", type=str, default='',
+                         help='Path to  the file of the weights of the common '
+                              'layers to be loaded')
+    arg_alg.add_argument("--save-shared", type=str, default='',
+                         help='filename where to save the shared weights')
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -411,6 +441,10 @@ def experiment():
         if args.save:
             agent.approximator.model.save()
 
+        if args.transfer:
+            weights = pickle.load(open(args.transfer, 'rb'))
+            agent.set_shared_weights(weights)
+
         # Evaluate initial policy
         pi.set_epsilon(epsilon_test)
         dataset = core.evaluate(n_steps=test_samples, render=args.render,
@@ -438,6 +472,10 @@ def experiment():
             for i in range(len(mdp)):
                 d = dataset[i::len(mdp)]
                 scores[i].append(get_stats(d, gamma_eval, i, args.games))
+
+    if args.save_shared:
+        shared = agent.get_shared_weights()
+        pickle.dump(shared, open(args.save_shared, 'wb'))
 
     return scores
 

@@ -13,9 +13,15 @@ class EpsGreedyMultiple(TDPolicy):
         assert isinstance(epsilon, Parameter) and isinstance(n_actions_per_head,
                                                              list)
         self._n_actions_per_head = n_actions_per_head
-        self._explorative_epsilons = [deepcopy(epsilon)
-                                      for _ in range(len(n_actions_per_head))]
-        self._epsilons = [None] * len(n_actions_per_head)
+
+        n_heads = len(n_actions_per_head)
+
+        if isinstance(epsilon, list):
+            self._explorative_epsilons = deepcopy(epsilon)
+        else:
+            self._explorative_epsilons = [deepcopy(epsilon)
+                                          for _ in range(n_heads)]
+        self._epsilons = [None] * n_heads
 
     def __call__(self, *args):
         idx = args[0]
@@ -84,7 +90,10 @@ class EpsGreedyEnsemble(TDPolicy):
         """
         super().__init__()
 
-        self._explorative_epsilons = [deepcopy(epsilon) for _ in range(n)]
+        if isinstance(epsilon, list):
+            self._explorative_epsilons = deepcopy(epsilon)
+        else:
+            self._explorative_epsilons = [deepcopy(epsilon) for _ in range(n)]
         self._epsilons = [None] * n
 
     def __call__(self, *args):

@@ -129,6 +129,12 @@ class DQN(Agent):
             if self._n_updates % self._target_update_frequency == 0:
                 self._update_target()
 
+    def get_shared_weights(self):
+        return self.approximator.model._network.get_shared_weights()
+
+    def set_shared_weights(self, weights):
+        self.approximator.model._network.set_shared_weights(weights)
+
     def _update_target(self):
         """
         Update the target network.
