@@ -178,6 +178,6 @@ class DQN(Agent):
                     self._entropy_coeff * q[start:stop, :n_actions], axis=1
                 ) / self._entropy_coeff
 
-            out_q *= self.mdp_info.gamma[i]
+            out_q[start:stop] *= self.mdp_info.gamma[i]
 
         return out_q
