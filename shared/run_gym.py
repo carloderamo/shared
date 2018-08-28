@@ -38,7 +38,7 @@ class Network(nn.Module):
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
         self._dropout = dropout
-        self._n_shared = 2
+        self._n_shared = 4
 
         n_features = 80
 
