@@ -113,7 +113,7 @@ class DQN(Agent):
                 reward = self._reward
 
             q_next = self._next_q()
-            q = reward + self.mdp_info.gamma[i] * q_next
+            q = reward + q_next
 
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs,
@@ -177,5 +177,7 @@ class DQN(Agent):
                 out_q[start:stop] = logsumexp(
                     self._entropy_coeff * q[start:stop, :n_actions], axis=1
                 ) / self._entropy_coeff
+
+            out_q *= self.mdp_info.gamma[i]
 
         return out_q
