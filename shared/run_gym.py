@@ -278,8 +278,9 @@ def experiment():
         if m > max_act_n:
             max_act_n = m
             max_act_idx = i
+    gammas = [m.info.gamma for m in mdp]
     mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
-                       mdp[max_act_idx].info.action_space, mdp[0].info.gamma,
+                       mdp[max_act_idx].info.action_space, gammas,
                        mdp[0].info.horizon)
 
     # Evaluation of the model provided by the user.
