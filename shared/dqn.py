@@ -21,7 +21,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 dtype=np.uint8, distill=False):
+                 dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -37,8 +37,6 @@ class DQN(Agent):
         self._history_length = history_length
         self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
-        self._distill = distill
-        self._freeze_shared_weights = False
 
         self._replay_memory = [
             ReplayMemory(initial_replay_size,
@@ -118,12 +116,6 @@ class DQN(Agent):
                                   idx=self._state_idxs,
                                   get_features=True, **self._fit_params)
 
-            if self._distill:
-                self.approximator.fit(self._state, self._action, q,
-                                      idx=self._state_idxs,
-                                      get_features=True, **self._fit_params)
-                self._switch_freezed_weights()
-
             self._n_updates += 1
 
             if self._n_updates % self._target_update_frequency == 0:
@@ -142,23 +134,6 @@ class DQN(Agent):
         """
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
-
-    def _switch_freezed_weights(self):
-        n_shared = self.approximator.model._network._n_shared
-        if self._freeze_shared_weights:
-            for i, p in enumerate(self.approximator.model._network.parameters()):
-                if i < n_shared:
-                    p.requires_grad = False
-                else:
-                    p.requires_grad = True
-        else:
-            for i, p in enumerate(self.approximator.model._network.parameters()):
-                if i < n_shared:
-                    p.requires_grad = True
-                else:
-                    p.requires_grad = False
-
-        self._freeze_shared_weights = not self._freeze_shared_weights
 
     def _next_q(self):
         q = self.target_approximator.predict(self._next_state,
