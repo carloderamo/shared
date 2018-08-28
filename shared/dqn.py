@@ -21,7 +21,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 dtype=np.uint8, distill=False, entropy_coeff=np.inf):
+                 dtype=np.uint8, distill=False):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -39,7 +39,6 @@ class DQN(Agent):
         self._target_update_frequency = target_update_frequency
         self._distill = distill
         self._freeze_shared_weights = False
-        self._entropy_coeff = entropy_coeff
 
         self._replay_memory = [
             ReplayMemory(initial_replay_size,
@@ -113,7 +112,7 @@ class DQN(Agent):
                 reward = self._reward
 
             q_next = self._next_q()
-            q = reward + self.mdp_info.gamma * q_next
+            q = reward + q_next
 
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs,
@@ -167,15 +166,7 @@ class DQN(Agent):
                 q[start:stop] *= 1 - self._absorbing[start:stop].reshape(-1, 1)
 
             n_actions = self._n_action_per_head[i][0]
-            if self._entropy_coeff == np.inf:
-                out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
-            elif self._entropy_coeff == 0:
-                out_q[start:stop] = np.mean(q[start:stop, :n_actions], axis=1)
-            elif self._entropy_coeff == -np.inf:
-                out_q[start:stop] = np.min(q[start:stop, :n_actions], axis=1)
-            else:
-                out_q[start:stop] = logsumexp(
-                    self._entropy_coeff * q[start:stop, :n_actions], axis=1
-                ) / self._entropy_coeff
+            out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
+            out_q[start:stop] *= self.mdp_info.gamma[i]
 
         return out_q
