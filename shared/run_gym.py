@@ -166,7 +166,6 @@ def experiment():
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--distill", action='store_true')
-    arg_alg.add_argument("--entropy-coeff", type=float, default=np.inf)
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=1,
@@ -319,8 +318,7 @@ def experiment():
             clip_reward=False,
             history_length=args.history_length,
             dtype=np.float32,
-            distill=args.distill,
-            entropy_coeff=args.entropy_coeff
+            distill=args.distill
         )
         agent = DQN(approximator, pi, mdp_info,
                     approximator_params=approximator_params, **algorithm_params)
@@ -392,8 +390,7 @@ def experiment():
             clip_reward=False,
             history_length=args.history_length,
             dtype=np.float32,
-            distill=args.distill,
-            entropy_coeff=args.entropy_coeff
+            distill=args.distill
         )
 
         agent = DQN(approximator, pi, mdp_info,
