@@ -467,6 +467,9 @@ def experiment():
         if args.unfreeze_epoch > 0:
             agent.freeze_shared_weights()
 
+        best_score_sum = -np.inf
+        best_weights = None
+
         for n_epoch in range(1, max_steps // evaluation_frequency + 1):
             if n_epoch >= args.unfreeze_epoch > 0:
                 agent.unfreeze_shared_weights()
@@ -486,13 +489,21 @@ def experiment():
             pi.set_epsilon(epsilon_test)
             dataset = core.evaluate(n_steps=test_samples,
                                     render=args.render, quiet=args.quiet)
+
+            current_score_sum = 0
             for i in range(len(mdp)):
                 d = dataset[i::len(mdp)]
-                scores[i].append(get_stats(d, gamma_eval, i, args.games))
+                current_score = get_stats(d, gamma_eval, i, args.games)
+                scores[i].append(current_score)
+                current_score_sum += current_score
+
+            # Save shared weights if best score
+            if args.save_shared and current_score_sum >= best_score_sum:
+                best_score_sum = current_score_sum
+                best_weights = agent.get_shared_weights()
 
     if args.save_shared:
-        shared = agent.get_shared_weights()
-        pickle.dump(shared, open(args.save_shared, 'wb'))
+        pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
     return scores
 
