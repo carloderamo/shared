@@ -6,5 +6,4 @@ mushroom.egg-info/
 *.xml
 logs/
 *.h5
-*.npy
 
