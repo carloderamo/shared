@@ -535,6 +535,6 @@ if __name__ == '__main__':
     loss = np.array([o[1] for o in out])
     l1_loss = np.array([o[2] for o in out])
 
-    np.save(folder_name + '/scores.npy', out)
+    np.save(folder_name + '/scores.npy', scores)
     np.save(folder_name + '/loss.npy', loss)
     np.save(folder_name + '/l1_loss.npy', l1_loss)
