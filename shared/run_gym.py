@@ -274,7 +274,7 @@ def experiment():
             temp_losses.append(torch.mean(loss[start:stop]).item())
         losses.append(temp_losses)
         loss = torch.sum(loss) / args.batch_size
-        l1_loss = torch.norm(h_f, 1)
+        l1_loss = torch.norm(h_f, 1) / (args.batch_size * len(args.games))
         l1_losses.append(l1_loss.item())
 
         return loss + args.reg_coeff * l1_loss
