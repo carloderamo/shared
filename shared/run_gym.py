@@ -267,10 +267,12 @@ def experiment():
         yhat, h_f = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        temp_losses = list()
         for i in range(len(args.games)):
             start = i * args.batch_size
             stop = start + args.batch_size
-            losses.append(torch.mean(loss[start:stop]).item())
+            temp_losses.append(torch.mean(loss[start:stop]).item())
+        losses.append(temp_losses)
         loss = torch.sum(loss) / args.batch_size
         l1_loss = torch.norm(h_f, 1)
         l1_losses.append(l1_loss.item())
