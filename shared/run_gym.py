@@ -270,10 +270,10 @@ def experiment():
         for i in range(len(args.games)):
             start = i * args.batch_size
             stop = start + args.batch_size
-            losses.append(loss[start:stop].detach().numpy().mean())
+            losses.append(torch.mean(loss[start:stop]).item())
         loss = torch.sum(loss) / args.batch_size
         l1_loss = torch.norm(h_f, 1)
-        l1_losses.append(np.asscalar(l1_loss.detach().numpy()))
+        l1_losses.append(l1_loss.item())
 
         return loss + args.reg_coeff * l1_loss
 
