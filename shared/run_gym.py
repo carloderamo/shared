@@ -261,11 +261,21 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
+    losses = list()
+    l1_losses = list()
     def regularized_loss(arg, y):
         yhat, h_f = arg
-        loss = F.smooth_l1_loss(yhat, y) * len(args.games)
 
-        return loss + args.reg_coeff * torch.norm(h_f, 1)
+        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        for i in range(len(args.games)):
+            start = i * args.batch_size
+            stop = start + args.batch_size
+            losses.append(loss[start:stop].detach().numpy().mean())
+        loss = torch.sum(loss) / args.batch_size
+        l1_loss = torch.norm(h_f, 1)
+        l1_losses.append(np.asscalar(l1_loss.detach().numpy()))
+
+        return loss + args.reg_coeff * l1_loss
 
     scores = list()
     for _ in range(len(args.games)):
@@ -505,7 +515,7 @@ def experiment():
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores
+    return scores, losses, l1_losses
 
 
 if __name__ == '__main__':
@@ -519,4 +529,10 @@ if __name__ == '__main__':
         delayed(experiment)() for _ in range(n_experiments)
     )
 
+    scores = np.array([o[0] for o in out])
+    loss = np.array([o[1] for o in out])
+    l1_loss = np.array([o[2] for o in out])
+
     np.save(folder_name + '/scores.npy', out)
+    np.save(folder_name + '/loss.npy', loss)
+    np.save(folder_name + '/l1_loss.npy', l1_loss)
