@@ -14,7 +14,7 @@ def get_mean_and_confidence(data):
     
 name = 'acro'
 
-algs = [name + '.npy', 'multi.npy', 'transfer.npy', 'unfreeze10.npy', 'unfreeze.npy', 'unfreeze_reg1e-4.npy']
+algs = [name + '.npy', 'multi.npy', 'transfer.npy', 'unfreeze10.npy', 'freeze.npy']
 
 for alg in algs:
     if alg != 'multi.npy':

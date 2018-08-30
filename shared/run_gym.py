@@ -521,7 +521,7 @@ def experiment():
 
 
 if __name__ == '__main__':
-    n_experiments = 1
+    n_experiments = 100
 
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S')
