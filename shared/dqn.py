@@ -74,6 +74,8 @@ class DQN(Agent):
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
 
+        self.q_list = list()
+
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
@@ -144,6 +146,8 @@ class DQN(Agent):
     def _next_q(self):
         q = self.target_approximator.predict(self._next_state,
                                              idx=self._next_state_idxs)
+
+        self.q_list.append(q.mean())
 
         out_q = np.zeros(self._batch_size * self._n_games)
         for i in range(self._n_games):

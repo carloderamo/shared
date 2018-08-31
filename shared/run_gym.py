@@ -517,11 +517,11 @@ def experiment():
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, losses, l1_losses
+    return scores, losses, l1_losses, agent.q_list
 
 
 if __name__ == '__main__':
-    n_experiments = 100
+    n_experiments = 1
 
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S')
@@ -534,7 +534,9 @@ if __name__ == '__main__':
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
     l1_loss = np.array([o[2] for o in out])
+    q = np.array([o[3] for o in out])
 
     np.save(folder_name + '/scores.npy', scores)
     np.save(folder_name + '/loss.npy', loss)
     np.save(folder_name + '/l1_loss.npy', l1_loss)
+    np.save(folder_name + '/q.npy', q)
