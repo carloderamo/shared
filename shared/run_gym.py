@@ -196,7 +196,7 @@ def experiment():
     arg_net.add_argument("--decay", type=float, default=.95,
                          help='Discount factor for the history coming from the'
                               'gradient momentum in rmspropcentered')
-    arg_net.add_argument("--epsilon", type=float, default=.01,
+    arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
