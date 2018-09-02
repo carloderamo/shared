@@ -20,7 +20,7 @@ from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from core import Core
-from shared.dqn import DQN
+from shared.dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
 
 """
@@ -201,6 +201,7 @@ def experiment():
     arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'])
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
@@ -446,9 +447,16 @@ def experiment():
             dtype=np.float32
         )
 
-        agent = DQN(approximator, pi, mdp_info,
-                    approximator_params=approximator_params,
-                    **algorithm_params)
+        if args.algorithm == 'dqn':
+            agent = DQN(approximator, pi, mdp_info,
+                        approximator_params=approximator_params,
+                        **algorithm_params)
+        elif args.algorithm == 'ddqn':
+            agent = DoubleDQN(approximator, pi, mdp_info,
+                              approximator_params=approximator_params,
+                              **algorithm_params)
+        else:
+            raise ValueError
 
         # Algorithm
         core = Core(agent, mdp)

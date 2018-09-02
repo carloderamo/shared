@@ -161,3 +161,27 @@ class DQN(Agent):
             out_q[start:stop] *= self.mdp_info.gamma[i]
 
         return out_q
+
+
+class DoubleDQN(DQN):
+    def _next_q(self):
+        q = self.approximator.predict(self._next_state,
+                                      idx=self._next_state_idxs)
+        double_q = self.target_approximator.predict(self._next_state,
+                                                    idx=self._next_state_idxs)
+        if np.any(self._absorbing):
+            double_q *= 1 - self._absorbing.reshape(-1, 1)
+
+        self.q_list.append(double_q.mean())
+
+        out_q = np.zeros(self._batch_size * self._n_games)
+        for i in range(self._n_games):
+            start = self._batch_size * i
+            stop = start + self._batch_size
+
+            n_actions = self._n_action_per_head[i][0]
+            idxs = np.argmax(q[start:stop, :n_actions], axis=1)
+            out_q[start:stop] = double_q[np.arange(start, stop),
+                                         idxs] * self.mdp_info.gamma[i]
+
+        return out_q
