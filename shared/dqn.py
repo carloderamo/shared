@@ -28,9 +28,8 @@ class DQN(Agent):
         self._n_games = n_games
         self._clip_reward = clip_reward
         if n_input_per_mdp is None:
-            self._n_input_per_mdp = [
-                (mdp_info.action_space.n,) for _ in range(self._n_games)
-            ]
+            self._n_input_per_mdp = [mdp_info.observation_space.shape
+                                     for _ in range(self._n_games)]
         else:
             self._n_input_per_mdp = n_input_per_mdp
         self._n_action_per_head = n_actions_per_head

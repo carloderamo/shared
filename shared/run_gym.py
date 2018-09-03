@@ -274,7 +274,7 @@ def experiment():
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
         losses.append(temp_losses)
-        loss = torch.sum(loss) / args.batch_size
+        loss = torch.mean(loss)
         l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
         l1_losses.append(l1_loss.item())
 
