@@ -201,7 +201,7 @@ def experiment():
     arg_net.add_argument("--reg-coeff", type=float, default=0.)
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'])
+    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
