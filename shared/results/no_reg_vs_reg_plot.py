@@ -15,7 +15,7 @@ def get_mean_and_confidence(data):
 games = ['cart.npy', 'acro.npy', 'mc.npy', 'coh.npy', 'pend.npy']
 n_games = len(games)
 
-multi = np.load('multireg1e-4/multi.npy')
+multi = np.load('multi/multi.npy')
 multi_reg = np.load('multireg1e-4sigmoid/multi.npy')
 
 plt.suptitle('NO REG VS REG')
