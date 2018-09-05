@@ -31,8 +31,8 @@ This script runs Atari experiments with DQN as presented in:
 
 
 class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head,
-                 use_cuda, dropout):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
+                 features):
         super(Network, self).__init__()
 
         self._n_input = input_shape
@@ -41,6 +41,7 @@ class Network(nn.Module):
         self._use_cuda = use_cuda
         self._dropout = dropout
         self._n_shared = 4
+        self._features = features
 
         n_features = 80
 
@@ -81,7 +82,13 @@ class Network(nn.Module):
         h_f = F.relu(self._h2(cat_h1))
         if self._dropout:
             h_f = self._h2_dropout(h_f)
-        h_f = F.relu(self._h3(h_f))
+
+        if self._features == 'relu':
+            h_f = F.relu(self._h3(h_f))
+        elif self._features == 'sigmoid':
+            h_f = F.sigmoid(self._h3(h_f))
+        else:
+            raise ValueError
         if self._dropout:
             h_f = self._h3_dropout(h_f)
 
@@ -202,6 +209,8 @@ def experiment():
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
+    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'],
+                         default='sigmoid')
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
@@ -357,7 +366,8 @@ def experiment():
             optimizer=optimizer,
             loss=regularized_loss,
             use_cuda=args.use_cuda,
-            dropout=args.dropout
+            dropout=args.dropout,
+            features=args.features
         )
 
         approximator = PyTorchApproximator
@@ -428,7 +438,8 @@ def experiment():
             optimizer=optimizer,
             loss=regularized_loss,
             use_cuda=args.use_cuda,
-            dropout=args.dropout
+            dropout=args.dropout,
+            features=args.features
         )
 
         approximator = PyTorchApproximator
