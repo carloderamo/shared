@@ -14,7 +14,7 @@ def get_mean_and_confidence(data):
     
 name = 'acro'
 
-algs = [name + '.npy', 'transfer.npy', 'freeze.npy']
+algs = [name + '.npy', 'transfer.npy', 'freeze.npy', 'unfreeze10.npy']
 
 for alg in algs:
     if alg != 'multi.npy':
@@ -22,13 +22,12 @@ for alg in algs:
     else:
         a = np.load(alg)[:, 1]
 
-    plt.title(alg)
     a_mean, a_err = get_mean_and_confidence(a)
     
     plt.plot(a_mean)
     plt.fill_between(np.arange(51), a_mean - a_err, a_mean + a_err, alpha=.5)
 
-    plt.grid()
+plt.grid()
     
 plt.legend(algs)
     
