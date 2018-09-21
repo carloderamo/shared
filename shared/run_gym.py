@@ -205,12 +205,11 @@ def experiment():
                               'gradient momentum in rmspropcentered')
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
-    arg_net.add_argument("--reg-coeff", type=float, default=1e-4)
+    arg_net.add_argument("--reg-coeff", type=float, default=0)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
-    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'],
-                         default='sigmoid')
+    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
