@@ -19,7 +19,7 @@ from mushroom.utils.dataset import compute_scores
 from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from core import Core
-from shared.dqn import DQN, DoubleDQN
+from shared.dqn.dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
 
 """
