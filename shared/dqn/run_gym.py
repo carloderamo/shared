@@ -13,6 +13,7 @@ import torch.nn.functional as F
 import pickle
 
 sys.path.append('..')
+sys.path.append('../..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.environments import *
