@@ -198,11 +198,9 @@ class CriticNetwork(nn.Module):
                 a_idx = a.gather(1, idx.unsqueeze(-1))
             else:
                 a_idx = a.gather(1, idx.view(-1, 1).repeat(
-                    1, self._max_actions).unsqueeze(1))
+                    1, 1).unsqueeze(1))
 
             a = torch.squeeze(a_idx, 1)
-
-        exit()
 
         if get_features:
             return a, h_f
