@@ -5,7 +5,8 @@ import numpy as np
 import torch.nn as nn
 from mushroom.algorithms import Agent
 from mushroom.approximators import Regressor
-from mushroom.utils.replay_memory import ReplayMemory
+
+from replay_memory import ReplayMemory
 
 
 class ActorLoss(nn.Module):
@@ -33,6 +34,8 @@ class DDPG(Agent):
                                      for _ in range(self._n_games)]
         else:
             self._n_input_per_mdp = n_input_per_mdp
+        self._n_actions_per_head = n_actions_per_head
+        self._max_actions = max(n_actions_per_head)[0]
         self._history_length = history_length
         self._tau = tau
 
@@ -74,7 +77,7 @@ class DDPG(Agent):
              self._history_length) + self.mdp_info.observation_space.shape),
             dtype=dtype
         ).squeeze()
-        self._action = np.zeros((n_samples, 1))
+        self._action = np.zeros((n_samples, self._max_actions))
         self._reward = np.zeros(n_samples)
         self._next_state_idxs = np.zeros(n_samples, dtype=np.int)
         self._next_state = np.zeros(
@@ -110,17 +113,21 @@ class DDPG(Agent):
 
                 self._state_idxs[start:stop] = np.ones(self._batch_size) * i
                 self._state[start:stop, :self._n_input_per_mdp[i][0]] = game_state
-                self._action[start:stop] = game_action
+                self._action[start:stop, :self._n_actions_per_head[i][0]] = game_action
                 self._reward[start:stop] = game_reward
                 self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
                 self._next_state[start:stop, :self._n_input_per_mdp[i][0]] = game_next_state
                 self._absorbing[start:stop] = game_absorbing
 
-            q_next = self._next_q(self._next_state, self._absorbing)
-            q = self._reward + self.mdp_info.gamma * q_next
+            q_next = self._next_q()
+            q = self._reward + q_next
 
-            self._critic_approximator.fit(self._state, self._action, q)
-            self._actor_approximator.fit(self._state, self._state)
+            self._critic_approximator.fit(self._state, self._action, q,
+                                          idx=self._state_idxs,
+                                          get_features=True)
+            self._actor_approximator.fit(self._state, self._state,
+                                         idx=self._state_idxs,
+                                         get_features=True)
 
             self._n_updates += 1
 
@@ -152,8 +159,18 @@ class DDPG(Agent):
         self._target_actor_approximator.set_weights(actor_weights)
 
     def _next_q(self):
-        a = self._target_actor_approximator(self._next_state)
-        q = self._target_critic_approximator.predict(self._next_state, a)
-        q *= 1 - self._absorbing
+        a = self._target_actor_approximator(self._next_state,
+                                            idx=self._next_state_idxs)
+        q = self._target_critic_approximator(self._next_state, a,
+                                             idx=self._next_state_idxs)
 
-        return q
+        out_q = np.zeros(self._batch_size * self._n_games)
+        for i in range(self._n_games):
+            start = self._batch_size * i
+            stop = start + self._batch_size
+            if np.any(self._absorbing[start:stop]):
+                q[start:stop] *= 1 - self._absorbing[start:stop].reshape(-1, 1)
+
+            out_q[start:stop] = q * self.mdp_info.gamma[i]
+
+        return out_q

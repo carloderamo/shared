@@ -2,7 +2,7 @@ from copy import deepcopy
 
 import numpy as np
 
-from mushroom.policy import TDPolicy
+from mushroom.policy import ParametricPolicy, TDPolicy
 from mushroom.utils.parameters import Parameter
 
 
@@ -145,3 +145,46 @@ class EpsGreedyEnsemble(TDPolicy):
     def update(self, state):
         idx = state[0]
         self._epsilons[idx].update(state)
+
+
+class OrnsteinUhlenbeckPolicy(ParametricPolicy):
+    def __init__(self, mu, sigma, theta, dt, n_actions_per_head, x0=None):
+
+        self._approximator = mu
+        self._sigma = sigma
+        self._theta = theta
+        self._dt = dt
+        self._x0 = x0
+
+        self._n_games = len(n_actions_per_head)
+
+        self._n_actions_per_head = n_actions_per_head
+
+    def __call__(self, state, action):
+        raise NotImplementedError
+
+    def draw_action(self, state):
+        idx = state[0]
+        state = state[1]
+        mu = self._approximator.predict(state, idx=np.array([idx]))
+
+        x = self._x_prev[idx] - self._theta * self._x_prev[idx] * self._dt + self._sigma *\
+            np.sqrt(self._dt) * np.random.normal(size=self._approximator.output_shape)
+        self._x_prev[idx] = x
+
+        return mu[:self._n_actions_per_head[idx][0]] + x[:self._n_actions_per_head[idx][0]]
+
+    def set_weights(self, weights):
+        self._approximator.set_weights(weights)
+
+    def get_weights(self):
+        return self._approximator.get_weights()
+
+    @property
+    def weights_size(self):
+        return self._approximator.weights_size
+
+    def reset(self):
+        self._x_prev = list()
+        for i in range(self._n_games):
+            self._x_prev.append(self._x0 if self._x0 is not None else np.zeros(self._approximator.output_shape))

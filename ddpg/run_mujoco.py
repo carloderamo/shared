@@ -13,19 +13,19 @@ import torch.nn.functional as F
 import pickle
 
 sys.path.append('..')
-sys.path.append('../..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.environments import *
-from mushroom.policy import OrnsteinUhlenbeckPolicy
 from mushroom.utils.dataset import compute_J
 
 from core import Core
 from ddpg import DDPG
+from policy import OrnsteinUhlenbeckPolicy
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
+                 features):
         super().__init__()
 
         self._n_input = input_shape
@@ -33,6 +33,7 @@ class ActorNetwork(nn.Module):
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
         self._dropout = dropout
+        self._features = features
         self._n_shared = 2
 
         self._h1 = nn.ModuleList(
@@ -119,27 +120,30 @@ class ActorNetwork(nn.Module):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
+                 features):
         super().__init__()
 
         self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
+        self._n_actions_per_head = n_actions_per_head
         self._use_cuda = use_cuda
         self._dropout = dropout
+        self._features = features
         self._n_shared = 2
 
         self._h1 = nn.ModuleList(
             [nn.Linear(self._n_input[i][0], 400) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(400, 300)
+        self._h2 = nn.Linear(800, 300)
         self._h3 = nn.ModuleList(
-            [nn.Linear(300, self._max_actions) for _ in range(
+            [nn.Linear(300, 1) for _ in range(
                 self._n_games)]
         )
         self._actions = nn.ModuleList(
-            [nn.Linear(n_actions_per_head[i], 300) for i in range(
+            [nn.Linear(n_actions_per_head[i][0], 400) for i in range(
                 len(n_actions_per_head))]
         )
 
@@ -149,6 +153,8 @@ class CriticNetwork(nn.Module):
         nn.init.xavier_uniform_(self._h2.weight,
                                 gain=nn.init.calculate_gain('relu'))
         for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._actions[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self._h1[i].weight,
                                     gain=nn.init.calculate_gain('relu'))
             nn.init.xavier_uniform_(self._h3[i].weight,
@@ -159,22 +165,27 @@ class CriticNetwork(nn.Module):
         action = action.float()
 
         h1 = list()
+        a = list()
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
             h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
+            a.append(F.relu(self._actions[i](
+                action[idxs, :self._n_actions_per_head[i][0]])
+            ))
         cat_h1 = torch.cat(h1)
+        cat_a = torch.cat(a)
+
+        cat_ha = torch.cat((cat_h1, cat_a), dim=-1)
 
         if self._features == 'relu':
-            h_f = F.relu(self._h2(cat_h1))
-            a = F.relu(self._actions(action))
+            h_f = F.relu(self._h2(cat_ha))
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h2(cat_h1))
-            a = F.sigmoid(self._actions(action))
+            h_f = F.sigmoid(self._h2(cat_ha))
         else:
             raise ValueError
-        cat_hf = torch.cat(h_f, a)
+
         if self._dropout:
-            h_f = self._h2_dropout(cat_hf)
+            h_f = self._h2_dropout(h_f)
 
         a = [self._h3[i](h_f) for i in range(self._n_games)]
         a = torch.stack(a, dim=1)
@@ -190,6 +201,8 @@ class CriticNetwork(nn.Module):
                     1, self._max_actions).unsqueeze(1))
 
             a = torch.squeeze(a_idx, 1)
+
+        exit()
 
         if get_features:
             return a, h_f
@@ -243,7 +256,7 @@ def experiment():
     arg_game.add_argument("--games",
                           type=list,
                           nargs='+',
-                          default=['Pendulum-v0'],
+                          default=['Swimmer-v2'],
                           help='Gym ID of the problem.')
     arg_game.add_argument("--horizon", type=int, nargs='+')
     arg_game.add_argument("--gamma", type=float, nargs='+')
@@ -306,9 +319,9 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    losses = list()
-    l1_losses = list()
-    def regularized_loss(arg, y):
+    actor_losses = list()
+    actor_l1_losses = list()
+    def actor_loss(arg, y):
         yhat, h_f = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
@@ -317,10 +330,28 @@ def experiment():
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
-        losses.append(temp_losses)
+        actor_losses.append(temp_losses)
         loss = torch.mean(loss)
         l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
-        l1_losses.append(l1_loss.item())
+        actor_l1_losses.append(l1_loss.item())
+
+        return loss + args.reg_coeff * l1_loss
+
+    critic_losses = list()
+    critic_l1_losses = list()
+    def critic_loss(arg, y):
+        yhat, h_f = arg
+
+        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        temp_losses = list()
+        for i in range(len(args.games)):
+            start = i * args.batch_size
+            stop = start + args.batch_size
+            temp_losses.append(torch.mean(loss[start:stop]).item())
+        critic_losses.append(temp_losses)
+        loss = torch.mean(loss)
+        l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
+        critic_l1_losses.append(l1_loss.item())
 
         return loss + args.reg_coeff * l1_loss
 
@@ -380,7 +411,8 @@ def experiment():
 
     # Policy
     policy_class = OrnsteinUhlenbeckPolicy
-    policy_params = dict(sigma=np.ones(1) * .2, theta=.15, dt=1e-2)
+    policy_params = dict(sigma=np.ones(1) * .2, theta=.15, dt=1e-2,
+                         n_actions_per_head=n_actions_per_head)
 
     # Approximator
     actor_approximator = PyTorchApproximator
@@ -389,25 +421,22 @@ def experiment():
         network=ActorNetwork,
         input_shape=actor_input_shape,
         output_shape=(max(n_actions_per_head)[0],),
-        n_actions=max(n_actions_per_head)[0],
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer_actor,
-        loss=regularized_loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features
     )
 
     critic_approximator = PyTorchApproximator
-    critic_input_shape = [m.info.observation_space.shape + m.info.action_space.shape for m in mdp]
+    critic_input_shape = [m.info.observation_space.shape for m in mdp]
     critic_approximator_params = dict(
         network=CriticNetwork,
         input_shape=critic_input_shape,
         output_shape=(1,),
-        n_actions=max(n_actions_per_head)[0],
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer_actor,
-        loss=regularized_loss,
+        loss=critic_loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features
