@@ -24,47 +24,39 @@ from core import Core
 from ddpg import DDPG
 
 
-class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features):
-        super(Network, self).__init__()
+class ActorNetwork(nn.Module):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
+        super().__init__()
 
         self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
         self._dropout = dropout
-        self._n_shared = 4
-        self._features = features
-
-        n_features = 80
+        self._n_shared = 2
 
         self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], n_features) for i in range(
+            [nn.Linear(self._n_input[i][0], 400) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(n_features, n_features)
-        self._h3 = nn.Linear(n_features, n_features)
-        self._h4 = nn.ModuleList(
-            [nn.Linear(n_features, self._max_actions) for _ in range(
+        self._h2 = nn.Linear(400, 300)
+        self._h3 = nn.ModuleList(
+            [nn.Linear(300, self._max_actions) for _ in range(
                 self._n_games)]
         )
 
         if self._dropout:
             self._h2_dropout = nn.Dropout2d()
-            self._h3_dropout = nn.Dropout2d()
 
         nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h3.weight,
                                 gain=nn.init.calculate_gain('relu'))
         for i in range(self._n_games):
             nn.init.xavier_uniform_(self._h1[i].weight,
                                     gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h4[i].weight,
-                                    gain=nn.init.calculate_gain('linear'))
+            nn.init.xavier_uniform_(self._h3[i].weight,
+                                    gain=nn.init.calculate_gain('tanh'))
 
-    def forward(self, state, action=None, idx=None, get_features=False):
+    def forward(self, state, idx=None, get_features=False):
         state = state.float()
 
         h1 = list()
@@ -73,79 +65,158 @@ class Network(nn.Module):
             h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
         cat_h1 = torch.cat(h1)
 
-        h_f = F.relu(self._h2(cat_h1))
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
-
         if self._features == 'relu':
-            h_f = F.relu(self._h3(h_f))
+            h_f = F.relu(self._h2(cat_h1))
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h3(h_f))
+            h_f = F.sigmoid(self._h2(cat_h1))
         else:
             raise ValueError
         if self._dropout:
-            h_f = self._h3_dropout(h_f)
+            h_f = self._h2_dropout(h_f)
 
-        q = [self._h4[i](h_f) for i in range(self._n_games)]
-        q = torch.stack(q, dim=1)
-
-        if action is not None:
-            action = action.long()
-            q_acted = torch.squeeze(
-                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
-
-            q = q_acted
+        a = [F.tanh(self._h3[i](h_f)) for i in range(self._n_games)]
+        a = torch.stack(a, dim=1)
 
         if idx is not None:
             idx = torch.from_numpy(idx)
             if self._use_cuda:
                 idx = idx.cuda()
-            if q.dim() == 2:
-                q_idx = q.gather(1, idx.unsqueeze(-1))
+            if a.dim() == 2:
+                a_idx = a.gather(1, idx.unsqueeze(-1))
             else:
-                q_idx = q.gather(1, idx.view(-1, 1).repeat(
+                a_idx = a.gather(1, idx.view(-1, 1).repeat(
                     1, self._max_actions).unsqueeze(1))
 
-            q = torch.squeeze(q_idx, 1)
+            a = torch.squeeze(a_idx, 1)
 
         if get_features:
-            return q, h_f
+            return a, h_f
         else:
-            return q
+            return a
 
     def get_shared_weights(self):
         p2 = list()
-        p3 = list()
 
         for p in self._h2.parameters():
             p2.append(p.data.detach().cpu().numpy())
 
-        for p in self._h3.parameters():
-            p3.append(p.data.detach().cpu().numpy())
-
-        return p2, p3
+        return p2
 
     def set_shared_weights(self, weights):
-        w2, w3 = weights
+        w2 = weights
 
         for p, w in zip(self._h2.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-
-        for p, w in zip(self._h3.parameters(), w3):
             w_tensor = torch.from_numpy(w).type(p.data.dtype)
             p.data = w_tensor
 
     def freeze_shared_weights(self):
         for p in self._h2.parameters():
             p.requires_grad = False
-        for p in self._h3.parameters():
-            p.requires_grad = False
 
     def unfreeze_shared_weights(self):
         for p in self._h2.parameters():
             p.requires_grad = True
-        for p in self._h3.parameters():
+
+
+class CriticNetwork(nn.Module):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout):
+        super().__init__()
+
+        self._n_input = input_shape
+        self._n_games = len(n_actions_per_head)
+        self._max_actions = max(n_actions_per_head)[0]
+        self._use_cuda = use_cuda
+        self._dropout = dropout
+        self._n_shared = 2
+
+        self._h1 = nn.ModuleList(
+            [nn.Linear(self._n_input[i][0], 400) for i in range(
+                len(input_shape))]
+        )
+        self._h2 = nn.Linear(400, 300)
+        self._h3 = nn.ModuleList(
+            [nn.Linear(300, self._max_actions) for _ in range(
+                self._n_games)]
+        )
+        self._actions = nn.ModuleList(
+            [nn.Linear(n_actions_per_head[i], 300) for i in range(
+                len(n_actions_per_head))]
+        )
+
+        if self._dropout:
+            self._h2_dropout = nn.Dropout2d()
+
+        nn.init.xavier_uniform_(self._h2.weight,
+                                gain=nn.init.calculate_gain('relu'))
+        for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._h1[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self._h3[i].weight,
+                                    gain=nn.init.calculate_gain('linear'))
+
+    def forward(self, state, action, idx=None, get_features=False):
+        state = state.float()
+        action = action.float()
+
+        h1 = list()
+        for i in np.unique(idx):
+            idxs = np.argwhere(idx == i).ravel()
+            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
+        cat_h1 = torch.cat(h1)
+
+        if self._features == 'relu':
+            h_f = F.relu(self._h2(cat_h1))
+            a = F.relu(self._actions(action))
+        elif self._features == 'sigmoid':
+            h_f = F.sigmoid(self._h2(cat_h1))
+            a = F.sigmoid(self._actions(action))
+        else:
+            raise ValueError
+        cat_hf = torch.cat(h_f, a)
+        if self._dropout:
+            h_f = self._h2_dropout(cat_hf)
+
+        a = [self._h3[i](h_f) for i in range(self._n_games)]
+        a = torch.stack(a, dim=1)
+
+        if idx is not None:
+            idx = torch.from_numpy(idx)
+            if self._use_cuda:
+                idx = idx.cuda()
+            if a.dim() == 2:
+                a_idx = a.gather(1, idx.unsqueeze(-1))
+            else:
+                a_idx = a.gather(1, idx.view(-1, 1).repeat(
+                    1, self._max_actions).unsqueeze(1))
+
+            a = torch.squeeze(a_idx, 1)
+
+        if get_features:
+            return a, h_f
+        else:
+            return a
+
+    def get_shared_weights(self):
+        p2 = list()
+
+        for p in self._h2.parameters():
+            p2.append(p.data.detach().cpu().numpy())
+
+        return p2
+
+    def set_shared_weights(self, weights):
+        w2 = weights
+
+        for p, w in zip(self._h2.parameters(), w2):
+            w_tensor = torch.from_numpy(w).type(p.data.dtype)
+            p.data = w_tensor
+
+    def freeze_shared_weights(self):
+        for p in self._h2.parameters():
+            p.requires_grad = False
+
+    def unfreeze_shared_weights(self):
+        for p in self._h2.parameters():
             p.requires_grad = True
 
 
@@ -178,7 +249,7 @@ def experiment():
     arg_game.add_argument("--gamma", type=float, nargs='+')
 
     arg_mem = parser.add_argument_group('Replay Memory')
-    arg_mem.add_argument("--initial-replay-size", type=int, default=100,
+    arg_mem.add_argument("--initial-replay-size", type=int, default=64,
                          help='Initial size of the replay memory.')
     arg_mem.add_argument("--max-replay-size", type=int, default=1000000,
                          help='Max size of the replay memory.')
@@ -315,7 +386,7 @@ def experiment():
     actor_approximator = PyTorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
     actor_approximator_params = dict(
-        network=Network,
+        network=ActorNetwork,
         input_shape=actor_input_shape,
         output_shape=(max(n_actions_per_head)[0],),
         n_actions=max(n_actions_per_head)[0],
@@ -330,9 +401,9 @@ def experiment():
     critic_approximator = PyTorchApproximator
     critic_input_shape = [m.info.observation_space.shape + m.info.action_space.shape for m in mdp]
     critic_approximator_params = dict(
-        network=Network,
+        network=CriticNetwork,
         input_shape=critic_input_shape,
-        output_shape=(max(n_actions_per_head)[0],),
+        output_shape=(1,),
         n_actions=max(n_actions_per_head)[0],
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer_actor,
@@ -347,7 +418,7 @@ def experiment():
         batch_size=args.batch_size,
         initial_replay_size=initial_replay_size,
         max_replay_size=max_replay_size,
-        tau=.001,
+        tau=args.tau,
         actor_params=actor_approximator_params,
         critic_params=critic_approximator_params,
         policy_params=policy_params,
@@ -358,7 +429,7 @@ def experiment():
     )
 
     agent = DDPG(actor_approximator, critic_approximator, policy_class,
-                 mdp.info, **algorithm_params)
+                 mdp_info, **algorithm_params)
 
     # Algorithm
     core = Core(agent, mdp)
