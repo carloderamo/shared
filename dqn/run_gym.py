@@ -340,9 +340,9 @@ def experiment():
             max_act_n = m
             max_act_idx = i
     gammas = [m.info.gamma for m in mdp]
+    horizons = [m.info.horizon for m in mdp]
     mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
-                       mdp[max_act_idx].info.action_space, gammas,
-                       mdp[0].info.horizon)
+                       mdp[max_act_idx].info.action_space, gammas, horizons)
 
     # DQN learning run
 
