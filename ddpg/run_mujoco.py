@@ -49,13 +49,15 @@ class ActorNetwork(nn.Module):
         if self._dropout:
             self._h2_dropout = nn.Dropout2d()
 
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
+        nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
+                         b=1 / np.sqrt(fan_in))
         for i in range(self._n_games):
-            nn.init.xavier_uniform_(self._h1[i].weight,
-                                    gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h3[i].weight,
-                                    gain=nn.init.calculate_gain('tanh'))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
+            nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
+                             b=1 / np.sqrt(fan_in))
+            nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
+            nn.init.uniform_(self._h3[i].bias, a=-3e-3, b=3e-3)
 
     def forward(self, state, idx=None, get_features=False):
         state = state.float()
@@ -348,7 +350,7 @@ def experiment():
     gamma_eval = list()
     for i, g in enumerate(args.games):
         mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-        gamma_eval.append(args.gamma[i])
+        gamma_eval.append(1)
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.shape[0],) for m in mdp]
@@ -499,7 +501,7 @@ def experiment():
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, losses, l1_losses, agent.q_list
+    return scores, critic_losses, critic_l1_losses, agent.q_list
 
 
 if __name__ == '__main__':
@@ -514,11 +516,11 @@ if __name__ == '__main__':
     )
 
     scores = np.array([o[0] for o in out])
-    loss = np.array([o[1] for o in out])
-    l1_loss = np.array([o[2] for o in out])
+    critic_loss = np.array([o[1] for o in out])
+    critic_l1_loss = np.array([o[2] for o in out])
     q = np.array([o[3] for o in out])
 
     np.save(folder_name + '/scores.npy', scores)
-    np.save(folder_name + '/loss.npy', loss)
-    np.save(folder_name + '/l1_loss.npy', l1_loss)
+    np.save(folder_name + '/critic_loss.npy', critic_loss)
+    np.save(folder_name + '/critic_l1_loss.npy', critic_l1_loss)
     np.save(folder_name + '/q.npy', q)
