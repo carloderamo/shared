@@ -15,8 +15,10 @@ class ActorLoss(nn.Module):
 
         self._critic = critic
 
-    def forward(self, action, state):
-        q = self._critic.model.network(state, action)
+    def forward(self, arg, state, idxs):
+        action, h_f = arg
+
+        q = self._critic.model.network(state, action, idx=idxs)
 
         return -q.mean()
 
@@ -57,8 +59,9 @@ class DDPG(Agent):
 
         target_actor_params = deepcopy(actor_params)
         self._actor_approximator = Regressor(actor_approximator,
-                                             **actor_params)
+                                             n_fit_targets=2, **actor_params)
         self._target_actor_approximator = Regressor(actor_approximator,
+                                                    n_fit_targets=2,
                                                     **target_actor_params)
 
         self._target_actor_approximator.model.set_weights(
@@ -126,6 +129,7 @@ class DDPG(Agent):
                                           idx=self._state_idxs,
                                           get_features=True)
             self._actor_approximator.fit(self._state, self._state,
+                                         self._state_idxs,
                                          idx=self._state_idxs,
                                          get_features=True)
 
@@ -162,15 +166,15 @@ class DDPG(Agent):
         a = self._target_actor_approximator(self._next_state,
                                             idx=self._next_state_idxs)
         q = self._target_critic_approximator(self._next_state, a,
-                                             idx=self._next_state_idxs)
+                                             idx=self._next_state_idxs).ravel()
 
         out_q = np.zeros(self._batch_size * self._n_games)
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
             if np.any(self._absorbing[start:stop]):
-                q[start:stop] *= 1 - self._absorbing[start:stop].reshape(-1, 1)
+                out_q[start:stop] = q[start:stop] * (1 - self._absorbing[start:stop])
 
-            out_q[start:stop] = q * self.mdp_info.gamma[i]
+            out_q[start:stop] = out_q[start:stop] * self.mdp_info.gamma[i]
 
         return out_q

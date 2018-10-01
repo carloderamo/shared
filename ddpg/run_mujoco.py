@@ -82,11 +82,9 @@ class ActorNetwork(nn.Module):
             idx = torch.from_numpy(idx)
             if self._use_cuda:
                 idx = idx.cuda()
-            if a.dim() == 2:
-                a_idx = a.gather(1, idx.unsqueeze(-1))
-            else:
-                a_idx = a.gather(1, idx.view(-1, 1).repeat(
-                    1, self._max_actions).unsqueeze(1))
+            a_idx = a.gather(1, idx.view(-1, 1).repeat(
+                1, self._max_actions).unsqueeze(1)
+                )
 
             a = torch.squeeze(a_idx, 1)
 
@@ -163,6 +161,8 @@ class CriticNetwork(nn.Module):
     def forward(self, state, action, idx=None, get_features=False):
         state = state.float()
         action = action.float()
+        if not isinstance(idx, np.ndarray):
+            idx = idx.numpy().astype(np.int)
 
         h1 = list()
         a = list()
@@ -187,25 +187,21 @@ class CriticNetwork(nn.Module):
         if self._dropout:
             h_f = self._h2_dropout(h_f)
 
-        a = [self._h3[i](h_f) for i in range(self._n_games)]
-        a = torch.stack(a, dim=1)
+        q = [self._h3[i](h_f) for i in range(self._n_games)]
+        q = torch.stack(q, dim=1).squeeze(-1)
 
         if idx is not None:
             idx = torch.from_numpy(idx)
             if self._use_cuda:
                 idx = idx.cuda()
-            if a.dim() == 2:
-                a_idx = a.gather(1, idx.unsqueeze(-1))
-            else:
-                a_idx = a.gather(1, idx.view(-1, 1).repeat(
-                    1, 1).unsqueeze(1))
 
-            a = torch.squeeze(a_idx, 1)
+            q_idx = q.gather(1, idx.unsqueeze(-1))
+            q = torch.squeeze(q_idx, 1)
 
         if get_features:
-            return a, h_f
+            return q, h_f
         else:
-            return a
+            return q
 
     def get_shared_weights(self):
         p2 = list()
@@ -317,30 +313,12 @@ def experiment():
 
     args.games = [''.join(g) for g in args.games]
 
-    actor_losses = list()
-    actor_l1_losses = list()
-    def actor_loss(arg, y):
-        yhat, h_f = arg
-
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
-        temp_losses = list()
-        for i in range(len(args.games)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-        actor_losses.append(temp_losses)
-        loss = torch.mean(loss)
-        l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
-        actor_l1_losses.append(l1_loss.item())
-
-        return loss + args.reg_coeff * l1_loss
-
     critic_losses = list()
     critic_l1_losses = list()
     def critic_loss(arg, y):
         yhat, h_f = arg
 
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        loss = F.mse_loss(yhat, y, reduce=False)
         temp_losses = list()
         for i in range(len(args.games)):
             start = i * args.batch_size
@@ -387,9 +365,9 @@ def experiment():
             max_act_n = m
             max_act_idx = i
     gammas = [m.info.gamma for m in mdp]
+    horizons = [m.info.horizon for m in mdp]
     mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
-                       mdp[max_act_idx].info.action_space, gammas,
-                       mdp[0].info.horizon)
+                       mdp[max_act_idx].info.action_space, gammas, horizons)
 
     # DQN learning run
 
