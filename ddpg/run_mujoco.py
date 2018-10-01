@@ -264,7 +264,7 @@ def experiment():
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=64,
                          help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=1000000,
+    arg_mem.add_argument("--max-replay-size", type=int, default=500000,
                          help='Max size of the replay memory.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
@@ -284,12 +284,12 @@ def experiment():
     arg_alg.add_argument("--tau", type=float, default=1e-3)
     arg_alg.add_argument("--history-length", type=int, default=1,
                          help='Number of frames composing a state.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=1000,
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=10000,
                          help='Number of learning step before each evaluation.'
                               'This number represents an epoch.')
-    arg_alg.add_argument("--max-steps", type=int, default=50000,
+    arg_alg.add_argument("--max-steps", type=int, default=1000000,
                          help='Total number of learning steps.')
-    arg_alg.add_argument("--test-samples", type=int, default=2000,
+    arg_alg.add_argument("--test-samples", type=int, default=5000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--transfer", type=str, default='',
                          help='Path to  the file of the weights of the common '
