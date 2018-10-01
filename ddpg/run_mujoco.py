@@ -137,28 +137,32 @@ class CriticNetwork(nn.Module):
             [nn.Linear(self._n_input[i][0], 400) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(800, 300)
+        self._h2 = nn.Linear(500, 300)
         self._h3 = nn.ModuleList(
             [nn.Linear(300, 1) for _ in range(
                 self._n_games)]
         )
         self._actions = nn.ModuleList(
-            [nn.Linear(n_actions_per_head[i][0], 400) for i in range(
+            [nn.Linear(n_actions_per_head[i][0], 100) for i in range(
                 len(n_actions_per_head))]
         )
 
         if self._dropout:
             self._h2_dropout = nn.Dropout2d()
 
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
+        nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
+                         b=1 / np.sqrt(fan_in))
         for i in range(self._n_games):
-            nn.init.xavier_uniform_(self._actions[i].weight,
-                                    gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h1[i].weight,
-                                    gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h3[i].weight,
-                                    gain=nn.init.calculate_gain('linear'))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
+                self._actions[i].weight)
+            nn.init.uniform_(self._actions[i].weight, a=-1 / np.sqrt(fan_in),
+                             b=1 / np.sqrt(fan_in))
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
+            nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
+                             b=1 / np.sqrt(fan_in))
+            nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
+            nn.init.uniform_(self._h3[i].bias, a=-3e-3, b=3e-3)
 
     def forward(self, state, action, idx=None, get_features=False):
         state = state.float()
@@ -343,7 +347,8 @@ def experiment():
 
     optimizer_critic = dict()
     optimizer_critic['class'] = optim.Adam
-    optimizer_critic['params'] = dict(lr=args.learning_rate_critic)
+    optimizer_critic['params'] = dict(lr=args.learning_rate_critic,
+                                      weight_decay=1e-2)
 
     # MDP
     mdp = list()
