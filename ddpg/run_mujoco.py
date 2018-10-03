@@ -24,13 +24,14 @@ from policy import OrnsteinUhlenbeckPolicy
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features):
+    def __init__(self, input_shape, _, n_actions_per_head, max_action_value,
+                 use_cuda, dropout, features):
         super().__init__()
 
         self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
+        self._max_action_value = max_action_value
         self._use_cuda = use_cuda
         self._dropout = dropout
         self._features = features
@@ -77,7 +78,8 @@ class ActorNetwork(nn.Module):
         if self._dropout:
             h_f = self._h2_dropout(h_f)
 
-        a = [F.tanh(self._h3[i](h_f)) for i in range(self._n_games)]
+        a = [np.asscalar(self._max_action_value[i]) * F.tanh(
+            self._h3[i](h_f)) for i in range(self._n_games)]
         a = torch.stack(a, dim=1)
 
         if idx is not None:
@@ -400,11 +402,20 @@ def experiment():
     # Approximator
     actor_approximator = PyTorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
+
+    max_action_value = list()
+    for m in mdp:
+        assert len(np.unique(m.info.action_space.low)) == 1
+        assert len(np.unique(m.info.action_space.high)) == 1
+        assert abs(m.info.action_space.low[0]) == m.info.action_space.high[0]
+
+        max_action_value.append(m.info.action_space.high[0])
     actor_approximator_params = dict(
         network=ActorNetwork,
         input_shape=actor_input_shape,
         output_shape=(max(n_actions_per_head)[0],),
         n_actions_per_head=n_actions_per_head,
+        max_action_value=max_action_value,
         optimizer=optimizer_actor,
         use_cuda=args.use_cuda,
         dropout=args.dropout,

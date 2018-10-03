@@ -172,9 +172,11 @@ class DDPG(Agent):
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
-            if np.any(self._absorbing[start:stop]):
-                out_q[start:stop] = q[start:stop] * (1 - self._absorbing[start:stop])
 
-            out_q[start:stop] = out_q[start:stop] * self.mdp_info.gamma[i]
+            out_q[start:stop] = q[start:stop] * self.mdp_info.gamma[i]
+            if np.any(self._absorbing[start:stop]):
+                out_q[start:stop] = out_q[start:stop] * (
+                    1 - self._absorbing[start:stop]
+                )
 
         return out_q
