@@ -454,6 +454,9 @@ def experiment():
     best_weights = None
 
     np.save(folder_name + '/scores.npy', scores)
+    np.save(folder_name + '/critic_loss.npy', losses)
+    np.save(folder_name + '/critic_l1_loss.npy', l1_losses)
+    np.save(folder_name + '/q.npy', agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -491,6 +494,9 @@ def experiment():
             best_weights = agent.get_shared_weights()
 
         np.save(folder_name + '/scores.npy', scores)
+        np.save(folder_name + '/critic_loss.npy', losses)
+        np.save(folder_name + '/critic_l1_loss.npy', l1_losses)
+        np.save(folder_name + '/q.npy', agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))

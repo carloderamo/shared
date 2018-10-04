@@ -447,6 +447,10 @@ def experiment():
     best_score_sum = -np.inf
     best_weights = None
 
+    np.save(folder_name + '/scores.npy', scores)
+    np.save(folder_name + '/critic_loss.npy', losses)
+    np.save(folder_name + '/critic_l1_loss.npy', l1_losses)
+    np.save(folder_name + '/q.npy', agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -479,10 +483,13 @@ def experiment():
             best_score_sum = current_score_sum
             best_weights = agent.get_shared_weights()
 
+        np.save(folder_name + '/scores.npy', scores)
+        np.save(folder_name + '/critic_loss.npy', losses)
+        np.save(folder_name + '/critic_l1_loss.npy', l1_losses)
+        np.save(folder_name + '/q.npy', agent.q_list)
+
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
-
-    return scores, losses, l1_losses, agent.q_list
 
 
 if __name__ == '__main__':
@@ -492,16 +499,4 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(
-        delayed(experiment)() for _ in range(n_experiments)
-    )
-
-    scores = np.array([o[0] for o in out])
-    loss = np.array([o[1] for o in out])
-    l1_loss = np.array([o[2] for o in out])
-    q = np.array([o[3] for o in out])
-
-    np.save(folder_name + '/scores.npy', scores)
-    np.save(folder_name + '/loss.npy', loss)
-    np.save(folder_name + '/l1_loss.npy', l1_loss)
-    np.save(folder_name + '/q.npy', q)
+    Parallel(n_jobs=-1)(delayed(experiment)() for _ in range(n_experiments))

@@ -170,7 +170,7 @@ class CriticNetwork(nn.Module):
         state = state.float()
         action = action.float()
         if not isinstance(idx, np.ndarray):
-            idx = idx.numpy().astype(np.int)
+            idx = idx.cpu().numpy().astype(np.int)
 
         h1 = list()
         a = list()
@@ -484,6 +484,10 @@ def experiment():
     best_score_sum = -np.inf
     best_weights = None
 
+    np.save(folder_name + '/scores.npy', scores)
+    np.save(folder_name + '/critic_loss.npy', critic_losses)
+    np.save(folder_name + '/critic_l1_loss.npy', critic_l1_losses)
+    np.save(folder_name + '/q.npy', agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -514,6 +518,11 @@ def experiment():
             best_score_sum = current_score_sum
             best_weights = agent.get_shared_weights()
 
+        np.save(folder_name + '/scores.npy', scores)
+        np.save(folder_name + '/critic_loss.npy', critic_losses)
+        np.save(folder_name + '/critic_l1_loss.npy', critic_l1_losses)
+        np.save(folder_name + '/q.npy', agent.q_list)
+
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
@@ -527,16 +536,4 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(
-        delayed(experiment)() for _ in range(n_experiments)
-    )
-
-    scores = np.array([o[0] for o in out])
-    critic_loss = np.array([o[1] for o in out])
-    critic_l1_loss = np.array([o[2] for o in out])
-    q = np.array([o[3] for o in out])
-
-    np.save(folder_name + '/scores.npy', scores)
-    np.save(folder_name + '/critic_loss.npy', critic_loss)
-    np.save(folder_name + '/critic_l1_loss.npy', critic_l1_loss)
-    np.save(folder_name + '/q.npy', q)
+    Parallel(n_jobs=-1)(delayed(experiment)() for _ in range(n_experiments))
