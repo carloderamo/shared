@@ -248,7 +248,7 @@ def get_stats(dataset, gamma, idx, games):
     return J
 
 
-def experiment():
+def experiment(idx):
     np.random.seed()
 
     # Argument parser
@@ -484,10 +484,10 @@ def experiment():
     best_score_sum = -np.inf
     best_weights = None
 
-    np.save(folder_name + '/scores.npy', scores)
-    np.save(folder_name + '/critic_loss.npy', critic_losses)
-    np.save(folder_name + '/critic_l1_loss.npy', critic_l1_losses)
-    np.save(folder_name + '/q.npy', agent.q_list)
+    np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
+    np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
+    np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+    np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -518,10 +518,10 @@ def experiment():
             best_score_sum = current_score_sum
             best_weights = agent.get_shared_weights()
 
-        np.save(folder_name + '/scores.npy', scores)
-        np.save(folder_name + '/critic_loss.npy', critic_losses)
-        np.save(folder_name + '/critic_l1_loss.npy', critic_l1_losses)
-        np.save(folder_name + '/q.npy', agent.q_list)
+        np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
+        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
+        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+        np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -530,10 +530,20 @@ def experiment():
 
 
 if __name__ == '__main__':
-    n_experiments = 1
+    n_experiments = 3
 
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
-        '%Y-%m-%d_%H-%M-%S')
+        '%Y-%m-%d_%H-%M-%S/')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    Parallel(n_jobs=-1)(delayed(experiment)() for _ in range(n_experiments))
+    out = Parallel(n_jobs=-1)(delayed(experiment)(i) for i in range(n_experiments))
+
+    scores = np.array([o[0] for o in out])
+    critic_loss = np.array([o[1] for o in out])
+    critic_l1_loss = np.array([o[2] for o in out])
+    qs = np.array([o[3] for o in out])
+
+    np.save(folder_name + 'scores.npy', scores)
+    np.save(folder_name + 'critic_loss.npy', critic_loss)
+    np.save(folder_name + 'critic_l1_loss.npy', critic_l1_loss)
+    np.save(folder_name + 'qs.npy', qs)

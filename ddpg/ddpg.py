@@ -168,6 +168,8 @@ class DDPG(Agent):
         q = self._target_critic_approximator(self._next_state, a,
                                              idx=self._next_state_idxs).ravel()
 
+        self.q_list.append(q.mean())
+
         out_q = np.zeros(self._batch_size * self._n_games)
         for i in range(self._n_games):
             start = self._batch_size * i
