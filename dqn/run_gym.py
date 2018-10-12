@@ -426,12 +426,13 @@ def experiment(idx):
     core.learn(n_steps=initial_replay_size,
                n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
-    if args.save:
-        agent.approximator.model.save()
-
     if args.transfer:
         weights = pickle.load(open(args.transfer, 'rb'))
         agent.set_shared_weights(weights)
+
+    if args.load:
+        weights = np.load(args.load)
+        agent.policy.set_weights(weights)
 
     # Evaluate initial policy
     pi.set_epsilon(epsilon_test)
@@ -462,9 +463,6 @@ def experiment(idx):
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
 
-        if args.save:
-            agent.approximator.model.save()
-
         print('- Evaluation:')
         # evaluation step
         pi.set_epsilon(epsilon_test)
@@ -482,6 +480,9 @@ def experiment(idx):
         if args.save_shared and current_score_sum >= best_score_sum:
             best_score_sum = current_score_sum
             best_weights = agent.get_shared_weights()
+
+        if args.save:
+            np.save(folder_name + 'best_weights-exp-%d.npy' % idx, agent.policy.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, losses)
