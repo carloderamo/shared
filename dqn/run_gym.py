@@ -448,8 +448,8 @@ def experiment(idx):
     best_weights = None
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
-    np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+    np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
+    np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
     np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -484,8 +484,8 @@ def experiment(idx):
             best_weights = agent.get_shared_weights()
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
-        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, losses)
+        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, l1_losses)
         np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
@@ -499,14 +499,14 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S/')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)() for _ in range(n_experiments))
+    out = Parallel(n_jobs=-1)(delayed(experiment)(i) for i in range(n_experiments))
 
     scores = np.array([o[0] for o in out])
-    critic_loss = np.array([o[1] for o in out])
-    critic_l1_loss = np.array([o[2] for o in out])
+    loss = np.array([o[1] for o in out])
+    l1_loss = np.array([o[2] for o in out])
     qs = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'critic_loss.npy', critic_loss)
-    np.save(folder_name + 'critic_l1_loss.npy', critic_l1_loss)
+    np.save(folder_name + 'loss.npy', loss)
+    np.save(folder_name + 'l1_loss.npy', l1_loss)
     np.save(folder_name + 'qs.npy', qs)
