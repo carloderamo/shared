@@ -304,7 +304,7 @@ def experiment(idx):
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
                            help='Flag specifying whether to use the GPU.')
-    arg_utils.add_argument('--load-path', type=str,
+    arg_utils.add_argument('--load', type=str,
                            help='Path of the model to be loaded.')
     arg_utils.add_argument('--save', action='store_true',
                            help='Flag specifying whether to save the model.')
@@ -467,6 +467,10 @@ def experiment(idx):
     if args.transfer:
         weights = pickle.load(open(args.transfer, 'rb'))
         agent.set_shared_weights(weights)
+
+    if args.load:
+        weights = np.load(args.load)
+        agent.policy.set_weights(weights)
 
     # Evaluate initial policy
     dataset = core.evaluate(n_steps=test_samples, render=args.render,
