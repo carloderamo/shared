@@ -138,10 +138,14 @@ class DDPG(Agent):
             self._update_target()
 
     def get_shared_weights(self):
-        return self.approximator.model.network.get_shared_weights()
+        cw = self._critic_approximator.model.network.get_shared_weights()
+        aw = self._actor_approximator.model.network.get_shared_weights()
+
+        return [cw, aw]
 
     def set_shared_weights(self, weights):
-        self.approximator.model.network.set_shared_weights(weights)
+        self._critic_approximator.model.network.set_shared_weights(weights[0])
+        self._actor_approximator.model.network.set_shared_weights(weights[1])
 
     def freeze_shared_weights(self):
         return self.approximator.model.network.freeze_shared_weights()

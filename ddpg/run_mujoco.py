@@ -512,8 +512,8 @@ def experiment(idx):
             best_score_sum = current_score_sum
             best_weights = agent.get_shared_weights()
 
-            if args.save:
-                np.save(folder_name + 'best_weights-exp-%d.npy' % idx, best_weights)
+        if args.save:
+            np.save(folder_name + 'best_weights-exp-%d.npy' % idx, agent.policy.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
