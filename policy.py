@@ -148,12 +148,14 @@ class EpsGreedyEnsemble(TDPolicy):
 
 
 class OrnsteinUhlenbeckPolicy(ParametricPolicy):
-    def __init__(self, mu, sigma, theta, dt, n_actions_per_head, x0=None):
+    def __init__(self, mu, sigma, theta, dt, n_actions_per_head,
+                 max_action_value, x0=None):
 
         self._approximator = mu
         self._sigma = sigma
         self._theta = theta
         self._dt = dt
+        self._max_action_value = max_action_value
         self._x0 = x0
 
         self._n_games = len(n_actions_per_head)
@@ -166,7 +168,7 @@ class OrnsteinUhlenbeckPolicy(ParametricPolicy):
     def draw_action(self, state):
         idx = state[0]
         state = state[1]
-        mu = self._approximator.predict(state, idx=np.array([idx]))
+        mu = self._approximator.predict(state, idx=np.array([idx])) / self._max_action_value[idx]
 
         x = self._x_prev[idx] - self._theta * self._x_prev[idx] * self._dt + self._sigma *\
             np.sqrt(self._dt) * np.random.normal(size=self._approximator.output_shape)
