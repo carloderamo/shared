@@ -168,7 +168,7 @@ class OrnsteinUhlenbeckPolicy(ParametricPolicy):
     def draw_action(self, state):
         idx = state[0]
         state = state[1]
-        mu = self._approximator.predict(state, idx=np.array([idx])) / self._max_action_value[idx]
+        mu = self._approximator.predict(state, idx=np.array([idx])) * self._max_action_value[idx]
 
         x = self._x_prev[idx] - self._theta * self._x_prev[idx] * self._dt + self._sigma *\
             np.sqrt(self._dt) * np.random.normal(size=self._approximator.output_shape)
