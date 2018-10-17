@@ -239,9 +239,9 @@ def print_epoch(epoch):
     print('----------------------------------------------------------------')
 
 
-def get_stats(dataset, gamma, idx, games):
+def get_stats(dataset, gamma, idx, domains, tasks):
     J = np.mean(compute_J(dataset, gamma[idx]))
-    print(games[idx] + ': J: %f' % J)
+    print(domains[idx] + '-' + tasks[idx] + ': J: %f' % J)
 
     return J
 
@@ -253,11 +253,8 @@ def experiment(idx):
     parser = argparse.ArgumentParser()
 
     arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games",
-                          type=list,
-                          nargs='+',
-                          default=['Swimmer-v2'],
-                          help='Gym ID of the problem.')
+    arg_game.add_argument("--games", type=list, nargs='+',
+                          default=['cartpole', 'swingup'])
     arg_game.add_argument("--horizon", type=int, nargs='+')
     arg_game.add_argument("--gamma", type=float, nargs='+')
 
@@ -319,6 +316,9 @@ def experiment(idx):
 
     args.games = [''.join(g) for g in args.games]
 
+    domains = args.games[::2]
+    tasks = args.games[1::2]
+
     critic_losses = list()
     critic_l1_losses = list()
     def critic_loss(arg, y):
@@ -326,7 +326,7 @@ def experiment(idx):
 
         loss = F.mse_loss(yhat, y, reduce=False)
         temp_losses = list()
-        for i in range(len(args.games)):
+        for i in range(len(domains)):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -338,7 +338,7 @@ def experiment(idx):
         return loss + args.reg_coeff * l1_loss
 
     scores = list()
-    for _ in range(len(args.games)):
+    for _ in range(len(domains)):
         scores.append(list())
 
     optimizer_actor = dict()
@@ -353,8 +353,8 @@ def experiment(idx):
     # MDP
     mdp = list()
     gamma_eval = list()
-    for i, g in enumerate(args.games):
-        mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+    for i, g in enumerate(zip(domains, tasks)):
+        mdp.append(Mujoco(g[0], g[1], args.horizon[i], args.gamma[i]))
         gamma_eval.append(args.gamma[i])
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
@@ -362,7 +362,7 @@ def experiment(idx):
 
     max_obs_dim = 0
     max_act_n = 0
-    for i in range(len(args.games)):
+    for i in range(len(domains)):
         n = mdp[i].info.observation_space.shape[0]
         m = len(mdp[i].info.action_space.shape)
         if n > max_obs_dim:
@@ -443,7 +443,7 @@ def experiment(idx):
         actor_params=actor_approximator_params,
         critic_params=critic_approximator_params,
         policy_params=policy_params,
-        n_games=len(args.games),
+        n_games=len(domains),
         n_input_per_mdp=n_input_per_mdp,
         n_actions_per_head=n_actions_per_head,
         dtype=np.float32
@@ -475,7 +475,7 @@ def experiment(idx):
                             quiet=args.quiet)
     for i in range(len(mdp)):
         d = dataset[i::len(mdp)]
-        scores[i].append(get_stats(d, gamma_eval, i, args.games))
+        scores[i].append(get_stats(d, gamma_eval, i, domains, tasks))
 
     if args.unfreeze_epoch > 0:
         agent.freeze_shared_weights()
@@ -505,7 +505,7 @@ def experiment(idx):
         current_score_sum = 0
         for i in range(len(mdp)):
             d = dataset[i::len(mdp)]
-            current_score = get_stats(d, gamma_eval, i, args.games)
+            current_score = get_stats(d, gamma_eval, i, domains, tasks)
             scores[i].append(current_score)
             current_score_sum += current_score
 
