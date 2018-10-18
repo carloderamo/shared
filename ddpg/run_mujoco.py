@@ -52,14 +52,12 @@ class ActorNetwork(nn.Module):
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
         nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.bias)
         nn.init.uniform_(self._h2.bias, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
         for i in range(self._n_games):
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
             nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].bias)
             nn.init.uniform_(self._h1[i].bias, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
             nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
@@ -159,7 +157,6 @@ class CriticNetwork(nn.Module):
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
         nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.bias)
         nn.init.uniform_(self._h2.bias, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
         for i in range(self._n_games):
@@ -167,14 +164,11 @@ class CriticNetwork(nn.Module):
                 self._actions[i].weight)
             nn.init.uniform_(self._actions[i].weight, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                self._actions[i].bias)
             nn.init.uniform_(self._actions[i].bias, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
             nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].bias)
             nn.init.uniform_(self._h1[i].bias, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
             nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
