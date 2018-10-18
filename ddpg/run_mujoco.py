@@ -136,35 +136,35 @@ class CriticNetwork(nn.Module):
         self._dropout = dropout
         self._features = features
         self._n_shared = 2
+        n_hidden_1 = 400
+        n_hidden_2 = 300
 
         self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], 400) for i in range(
+            [nn.Linear(self._n_input[i][0], n_hidden_1) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(500, 300)
+        self._h2_s = nn.Linear(n_hidden_1, n_hidden_2)
         self._h3 = nn.ModuleList(
-            [nn.Linear(300, 1) for _ in range(
+            [nn.Linear(n_hidden_2, 1) for _ in range(
                 self._n_games)]
         )
-        self._actions = nn.ModuleList(
-            [nn.Linear(n_actions_per_head[i][0], 100) for i in range(
+        self._h2_a = nn.ModuleList(
+            [nn.Linear(n_actions_per_head[i][0], n_hidden_2, bias=False) for i in range(
                 len(n_actions_per_head))]
         )
 
         if self._dropout:
             self._h2_dropout = nn.Dropout2d()
 
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
-        nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2_s.weight)
+        nn.init.uniform_(self._h2_s.weight, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
-        nn.init.uniform_(self._h2.bias, a=-1 / np.sqrt(fan_in),
+        nn.init.uniform_(self._h2_s.bias, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
         for i in range(self._n_games):
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                self._actions[i].weight)
-            nn.init.uniform_(self._actions[i].weight, a=-1 / np.sqrt(fan_in),
-                             b=1 / np.sqrt(fan_in))
-            nn.init.uniform_(self._actions[i].bias, a=-1 / np.sqrt(fan_in),
+                self._h2_a[i].weight)
+            nn.init.uniform_(self._h2_a[i].weight, a=-1 / np.sqrt(fan_in),
                              b=1 / np.sqrt(fan_in))
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
             nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
@@ -180,23 +180,19 @@ class CriticNetwork(nn.Module):
         if not isinstance(idx, np.ndarray):
             idx = idx.cpu().numpy().astype(np.int)
 
-        h1 = list()
-        a = list()
+        h2 = list()
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
-            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
-            a.append(F.relu(self._actions[i](
-                action[idxs, :self._n_actions_per_head[i][0]])
-            ))
-        cat_h1 = torch.cat(h1)
-        cat_a = torch.cat(a)
+            h1_s = F.relu(self._h1[i](state[idxs, :self._n_input[i][0]]))
+            a = action[idxs, :self._n_actions_per_head[i][0]]
+            h2.append(self._h2_s(h1_s) + self._h2_a[i](a))
 
-        cat_ha = torch.cat((cat_h1, cat_a), dim=-1)
+        cat_h2 = torch.cat(h2)
 
         if self._features == 'relu':
-            h_f = F.relu(self._h2(cat_ha))
+            h_f = F.relu(cat_h2)
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h2(cat_ha))
+            h_f = F.sigmoid(cat_h2)
         else:
             raise ValueError
 
