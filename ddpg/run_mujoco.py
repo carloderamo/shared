@@ -183,9 +183,9 @@ class CriticNetwork(nn.Module):
         h2 = list()
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
-            h1_s = F.relu(self._h1[i](state[idxs, :self._n_input[i][0]]))
+            h1 = F.relu(self._h1[i](state[idxs, :self._n_input[i][0]]))
             a = action[idxs, :self._n_actions_per_head[i][0]]
-            h2.append(self._h2_s(h1_s) + self._h2_a[i](a))
+            h2.append(self._h2_s(h1) + self._h2_a[i](a))
 
         cat_h2 = torch.cat(h2)
 
