@@ -38,6 +38,9 @@ for i, g in enumerate(games):
         
         plt.plot(multi_game_mean)
         plt.fill_between(np.arange(51), multi_game_mean - multi_game_err, multi_game_mean + multi_game_err, alpha=.5)
+        
+        if i < len(games) - 1:
+            plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
     
         plt.grid()
     
