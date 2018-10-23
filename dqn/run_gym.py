@@ -253,6 +253,8 @@ def experiment(idx):
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
                            help='Flag specifying whether to use the GPU.')
+    arg_utils.add_argument('--load', type=str,
+                           help='Path of the model to be loaded.')
     arg_utils.add_argument('--save', action='store_true',
                            help='Flag specifying whether to save the model.')
     arg_utils.add_argument('--render', action='store_true',
@@ -485,8 +487,8 @@ def experiment(idx):
             np.save(folder_name + 'best_weights-exp-%d.npy' % idx, agent.policy.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, losses)
-        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, l1_losses)
+        np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
+        np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
         np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:

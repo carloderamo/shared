@@ -146,9 +146,9 @@ class DQN(Agent):
         q = self.target_approximator.predict(self._next_state,
                                              idx=self._next_state_idxs)
 
-        self.q_list.append(q.mean())
-
         out_q = np.zeros(self._batch_size * self._n_games)
+
+        q_list = list()
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
@@ -158,6 +158,10 @@ class DQN(Agent):
             n_actions = self._n_action_per_head[i][0]
             out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
             out_q[start:stop] *= self.mdp_info.gamma[i]
+
+            q_list.append(out_q[start:stop].mean())
+
+        self.q_list.append(np.array(q_list))
 
         return out_q
 
