@@ -500,7 +500,7 @@ def experiment(idx):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, losses, l1_losses, agent.q_list
+    return scores, losses, l1_losses, agent.v_list
 
 
 if __name__ == '__main__':
