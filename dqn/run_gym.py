@@ -276,15 +276,20 @@ def experiment(idx):
         yhat, h_f = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        l1_loss = torch.norm(h_f, 1, dim=1)
+
         temp_losses = list()
+        temp_l1_losses = list()
         for i in range(len(args.games)):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
+            temp_l1_losses.append(torch.mean(l1_loss[start:stop]).item())
         losses.append(temp_losses)
+        l1_losses.append(temp_l1_losses)
+
         loss = torch.mean(loss)
-        l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
-        l1_losses.append(l1_loss.item())
+        l1_loss = torch.mean(l1_loss)
 
         return loss + args.reg_coeff * l1_loss
 
@@ -453,7 +458,7 @@ def experiment(idx):
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
     np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
     np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
-    np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
+    np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -489,7 +494,7 @@ def experiment(idx):
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
         np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
-        np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
+        np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -509,9 +514,9 @@ if __name__ == '__main__':
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
     l1_loss = np.array([o[2] for o in out])
-    qs = np.array([o[3] for o in out])
+    v = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss.npy', loss)
     np.save(folder_name + 'l1_loss.npy', l1_loss)
-    np.save(folder_name + 'qs.npy', qs)
+    np.save(folder_name + 'v.npy', v)

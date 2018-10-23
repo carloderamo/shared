@@ -73,7 +73,7 @@ class DQN(Agent):
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
 
-        self.q_list = list()
+        self.v_list = list()
 
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
@@ -148,7 +148,7 @@ class DQN(Agent):
 
         out_q = np.zeros(self._batch_size * self._n_games)
 
-        q_list = list()
+        v_list = list()
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
@@ -159,9 +159,9 @@ class DQN(Agent):
             out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
             out_q[start:stop] *= self.mdp_info.gamma[i]
 
-            q_list.append(out_q[start:stop].mean())
+            v_list.append(out_q[start:stop].mean())
 
-        self.q_list.append(np.array(q_list))
+        self.v_list.append(np.array(v_list))
 
         return out_q
 
@@ -175,9 +175,9 @@ class DoubleDQN(DQN):
         if np.any(self._absorbing):
             double_q *= 1 - self._absorbing.reshape(-1, 1)
 
-        self.q_list.append(double_q.mean())
-
         out_q = np.zeros(self._batch_size * self._n_games)
+
+        v_list = list()
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
@@ -186,5 +186,9 @@ class DoubleDQN(DQN):
             idxs = np.argmax(q[start:stop, :n_actions], axis=1)
             out_q[start:stop] = double_q[np.arange(start, stop),
                                          idxs] * self.mdp_info.gamma[i]
+
+            v_list.append(out_q[start:stop].mean())
+
+        self.v_list.append(np.array(v_list))
 
         return out_q
