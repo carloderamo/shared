@@ -494,6 +494,8 @@ def experiment(idx):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
+    return scores, losses, l1_losses, agent.q_list
+
 
 if __name__ == '__main__':
     n_experiments = 1
