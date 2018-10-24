@@ -44,9 +44,10 @@ plt.subplot(3, 1, 2)
 plt.title('L1-LOSS')
 a = np.load('l1_loss.npy')
 a = preprocess(a)
-a_mean, a_err = get_mean_and_confidence(a)
-plt.plot(a_mean)
-plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
+for i, g in enumerate(games):
+    a_mean, a_err = get_mean_and_confidence(a[:, :, i])
+    plt.plot(a_mean)
+    plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
 plt.grid()
 
 plt.subplot(3, 1, 3)
