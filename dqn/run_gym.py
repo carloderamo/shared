@@ -6,7 +6,6 @@ import sys
 from joblib import delayed, Parallel
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
@@ -22,137 +21,13 @@ from mushroom.utils.parameters import LinearDecayParameter, Parameter
 from core import Core
 from dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
+from networks import GymNetwork
 
 """
 This script runs Atari experiments with DQN as presented in:
 "Human-Level Control Through Deep Reinforcement Learning". Mnih V. et al.. 2015.
 
 """
-
-
-class Network(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features):
-        super(Network, self).__init__()
-
-        self._n_input = input_shape
-        self._n_games = len(n_actions_per_head)
-        self._max_actions = max(n_actions_per_head)[0]
-        self._use_cuda = use_cuda
-        self._dropout = dropout
-        self._n_shared = 4
-        self._features = features
-
-        n_features = 80
-
-        self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], n_features) for i in range(
-                len(input_shape))]
-        )
-        self._h2 = nn.Linear(n_features, n_features)
-        self._h3 = nn.Linear(n_features, n_features)
-        self._h4 = nn.ModuleList(
-            [nn.Linear(n_features, self._max_actions) for _ in range(
-                self._n_games)]
-        )
-
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
-            self._h3_dropout = nn.Dropout2d()
-
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        nn.init.xavier_uniform_(self._h3.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        for i in range(self._n_games):
-            nn.init.xavier_uniform_(self._h1[i].weight,
-                                    gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._h4[i].weight,
-                                    gain=nn.init.calculate_gain('linear'))
-
-    def forward(self, state, action=None, idx=None, get_features=False):
-        state = state.float()
-
-        h1 = list()
-        for i in np.unique(idx):
-            idxs = np.argwhere(idx == i).ravel()
-            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
-        cat_h1 = torch.cat(h1)
-
-        h_f = F.relu(self._h2(cat_h1))
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
-
-        if self._features == 'relu':
-            h_f = F.relu(self._h3(h_f))
-        elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h3(h_f))
-        else:
-            raise ValueError
-        if self._dropout:
-            h_f = self._h3_dropout(h_f)
-
-        q = [self._h4[i](h_f) for i in range(self._n_games)]
-        q = torch.stack(q, dim=1)
-
-        if action is not None:
-            action = action.long()
-            q_acted = torch.squeeze(
-                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
-
-            q = q_acted
-
-        if idx is not None:
-            idx = torch.from_numpy(idx)
-            if self._use_cuda:
-                idx = idx.cuda()
-            if q.dim() == 2:
-                q_idx = q.gather(1, idx.unsqueeze(-1))
-            else:
-                q_idx = q.gather(1, idx.view(-1, 1).repeat(
-                    1, self._max_actions).unsqueeze(1))
-
-            q = torch.squeeze(q_idx, 1)
-
-        if get_features:
-            return q, h_f
-        else:
-            return q
-
-    def get_shared_weights(self):
-        p2 = list()
-        p3 = list()
-
-        for p in self._h2.parameters():
-            p2.append(p.data.detach().cpu().numpy())
-
-        for p in self._h3.parameters():
-            p3.append(p.data.detach().cpu().numpy())
-
-        return p2, p3
-
-    def set_shared_weights(self, weights):
-        w2, w3 = weights
-
-        for p, w in zip(self._h2.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-
-        for p, w in zip(self._h3.parameters(), w3):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-
-    def freeze_shared_weights(self):
-        for p in self._h2.parameters():
-            p.requires_grad = False
-        for p in self._h3.parameters():
-            p.requires_grad = False
-
-    def unfreeze_shared_weights(self):
-        for p in self._h2.parameters():
-            p.requires_grad = True
-        for p in self._h3.parameters():
-            p.requires_grad = True
 
 
 def print_epoch(epoch):
@@ -383,7 +258,7 @@ def experiment(idx):
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
     approximator_params = dict(
-        network=Network,
+        network=GymNetwork,
         input_shape=input_shape,
         output_shape=(max(n_actions_per_head)[0],),
         n_actions=max(n_actions_per_head)[0],
@@ -489,7 +364,7 @@ def experiment(idx):
             best_weights = agent.get_shared_weights()
 
         if args.save:
-            np.save(folder_name + 'weights-exp-%d.npy' % idx,
+            np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, n_epoch),
                     agent.approximator.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
