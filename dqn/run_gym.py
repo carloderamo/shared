@@ -489,7 +489,7 @@ def experiment(idx):
             best_weights = agent.get_shared_weights()
 
         if args.save:
-            np.save(folder_name + 'weights-exp-%d.npy' % idx,
+            np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, n_epoch),
                     agent.approximator.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
@@ -518,6 +518,6 @@ if __name__ == '__main__':
     v = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'loss.npy', loss)
-    np.save(folder_name + 'l1_loss.npy', l1_loss)
-    np.save(folder_name + 'v.npy', v)
+    np.save(folder_name + 'loss_raw.npy', loss)
+    np.save(folder_name + 'l1_loss_raw.npy', l1_loss)
+    np.save(folder_name + 'v_raw.npy', v)
