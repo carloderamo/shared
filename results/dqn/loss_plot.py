@@ -11,53 +11,50 @@ def get_mean_and_confidence(data):
     interval, _ = st.t.interval(0.95, n - 1, scale=se)
 
     return mean, interval
-    
 
-def preprocess(dataset, evaluation_frequency=1000):
-    n_steps = dataset.shape[1] // evaluation_frequency
-    
-    if dataset.ndim == 3:
-        prepro_dataset = np.zeros((dataset.shape[0], n_steps, dataset.shape[2]))
-    else:
-        prepro_dataset = np.zeros((dataset.shape[0], n_steps))
-    for i in range(n_steps):
-        start = i * evaluation_frequency
-        stop = start + evaluation_frequency
-        prepro_dataset[:, i] = dataset[:, start:stop].mean(1)
-
-    return np.array(prepro_dataset)
-
-    
+alg = 'multidqn'
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
+reg = ['noreg', 'l1']
+activation = ['relu', 'sigmoid']
 
-plt.subplot(3, 1, 1)
-plt.title('LOSS')
-a = np.load('loss.npy')
-a = preprocess(a)
-for i, g in enumerate(games):
-    a_mean, a_err = get_mean_and_confidence(a[:, :, i])
-    plt.plot(a_mean)
-    plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
-plt.grid()
+n_cols = len(reg) * len(activation)
 
-plt.subplot(3, 1, 2)
-plt.title('L1-LOSS')
-a = np.load('l1_loss.npy')
-a = preprocess(a)
-for i, g in enumerate(games):
-    a_mean, a_err = get_mean_and_confidence(a[:, :, i])
-    plt.plot(a_mean)
-    plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
-plt.grid()
+k = 1
+for act in activation:
+    for r in reg:
+        title = r + '-' + act
+        path = alg + '/' + title + '/'
+    
+        plt.subplot(3, n_cols, k)
+        plt.title(title)
+        a = np.load(path + 'loss.npy')
+        for i, g in enumerate(games):
+            a_mean, a_err = get_mean_and_confidence(a[:, :, i])
+            plt.plot(a_mean)
+            plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
+        plt.grid()
+        plt.ylim([-0.1, 0.6])
 
-plt.subplot(3, 1, 3)
-plt.title('Mean VALUE')
-a = np.load('v.npy')
-for i, g in enumerate(games):
-    a_mean, a_err = get_mean_and_confidence(a[:, :, i])
-    plt.plot(a_mean)
-    plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
-plt.grid()
+        plt.subplot(3, n_cols, n_cols + k)
+        a = np.load(path + 'l1_loss.npy')
+        for i, g in enumerate(games):
+            a_mean, a_err = get_mean_and_confidence(a[:, :, i])
+            plt.plot(a_mean)
+            plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
+        plt.grid()
+        plt.ylim([0, 80])
+
+        plt.subplot(3, n_cols, 2 * n_cols + k)
+        a = np.load(path + 'v.npy')
+        for i, g in enumerate(games):
+            a_mean, a_err = get_mean_and_confidence(a[:, :, i])
+            plt.plot(a_mean)
+            plt.fill_between(np.arange(a_mean.shape[0]), a_mean - a_err, a_mean + a_err, alpha=.5)
+        plt.grid()
+        plt.ylim([-80, 110])
+        
+        k += 1
+
 plt.legend(games)
     
 plt.show()

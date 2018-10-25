@@ -7,3 +7,4 @@ mushroom.egg-info/
 logs/
 *.h5
 */logs
+*_raw.npy
