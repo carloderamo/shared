@@ -5,11 +5,27 @@ from mpl_toolkits.mplot3d import Axes3D
 from networks import GymNetwork
 
 from mushroom.approximators.regressor import Regressor
+from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.utils.spaces import Box
 from mushroom.environments import *
 
 
-def v_plot(approximator, game_idx, observation_space, ax, n_actions, n=150):
+def load_mdps():
+    mdp = list()
+    horizon = 1000
+    gamma = 0.99
+    for i, g in enumerate(games):
+        if g == 'pendulum':
+            mdp.append(InvertedPendulumDiscrete(horizon=horizon,
+                                                gamma=gamma))
+        elif g == 'caronhill':
+            mdp.append(CarOnHill(horizon=horizon, gamma=gamma))
+        else:
+            mdp.append(Gym(g, horizon, gamma))
+
+    return mdp
+
+def v_plot(approximator, game_idx, observation_space, ax, n_actions, n=50):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
     y = np.linspace(observation_space.low[1], observation_space.high[1], n)
     xv, yv = np.meshgrid(x, y)
@@ -27,50 +43,84 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions, n=150):
     ax.plot_surface(xv, yv, outputs)
 
 # Parameters
+alg = 'multidqn'
+
+reg = ['noreg', 'l1']
+#reg = ['l1']
+activation = ['relu', 'sigmoid']
+#activation = ['sigmoid']
+
 games = ['CartPole-v0', 'Acrobot-v1', 'MountainCar-v0', 'caronhill', 'pendulum']
-path = '../results/multidqn/'
+games_labels = ['cart', 'acro', 'mc', 'coh', 'pend']
+game_idx = 2
+
 nets = np.array([30, 50])
 
+file_prefix = 'weights-exp-0-'
 
-# Create MDP to get parameters
-mdp = list()
-gamma_eval = list()
-for i, g in enumerate(games):
-    if g == 'pendulum':
-        mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                            gamma=args.gamma[i]))
-    elif g == 'caronhill':
-        mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-    else:
-        mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-
-n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
-n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
-input_shape = [m.info.observation_space.shape for m in mdp]
-features = 'relu'
 observation_space = Box(np.array([-1.2, -0.07]), np.array([0.6, 0.07]))
 
-# Create network
-approximator_params = dict(
-        network=GymNetwork,
-        input_shape=input_shape,
-        output_shape=(max(n_actions_per_head)[0],),
-        n_actions=max(n_actions_per_head)[0],
-        n_actions_per_head=n_actions_per_head,
-        optimizer=None,
-        loss=None,
-        use_cuda=False,
-        dropout=False,
-        features=features
-    )
+# Create MDP to get parameters
+mdps = load_mdps()
+n_input_per_mdp = [m.info.observation_space.shape for m in mdps]
+n_actions_per_head = [(m.info.action_space.n,) for m in mdps]
+input_shape = [m.info.observation_space.shape for m in mdps]
 
-approximator = Regressor(GymNetwork, approximator_params)
 
-# Plot value functions
-for i, j in enumerate(nets):
-    weights = np.load(path + str(j) + '.npy')
-    approximator.set_weights(weights)
-    fig = plt.figure()
-    ax = Axes3D(fig)
-    v_plot(approximator, 2, observation_space, ax, n_actions_per_head[2][0])
+# Create subplots
+n_rows = len(reg) * len(activation)
+n_cols = len(nets)
+
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx])
+ax = fig.subplots(n_rows, n_cols, subplot_kw=dict(projection='3d'))
+ax = np.atleast_2d(ax)
+
+for i in range(n_cols):
+        ax[0, i].set_title(str(nets[i]))
+
+# Plot every value function
+base_path = '../results/dqn/' + alg + '/'
+
+k = 0
+for act in activation:
+    for r in reg:
+        conf = r + '-' + act
+        path = base_path + conf + '/nets/' + file_prefix
+
+        # Create network
+        approximator_params = dict(
+                network=GymNetwork,
+                input_shape=input_shape,
+                output_shape=(max(n_actions_per_head)[0],),
+                n_actions=max(n_actions_per_head)[0],
+                n_actions_per_head=n_actions_per_head,
+                optimizer=None,
+                loss=None,
+                use_cuda=False,
+                dropout=False,
+                features=act
+            )
+
+        approximator = Regressor(PyTorchApproximator, **approximator_params)
+
+        # Plot value functions
+        for i, j in enumerate(nets):
+            file_name = path + str(j) + '.npy'
+            weights = np.load(file_name)
+            approximator.set_weights(weights)
+            v_plot(approximator, game_idx, observation_space, ax[k, i],
+                   n_actions_per_head[game_idx][0])
+
+        ax[k, 0].annotate(conf,
+                          xy=(0, 0.5),
+                          xytext=(0, 0.5),
+                          xycoords=ax[k, 0].yaxis.label,
+                          textcoords='axes fraction',
+                          size='small',
+                          ha='right',
+                          va='center')
+
+        k += 1
+
 plt.show()
