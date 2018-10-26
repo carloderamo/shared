@@ -37,9 +37,8 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
         inputs.append(np.array([i, j]))
 
     inputs = np.array(inputs)
-    outputs, _ = approximator.predict(inputs, get_features=True,
-                                      idx=np.ones(len(inputs),
-                                      dtype=np.int) * game_idx)
+    outputs = approximator.predict(inputs, idx=np.ones(len(inputs),
+                                                       dtype=np.int)*game_idx)
     outputs = outputs[:, :n_actions].max(1).reshape(xv.shape)
 
     if contours:
@@ -47,6 +46,45 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
     else:
         ax.plot_surface(xv, yv, outputs)
 
+
+def max_phi_plot(approximator, game_idx, observation_space, ax, n=25):
+    x = np.linspace(observation_space.low[0], observation_space.high[0], n)
+    y = np.linspace(observation_space.low[1], observation_space.high[1], n)
+    xv, yv = np.meshgrid(x, y)
+
+    inputs = list()
+    for i, j in zip(xv.flatten(), yv.flatten()):
+        inputs.append(np.array([i, j]))
+
+    inputs = np.array(inputs)
+    _, outputs = approximator.predict(inputs, get_features=True,
+                                      idx=np.ones(len(inputs),
+                                                  dtype=np.int) * game_idx)
+    outputs = np.argmax(outputs, axis=1).reshape(xv.shape)
+
+    cmap = plt.get_cmap('gist_yarg', 80)
+    ax.matshow(outputs, cmap=cmap, vmin=0, vmax=80)
+
+
+def n_phi_plot(approximator, game_idx, observation_space, ax, t=0.5, n=25):
+    x = np.linspace(observation_space.low[0], observation_space.high[0], n)
+    y = np.linspace(observation_space.low[1], observation_space.high[1], n)
+    xv, yv = np.meshgrid(x, y)
+
+    inputs = list()
+    for i, j in zip(xv.flatten(), yv.flatten()):
+        inputs.append(np.array([i, j]))
+
+    inputs = np.array(inputs)
+    _, outputs = approximator.predict(inputs, get_features=True,
+                                      idx=np.ones(len(inputs),
+                                                  dtype=np.int) * game_idx)
+
+    outputs = np.sum(outputs > t, 1).reshape(xv.shape)
+
+    #ax.contourf(xv, yv, outputs)
+    cmap = plt.get_cmap('gist_yarg', 80)
+    ax.matshow(outputs, cmap=cmap, vmin=0, vmax=80)
 
 # Parameters
 alg = 'multidqn'
@@ -60,7 +98,7 @@ games = ['CartPole-v0', 'Acrobot-v1', 'MountainCar-v0', 'caronhill', 'pendulum']
 games_labels = ['cart', 'acro', 'mc', 'coh', 'pend']
 game_idx = 2
 
-nets = np.array([30, 50])
+nets = np.array([15, 30, 40, 50])
 
 file_prefix = 'weights-exp-0-'
 
@@ -87,9 +125,21 @@ fig.suptitle(games_labels[game_idx])
 ax_c = fig.subplots(n_rows, n_cols)
 ax_c = np.atleast_2d(ax_c)
 
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx] + '  max feature index')
+ax_f = fig.subplots(n_rows, n_cols)
+ax_f = np.atleast_2d(ax_f)
+
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx] + '  n features > 0.5')
+ax_nf = fig.subplots(n_rows, n_cols)
+ax_nf = np.atleast_2d(ax_nf)
+
 for i in range(n_cols):
     ax_3d[0, i].set_title(str(nets[i]))
     ax_c[0, i].set_title(str(nets[i]))
+    ax_f[0, i].set_title(str(nets[i]))
+    ax_nf[0, i].set_title(str(nets[i]))
 
 # Plot every value function
 base_path = '../results/dqn/' + alg + '/'
@@ -126,6 +176,11 @@ for act in activation:
             v_plot(approximator, game_idx, observation_space, ax_c[k, i],
                    n_actions_per_head[game_idx][0], True, 1000)
 
+            max_phi_plot(approximator, game_idx, observation_space, ax_f[k, i])
+
+            n_phi_plot(approximator, game_idx, observation_space, ax_nf[k, i],
+                       0.5)
+
         ax_3d[k, 0].annotate(conf,
                              xy=(0, 0.5),
                              xytext=(0, 0.5),
@@ -134,6 +189,33 @@ for act in activation:
                              size='small',
                              ha='right',
                              va='center')
+
+        ax_c[k, 0].annotate(conf,
+                             xy=(0, 0.5),
+                             xytext=(0, 0.5),
+                             xycoords=ax_c[k, 0].yaxis.label,
+                             textcoords='axes fraction',
+                             size='small',
+                             ha='right',
+                             va='center')
+
+        ax_f[k, 0].annotate(conf,
+                             xy=(0, 0.5),
+                             xytext=(0, 0.5),
+                             xycoords=ax_f[k, 0].yaxis.label,
+                             textcoords='axes fraction',
+                             size='small',
+                             ha='right',
+                             va='center')
+
+        ax_nf[k, 0].annotate(conf,
+                            xy=(0, 0.5),
+                            xytext=(0, 0.5),
+                            xycoords=ax_nf[k, 0].yaxis.label,
+                            textcoords='axes fraction',
+                            size='small',
+                            ha='right',
+                            va='center')
 
         k += 1
 
