@@ -25,7 +25,9 @@ def load_mdps():
 
     return mdp
 
-def v_plot(approximator, game_idx, observation_space, ax, n_actions, n=50):
+
+def v_plot(approximator, game_idx, observation_space, ax, n_actions,
+           contours=False, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
     y = np.linspace(observation_space.low[1], observation_space.high[1], n)
     xv, yv = np.meshgrid(x, y)
@@ -40,7 +42,11 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions, n=50):
                                       dtype=np.int) * game_idx)
     outputs = outputs[:, :n_actions].max(1).reshape(xv.shape)
 
-    ax.plot_surface(xv, yv, outputs)
+    if contours:
+        ax.contour(xv, yv, outputs)
+    else:
+        ax.plot_surface(xv, yv, outputs)
+
 
 # Parameters
 alg = 'multidqn'
@@ -73,11 +79,17 @@ n_cols = len(nets)
 
 fig = plt.figure()
 fig.suptitle(games_labels[game_idx])
-ax = fig.subplots(n_rows, n_cols, subplot_kw=dict(projection='3d'))
-ax = np.atleast_2d(ax)
+ax_3d = fig.subplots(n_rows, n_cols, subplot_kw=dict(projection='3d'))
+ax_3d = np.atleast_2d(ax_3d)
+
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx])
+ax_c = fig.subplots(n_rows, n_cols)
+ax_c = np.atleast_2d(ax_c)
 
 for i in range(n_cols):
-        ax[0, i].set_title(str(nets[i]))
+    ax_3d[0, i].set_title(str(nets[i]))
+    ax_c[0, i].set_title(str(nets[i]))
 
 # Plot every value function
 base_path = '../results/dqn/' + alg + '/'
@@ -109,17 +121,19 @@ for act in activation:
             file_name = path + str(j) + '.npy'
             weights = np.load(file_name)
             approximator.set_weights(weights)
-            v_plot(approximator, game_idx, observation_space, ax[k, i],
+            v_plot(approximator, game_idx, observation_space, ax_3d[k, i],
                    n_actions_per_head[game_idx][0])
+            v_plot(approximator, game_idx, observation_space, ax_c[k, i],
+                   n_actions_per_head[game_idx][0], True, 1000)
 
-        ax[k, 0].annotate(conf,
-                          xy=(0, 0.5),
-                          xytext=(0, 0.5),
-                          xycoords=ax[k, 0].yaxis.label,
-                          textcoords='axes fraction',
-                          size='small',
-                          ha='right',
-                          va='center')
+        ax_3d[k, 0].annotate(conf,
+                             xy=(0, 0.5),
+                             xytext=(0, 0.5),
+                             xycoords=ax_3d[k, 0].yaxis.label,
+                             textcoords='axes fraction',
+                             size='small',
+                             ha='right',
+                             va='center')
 
         k += 1
 
