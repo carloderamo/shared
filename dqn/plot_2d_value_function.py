@@ -7,6 +7,7 @@ from networks import GymNetwork
 from mushroom.approximators.regressor import Regressor
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.utils.spaces import Box
+from mushroom.utils.dataset import parse_dataset
 from mushroom.environments import *
 
 
@@ -24,6 +25,18 @@ def load_mdps():
             mdp.append(Gym(g, horizon, gamma))
 
     return mdp
+
+
+def annotate(label, *axis):
+    for ax in axis:
+        ax.annotate(label,
+                    xy=(0, 0.5),
+                    xytext=(0, 0.5),
+                    xycoords=ax.yaxis.label,
+                    textcoords='axes fraction',
+                    size='small',
+                    ha='right',
+                    va='center')
 
 
 def v_plot(approximator, game_idx, observation_space, ax, n_actions,
@@ -86,6 +99,18 @@ def n_phi_plot(approximator, game_idx, observation_space, ax, t=0.5, n=25):
     cmap = plt.get_cmap('gist_yarg', 80)
     ax.matshow(outputs, cmap=cmap, vmin=0, vmax=80)
 
+
+def plot_specific_features(approximator, game_idx, inputs, ax):
+    _, outputs = approximator.predict(inputs, get_features=True,
+                                      idx=np.ones(len(inputs),
+                                                  dtype=np.int) * game_idx)
+    # ax.contourf(xv, yv, outputs)
+    cmap = plt.get_cmap('gist_yarg', 1000)
+    ax.matshow(outputs.T, cmap=cmap, vmin=0, vmax=1)
+
+
+
+
 # Parameters
 alg = 'multidqn'
 
@@ -109,7 +134,6 @@ mdps = load_mdps()
 n_input_per_mdp = [m.info.observation_space.shape for m in mdps]
 n_actions_per_head = [(m.info.action_space.n,) for m in mdps]
 input_shape = [m.info.observation_space.shape for m in mdps]
-
 
 # Create subplots
 n_rows = len(reg) * len(activation)
@@ -135,17 +159,34 @@ fig.suptitle(games_labels[game_idx] + '  n features > 0.5')
 ax_nf = fig.subplots(n_rows, n_cols)
 ax_nf = np.atleast_2d(ax_nf)
 
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx] + '  traj features')
+ax_t = fig.subplots(len(reg), n_cols)
+ax_t = np.atleast_2d(ax_t)
+
 for i in range(n_cols):
     ax_3d[0, i].set_title(str(nets[i]))
     ax_c[0, i].set_title(str(nets[i]))
     ax_f[0, i].set_title(str(nets[i]))
     ax_nf[0, i].set_title(str(nets[i]))
+    ax_t[0, i].set_title(str(nets[i]))
 
 # Plot every value function
 base_path = '../results/dqn/' + alg + '/'
 
+
+# Load Trajectories
+traj = np.load(base_path + '../' + games_labels[game_idx] + '_traj.npy')
+states = list()
+
+for step in traj:
+    states.append(step[0][1])
+
+states = np.array(states)
+
 k = 0
 for act in activation:
+    k2 = 0
     for r in reg:
         conf = r + '-' + act
         path = base_path + conf + '/nets/' + file_prefix
@@ -181,41 +222,17 @@ for act in activation:
             n_phi_plot(approximator, game_idx, observation_space, ax_nf[k, i],
                        0.5)
 
-        ax_3d[k, 0].annotate(conf,
-                             xy=(0, 0.5),
-                             xytext=(0, 0.5),
-                             xycoords=ax_3d[k, 0].yaxis.label,
-                             textcoords='axes fraction',
-                             size='small',
-                             ha='right',
-                             va='center')
+            if act is 'sigmoid':
+                plot_specific_features(approximator, game_idx, states,
+                                       ax_t[k2, i])
 
-        ax_c[k, 0].annotate(conf,
-                             xy=(0, 0.5),
-                             xytext=(0, 0.5),
-                             xycoords=ax_c[k, 0].yaxis.label,
-                             textcoords='axes fraction',
-                             size='small',
-                             ha='right',
-                             va='center')
+        if act is 'sigmoid':
+            annotate(r, ax_t[k2, 0])
 
-        ax_f[k, 0].annotate(conf,
-                             xy=(0, 0.5),
-                             xytext=(0, 0.5),
-                             xycoords=ax_f[k, 0].yaxis.label,
-                             textcoords='axes fraction',
-                             size='small',
-                             ha='right',
-                             va='center')
+        k2 += 1
 
-        ax_nf[k, 0].annotate(conf,
-                            xy=(0, 0.5),
-                            xytext=(0, 0.5),
-                            xycoords=ax_nf[k, 0].yaxis.label,
-                            textcoords='axes fraction',
-                            size='small',
-                            ha='right',
-                            va='center')
+        annotate(conf, ax_3d[k, 0], ax_c[k, 0], ax_f[k, 0], ax_nf[k, 0])
+
 
         k += 1
 
