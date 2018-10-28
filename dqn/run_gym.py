@@ -314,7 +314,7 @@ def experiment(idx):
 
     if args.load:
         weights = np.load(args.load)
-        agent.policy.set_weights(weights)
+        agent.approximator.set_weights(weights)
 
     # Evaluate initial policy
     pi.set_epsilon(epsilon_test)
