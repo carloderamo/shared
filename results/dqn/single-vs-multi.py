@@ -13,36 +13,40 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 folders = ['dqn', 'multidqn']
-settings = ['noreg', 'reg1e-4', 'reg1e-4sigmoid']
-games = ['cart.npy', 'acro.npy', 'mc.npy', 'coh.npy', 'pend.npy']
+games = ['cart', 'acro', 'mc', 'coh', 'pend']
+reg = ['noreg', 'l1']
+activation = ['relu', 'sigmoid']
 n_games = len(games)
-n_settings = len(settings)
+n_settings = len(reg) * len(activation)
 
 plt.suptitle('DQN VS MULTI')
 
 for i, g in enumerate(games):
-    if g == '':
-        continue
-    for j, s in enumerate(settings):
-        plt.subplot(n_games, n_settings, i * n_settings + j + 1)
-        plt.title(g + '-' + s)
-        
-        game = np.load('dqn/' + s + '/' + g)[:, 0]
-        game_mean, game_err = get_mean_and_confidence(game)
-        
-        multi_game = np.load('multidqn/' + s + '.npy')[:, i]
-        multi_game_mean, multi_game_err = get_mean_and_confidence(multi_game)
-        
-        plt.plot(game_mean)
-        plt.fill_between(np.arange(51), game_mean - game_err, game_mean + game_err, alpha=.5)
-        
-        plt.plot(multi_game_mean)
-        plt.fill_between(np.arange(51), multi_game_mean - multi_game_err, multi_game_mean + multi_game_err, alpha=.5)
-        
-        if i < len(games) - 1:
-            plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
-    
-        plt.grid()
+    j = 1
+    for act in activation:
+        for r in reg:
+            s = r + '-' + act
+            plt.subplot(n_games, n_settings, i * n_settings + j)
+            plt.title(g + '-' + s)
+            
+            single = np.load('dqn/' + s + '/scores.npy')[:, i]
+            single_mean, single_err = get_mean_and_confidence(single)
+            
+            multi = np.load('multidqn/' + s + '/scores.npy')[:, i]
+            multi_mean, multi_err = get_mean_and_confidence(multi)
+            
+            plt.plot(single_mean)
+            plt.fill_between(np.arange(51), single_mean - single_err, single_mean + single_err, alpha=.5)
+            
+            plt.plot(multi_mean)
+            plt.fill_between(np.arange(51), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
+            
+            plt.grid()
+            
+            if i < len(games) - 1:
+                plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
+            
+            j += 1
     
 plt.legend(['DQN', 'MULTI'])
     
