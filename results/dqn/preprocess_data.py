@@ -16,18 +16,37 @@ def preprocess(dataset, evaluation_frequency=1000):
     return np.array(prepro_dataset)
     
     
-alg = 'multidqn'
+alg = 'dqn'
+
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
 reg = ['noreg', 'l1']
 activation = ['relu', 'sigmoid']
 files = ['loss', 'l1_loss', 'v']
 
-for act in activation:
-    for r in reg:
-        for f in files:
-            title = r + '-' + act
-            path = alg + '/' + title + '/'
-            a = np.load(path + f + '_raw.npy')
-            a = preprocess(a)
-            np.save(path + f + '.npy', a)
+if alg == 'multidqn':
+    for act in activation:
+        for r in reg:
+            for f in files:
+                title = r + '-' + act
+                path = alg + '/' + title
+                a = np.load(path + '/' + f + '_raw.npy')
+                a = preprocess(a)
+                np.save(path + '/' + f + '.npy', a)
+else:
+    for act in activation:
+        for r in reg:
+            for f in files:
+                single_raws = list()
+                single_scores = list()
+                for g in games:
+                    title = r + '-' + act
+                    path = alg + '/' + g + '-' + title
+                    a = np.load(path + f + '_raw.npy')
+                    a = preprocess(a)
+                    single_raws.append(a)
+                    single_scores.append(np.load(path + '/scores.npy'))
+                a = np.concatenate(single_raws, axis=2)
+                s = np.concatenate(single_scores, axis=1)
+                np.save(alg + '/' + title + '/' + f + '.npy', a)
+                np.save(alg + '/' + title + '/scores.npy', s)
 
