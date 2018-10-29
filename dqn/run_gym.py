@@ -176,18 +176,20 @@ def experiment(idx):
 
         temp_losses = list()
         temp_l1_losses = list()
+        l1_loss = list()
         for i in range(len(args.games)):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
 
-            l1_loss = torch.norm(w[i].weight, 1)
-            temp_l1_losses.append(l1_loss.item())
+            tmp = torch.norm(w[i].weight, 1)
+            l1_loss.append(tmp)
+            temp_l1_losses.append(tmp.item())
         losses.append(temp_losses)
         l1_losses.append(temp_l1_losses)
 
         loss = torch.mean(loss)
-        l1_loss = torch.mean(l1_loss)
+        l1_loss = torch.mean(torch.Tensor(l1_loss))
 
         return loss + args.reg_coeff * l1_loss
 
