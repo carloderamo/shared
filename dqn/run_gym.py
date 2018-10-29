@@ -81,7 +81,7 @@ def experiment(idx):
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0)
-    arg_net.add_argument("--reg-type", type=str, choices='l1', 'l1-weights')
+    arg_net.add_argument("--reg-type", type=str, choices=['l1', 'l1-weights'])
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
