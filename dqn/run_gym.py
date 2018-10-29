@@ -81,6 +81,7 @@ def experiment(idx):
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0)
+    arg_net.add_argument("--reg-type", type=str, choices='l1', 'l1-weights')
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
@@ -147,7 +148,7 @@ def experiment(idx):
 
     losses = list()
     l1_losses = list()
-    def regularized_loss(arg, y):
+    def features_regularized_loss(arg, y):
         yhat, h_f = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
@@ -160,6 +161,28 @@ def experiment(idx):
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
             temp_l1_losses.append(torch.mean(l1_loss[start:stop]).item())
+        losses.append(temp_losses)
+        l1_losses.append(temp_l1_losses)
+
+        loss = torch.mean(loss)
+        l1_loss = torch.mean(l1_loss)
+
+        return loss + args.reg_coeff * l1_loss
+
+    def weights_regularized_loss(arg, y):
+        yhat, w = arg
+
+        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+
+        temp_losses = list()
+        temp_l1_losses = list()
+        for i in range(len(args.games)):
+            start = i * args.batch_size
+            stop = start + args.batch_size
+            temp_losses.append(torch.mean(loss[start:stop]).item())
+
+            l1_loss = torch.norm(w[i].weight, 1)
+            temp_l1_losses.append(l1_loss.item())
         losses.append(temp_losses)
         l1_losses.append(temp_l1_losses)
 
@@ -257,6 +280,7 @@ def experiment(idx):
 
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
+    regularized_loss = weights_regularized_loss if args.reg_type == 'l1-weights' else features_regularized_loss
     approximator_params = dict(
         network=GymNetwork,
         input_shape=input_shape,
@@ -283,6 +307,7 @@ def experiment(idx):
         n_actions_per_head=n_actions_per_head,
         clip_reward=False,
         history_length=args.history_length,
+        reg_type=args.reg_type,
         dtype=np.float32
     )
 

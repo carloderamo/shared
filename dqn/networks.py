@@ -45,7 +45,10 @@ class GymNetwork(nn.Module):
             nn.init.xavier_uniform_(self._h4[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, idx=None, get_features=False):
+    def forward(self, state, action=None, idx=None, get_features=False,
+                get_shared_weights=False):
+        assert not(get_features and get_shared_weights)
+
         state = state.float()
 
         h1 = list()
@@ -91,6 +94,9 @@ class GymNetwork(nn.Module):
 
         if get_features:
             return q, h_f
+        elif get_shared_weights:
+
+            return q, self._h4
         else:
             return q
 
