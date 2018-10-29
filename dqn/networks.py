@@ -95,7 +95,6 @@ class GymNetwork(nn.Module):
         if get_features:
             return q, h_f
         elif get_shared_weights:
-
             return q, self._h4
         else:
             return q
