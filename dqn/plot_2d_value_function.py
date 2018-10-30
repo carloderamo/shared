@@ -109,13 +109,32 @@ def plot_specific_features(approximator, game_idx, inputs, ax):
     ax.matshow(outputs.T, cmap=cmap, vmin=0, vmax=1)
 
 
+def feature_sum(approximator, game_idx, observation_space, ax, t=0.5, n=25):
+    x = np.linspace(observation_space.low[0], observation_space.high[0], n)
+    y = np.linspace(observation_space.low[1], observation_space.high[1], n)
+    xv, yv = np.meshgrid(x, y)
+
+    inputs = list()
+    for i, j in zip(xv.flatten(), yv.flatten()):
+        inputs.append(np.array([i, j]))
+
+    inputs = np.array(inputs)
+    _, outputs = approximator.predict(inputs, get_features=True,
+                                      idx=np.ones(len(inputs),
+                                                  dtype=np.int) * game_idx)
+
+    outputs = np.sum(outputs, 1).reshape(xv.shape)
+
+    #ax.contourf(xv, yv, outputs)
+    cmap = plt.get_cmap('gist_yarg', 80)
+    ax.matshow(outputs, cmap=cmap, vmin=0, vmax=80)
 
 
 # Parameters
 alg = 'multidqn'
 
-reg = ['noreg', 'l1']
-#reg = ['l1']
+reg = ['noreg', 'l1', 'kl']
+#reg = ['kl']
 activation = ['relu', 'sigmoid']
 #activation = ['sigmoid']
 
@@ -158,6 +177,11 @@ fig = plt.figure()
 fig.suptitle(games_labels[game_idx] + '  n features > 0.5')
 ax_nf = fig.subplots(n_rows, n_cols)
 ax_nf = np.atleast_2d(ax_nf)
+
+fig = plt.figure()
+fig.suptitle(games_labels[game_idx] + '  feature sum')
+ax_sf = fig.subplots(n_rows, n_cols)
+ax_sf = np.atleast_2d(ax_sf)
 
 fig = plt.figure()
 fig.suptitle(games_labels[game_idx] + '  traj features')
@@ -221,6 +245,9 @@ for act in activation:
 
             n_phi_plot(approximator, game_idx, observation_space, ax_nf[k, i],
                        0.5)
+                       
+            feature_sum(approximator, game_idx, observation_space, ax_sf[k, i],
+                       0.5)
 
             if act is 'sigmoid':
                 plot_specific_features(approximator, game_idx, states,
@@ -231,7 +258,7 @@ for act in activation:
 
         k2 += 1
 
-        annotate(conf, ax_3d[k, 0], ax_c[k, 0], ax_f[k, 0], ax_nf[k, 0])
+        annotate(conf, ax_3d[k, 0], ax_c[k, 0], ax_f[k, 0], ax_nf[k, 0], ax_sf[k, 0])
 
 
         k += 1
