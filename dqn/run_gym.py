@@ -81,7 +81,9 @@ def experiment(idx):
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0)
-    arg_net.add_argument("--reg-type", type=str, choices=['l1', 'l1-weights'])
+    arg_net.add_argument("--reg-type", type=str,
+                         choices=['l1', 'l1-weights', 'kl'])
+    arg_net.add_argument("--k", type=float, default=10)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
@@ -146,9 +148,11 @@ def experiment(idx):
 
     args.games = [''.join(g) for g in args.games]
 
+    assert args.reg_type != 'kl' or args.features == 'sigmoid'
+
     losses = list()
-    l1_losses = list()
-    def features_regularized_loss(arg, y):
+    reg_losses = list()
+    def features_l1_loss(arg, y):
         yhat, h_f = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
@@ -162,14 +166,37 @@ def experiment(idx):
             temp_losses.append(torch.mean(loss[start:stop]).item())
             temp_l1_losses.append(torch.mean(l1_loss[start:stop]).item())
         losses.append(temp_losses)
-        l1_losses.append(temp_l1_losses)
+        reg_losses.append(temp_l1_losses)
 
         loss = torch.mean(loss)
         l1_loss = torch.mean(l1_loss)
 
         return loss + args.reg_coeff * l1_loss
 
-    def weights_regularized_loss(arg, y):
+    def features_kl_loss(arg, y):
+        yhat, h_f = arg
+
+        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        mu_s = torch.sum(h_f, dim=1)
+
+        kl_loss = -args.k * torch.log(mu_s) + mu_s
+
+        temp_losses = list()
+        temp_kl_losses = list()
+        for i in range(len(args.games)):
+            start = i * args.batch_size
+            stop = start + args.batch_size
+            temp_losses.append(torch.mean(loss[start:stop]).item())
+            temp_kl_losses.append(torch.mean(kl_loss[start:stop]).item())
+        losses.append(temp_losses)
+        reg_losses.append(temp_kl_losses)
+
+        loss = torch.mean(loss)
+        kl_loss = torch.mean(kl_loss)
+
+        return loss + args.reg_coeff * kl_loss
+
+    def weights_l1_loss(arg, y):
         yhat, w = arg
 
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
@@ -186,7 +213,7 @@ def experiment(idx):
             l1_loss.append(tmp)
             temp_l1_losses.append(tmp.item())
         losses.append(temp_losses)
-        l1_losses.append(temp_l1_losses)
+        reg_losses.append(temp_l1_losses)
 
         loss = torch.mean(loss)
         l1_loss = torch.mean(torch.Tensor(l1_loss))
@@ -282,7 +309,12 @@ def experiment(idx):
 
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
-    regularized_loss = weights_regularized_loss if args.reg_type == 'l1-weights' else features_regularized_loss
+    if args.reg_type == 'l1':
+        regularized_loss = features_l1_loss
+    elif args.reg_type == 'l1-weights':
+        regularized_loss = weights_l1_loss
+    else:
+        regularized_loss = features_kl_loss
     approximator_params = dict(
         network=GymNetwork,
         input_shape=input_shape,
@@ -359,7 +391,7 @@ def experiment(idx):
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
     np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-    np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
+    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
     np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -396,13 +428,13 @@ def experiment(idx):
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-        np.save(folder_name + 'l1_loss-exp-%d.npy' % idx, l1_losses)
+        np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
         np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, losses, l1_losses, agent.v_list
+    return scores, losses, reg_losses, agent.v_list
 
 
 if __name__ == '__main__':

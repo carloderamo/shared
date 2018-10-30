@@ -22,13 +22,12 @@ class DQN(Agent):
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
                  reg_type=None, dtype=np.uint8):
-        assert reg_type == 'l1' or reg_type == 'l1-weights'
-        if reg_type == 'l1':
-            self._get_features = True
-            self._get_shared_weights = False
-        else:
+        if reg_type == 'l1-weights':
             self._get_features = False
-            self._get_shared_weights = True
+            self._get_weights = True
+        else:
+            self._get_features = True
+            self._get_weights = False
 
         self._fit_params = dict() if fit_params is None else fit_params
 
@@ -124,7 +123,7 @@ class DQN(Agent):
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs,
                                   get_features=self._get_features,
-                                  get_shared_weights=self._get_shared_weights,
+                                  get_weights=self._get_weights,
                                   **self._fit_params)
 
             self._n_updates += 1
