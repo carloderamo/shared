@@ -36,7 +36,7 @@ for act in activation:
         plt.ylim([-0.1, 0.6])
 
         plt.subplot(3, n_cols, n_cols + k)
-        a = np.load(path + 'l1_loss.npy')
+        a = np.load(path + 'reg_loss.npy')
         for i, g in enumerate(games):
             a_mean, a_err = get_mean_and_confidence(a[:, :, i])
             plt.plot(a_mean)
