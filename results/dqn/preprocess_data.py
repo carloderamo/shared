@@ -19,7 +19,7 @@ def preprocess(dataset, evaluation_frequency=1000):
 alg = 'dqn'
 
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['noreg', 'l1']
+reg = ['noreg', 'l1', 'l1-weights']
 activation = ['relu', 'sigmoid']
 files = ['loss', 'l1_loss', 'v']
 
