@@ -41,7 +41,7 @@ else:
                 for g in games:
                     title = r + '-' + act
                     path = alg + '/' + g + '-' + title
-                    a = np.load(path + f + '_raw.npy')
+                    a = np.load(path + '/' + f + '_raw.npy')
                     a = preprocess(a)
                     single_raws.append(a)
                     single_scores.append(np.load(path + '/scores.npy'))
