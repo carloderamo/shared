@@ -14,8 +14,8 @@ def get_mean_and_confidence(data):
 
 alg = 'multidqn'
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['noreg', 'l1', 'l1-weights']
-activation = ['relu', 'sigmoid']
+reg = ['l1-weights-1e-4', 'l1-weights-1e-3']
+activation = ['sigmoid']
 n_games = len(games)
 
 legend_items = list()

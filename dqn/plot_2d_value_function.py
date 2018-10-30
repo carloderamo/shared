@@ -133,10 +133,10 @@ def feature_sum(approximator, game_idx, observation_space, ax, t=0.5, n=25):
 # Parameters
 alg = 'multidqn'
 
-reg = ['noreg', 'l1', 'kl']
-#reg = ['kl']
-activation = ['relu', 'sigmoid']
-#activation = ['sigmoid']
+#reg = ['noreg', 'l1', 'kl']
+reg = ['kl']
+#activation = ['relu', 'sigmoid']
+activation = ['sigmoid']
 
 games = ['CartPole-v0', 'Acrobot-v1', 'MountainCar-v0', 'caronhill', 'pendulum']
 games_labels = ['cart', 'acro', 'mc', 'coh', 'pend']

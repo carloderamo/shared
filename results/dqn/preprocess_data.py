@@ -21,7 +21,7 @@ alg = 'multidqn'
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
 reg = ['noreg', 'l1', 'l1-weights-1e-4', 'l1-weights-1e-3']
 activation = ['relu', 'sigmoid']
-files = ['loss', 'l1_loss', 'v']
+files = ['loss', 'reg_loss', 'v']
 
 if alg == 'multidqn':
     for act in activation:
