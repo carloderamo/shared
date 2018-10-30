@@ -13,10 +13,10 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 folders = ['dqn', 'multidqn']
-settings = ['noreg', 'reg1e-4', 'reg1e-4sigmoid']
-games = ['cart.npy', 'acro.npy', 'mc.npy', 'coh.npy', 'pend.npy']
+games = ['cart', 'acro', 'mc', 'coh', 'pend']
+reg = ['noreg', 'l1', 'l1-weights']
+activation = ['relu', 'sigmoid']
 n_games = len(games)
-n_settings = len(settings)
 
 plt.suptitle('DQN VS MULTI')
 
@@ -31,15 +31,21 @@ for i, g in enumerate(games):
     best_multi_regret = np.inf
     single_list = list()
     multi_list = list()
+    settings = list()
     
-    print(g)
-    for j, s in enumerate(settings):
-        single_list.append(np.load('dqn/' + s + '/' + g)[:, 0])
-        multi_list.append(np.load('multidqn/' + s + '.npy')[:, i])
-        
+    for act in activation:
+        for r in reg:
+            path = r + '-' + act
+            settings.append(path)
+            try:
+                single_list.append(np.load('dqn/' + path + '/scores.npy')[:, i])
+            except:
+                single_list.append(np.ones((100, 51)) * -np.inf)
+            multi_list.append(np.load('multidqn/' + path + '/scores.npy')[:, i])
+
     singles = np.array(single_list)
     multis = np.array(multi_list)
-        
+
     max_single = singles.mean(1).max()
     single_regret = (max_single - singles.mean(1)).sum(-1)
     best_single = np.argmin(single_regret)
@@ -48,8 +54,8 @@ for i, g in enumerate(games):
     multi_regret = (max_multi - multis.mean(1)).sum(-1)
     best_multi = np.argmin(multi_regret)
             
-    game = np.load('dqn/' + settings[best_single] + '/' + g)[:, 0]
-    multi_game = np.load('multidqn/' + settings[best_multi] + '.npy')[:, i]
+    game = np.load('dqn/' + settings[best_single] + '/scores.npy')[:, i]
+    multi_game = np.load('multidqn/' + settings[best_multi] + '/scores.npy')[:, i]
     
     print('Single: ' + settings[best_single])
     print('Multi: ' + settings[best_multi])
