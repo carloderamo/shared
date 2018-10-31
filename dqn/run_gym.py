@@ -453,5 +453,5 @@ if __name__ == '__main__':
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss_raw.npy', loss)
-    np.save(folder_name + 'l1_loss_raw.npy', l1_loss)
+    np.save(folder_name + 'reg_loss_raw.npy', l1_loss)
     np.save(folder_name + 'v_raw.npy', v)
