@@ -19,8 +19,8 @@ def preprocess(dataset, evaluation_frequency=1000):
 alg = 'multidqn'
 
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['noreg', 'l1', 'l1-weights-1e-4', 'l1-weights-1e-3']
-activation = ['relu', 'sigmoid']
+reg = ['kl-1e-2-20']
+activation = ['sigmoid']
 files = ['loss', 'reg_loss', 'v']
 
 if alg == 'multidqn':
