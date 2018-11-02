@@ -259,23 +259,20 @@ def experiment(idx):
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
 
         temp_losses = list()
-        temp_l1_losses = list()
-        l1_loss = list()
+        w = [x.weight[:n_actions_per_head[i][0]] for i, x in enumerate(w)]
+        w = torch.cat(w)
         for i in range(len(args.games)):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
-
-            tmp = torch.norm(w[i].weight, 1)
-            l1_loss.append(tmp)
-            temp_l1_losses.append(tmp.item())
         losses.append(temp_losses)
-        reg_losses.append(temp_l1_losses)
+
+        gl1_loss = torch.norm(torch.norm(w, 2, dim=0), 1)
+        reg_losses.append(gl1_loss.item())
 
         loss = torch.mean(loss)
-        l1_loss = torch.mean(torch.Tensor(l1_loss))
 
-        return loss + args.reg_coeff * l1_loss
+        return loss + args.reg_coeff * gl1_loss
 
     scores = list()
     for _ in range(len(args.games)):
@@ -464,7 +461,7 @@ def experiment(idx):
 
 
 if __name__ == '__main__':
-    n_experiments = 3
+    n_experiments = 1
 
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S/')
