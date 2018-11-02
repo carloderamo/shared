@@ -82,7 +82,7 @@ def experiment(idx):
                          help='Epsilon term used in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0)
     arg_net.add_argument("--reg-type", type=str,
-                         choices=['l1', 'l1-weights', 'kl'])
+                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
 
     arg_alg = parser.add_argument_group('Algorithm')
@@ -148,6 +148,39 @@ def experiment(idx):
 
     args.games = [''.join(g) for g in args.games]
 
+    # MDP
+    mdp = list()
+    gamma_eval = list()
+    for i, g in enumerate(args.games):
+        if g == 'pendulum':
+            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
+                                                gamma=args.gamma[i]))
+        elif g == 'caronhill':
+            mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
+        else:
+            mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+
+        gamma_eval.append(args.gamma[i])
+
+    n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
+    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
+
+    max_obs_dim = 0
+    max_act_n = 0
+    for i in range(len(args.games)):
+        n = mdp[i].info.observation_space.shape[0]
+        m = mdp[i].info.action_space.n
+        if n > max_obs_dim:
+            max_obs_dim = n
+            max_obs_idx = i
+        if m > max_act_n:
+            max_act_n = m
+            max_act_idx = i
+    gammas = [m.info.gamma for m in mdp]
+    horizons = [m.info.horizon for m in mdp]
+    mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
+                       mdp[max_act_idx].info.action_space, gammas, horizons)
+
     assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
     losses = list()
@@ -209,6 +242,30 @@ def experiment(idx):
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
 
+            tmp = torch.norm(w[i].weight[:n_actions_per_head[i][0]], 1)
+            l1_loss.append(tmp)
+            temp_l1_losses.append(tmp.item())
+        losses.append(temp_losses)
+        reg_losses.append(temp_l1_losses)
+
+        loss = torch.mean(loss)
+        l1_loss = torch.mean(torch.Tensor(l1_loss))
+
+        return loss + args.reg_coeff * l1_loss
+
+    def weights_gl1_loss(arg, y):
+        yhat, w = arg
+
+        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+
+        temp_losses = list()
+        temp_l1_losses = list()
+        l1_loss = list()
+        for i in range(len(args.games)):
+            start = i * args.batch_size
+            stop = start + args.batch_size
+            temp_losses.append(torch.mean(loss[start:stop]).item())
+
             tmp = torch.norm(w[i].weight, 1)
             l1_loss.append(tmp)
             temp_l1_losses.append(tmp.item())
@@ -245,39 +302,6 @@ def experiment(idx):
     else:
         raise ValueError
 
-    # MDP
-    mdp = list()
-    gamma_eval = list()
-    for i, g in enumerate(args.games):
-        if g == 'pendulum':
-            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                                gamma=args.gamma[i]))
-        elif g == 'caronhill':
-            mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-        else:
-            mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-
-        gamma_eval.append(args.gamma[i])
-
-    n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
-    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
-
-    max_obs_dim = 0
-    max_act_n = 0
-    for i in range(len(args.games)):
-        n = mdp[i].info.observation_space.shape[0]
-        m = mdp[i].info.action_space.n
-        if n > max_obs_dim:
-            max_obs_dim = n
-            max_obs_idx = i
-        if m > max_act_n:
-            max_act_n = m
-            max_act_idx = i
-    gammas = [m.info.gamma for m in mdp]
-    horizons = [m.info.horizon for m in mdp]
-    mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
-                       mdp[max_act_idx].info.action_space, gammas, horizons)
-
     # DQN learning run
 
     # Settings
@@ -313,6 +337,8 @@ def experiment(idx):
         regularized_loss = features_l1_loss
     elif args.reg_type == 'l1-weights':
         regularized_loss = weights_l1_loss
+    elif args.reg_type == 'gl1-weights':
+        regularized_loss = weights_gl1_loss
     else:
         regularized_loss = features_kl_loss
     approximator_params = dict(
@@ -438,7 +464,7 @@ def experiment(idx):
 
 
 if __name__ == '__main__':
-    n_experiments = 100
+    n_experiments = 3
 
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S/')
