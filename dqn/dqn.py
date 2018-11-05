@@ -22,7 +22,8 @@ class DQN(Agent):
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
                  reg_type=None, dtype=np.uint8):
-        if reg_type == 'l1-weights' or 'gl1-weights':
+
+        if reg_type == 'l1-weights' or reg_type == 'gl1-weights':
             self._get_features = False
             self._get_weights = True
         else:
