@@ -15,7 +15,7 @@ def get_mean_and_confidence(data):
 algs = ['multidqn']
 games = ['acro-kl']
 game_ids = [1]
-reg = ['kl-1e-2-30', 'noreg-1e-2-30']
+reg = ['noreg', 'kl-1e-2-30']
 activation = ['sigmoid']
 n_games = len(games)
 unfreezes = [10]

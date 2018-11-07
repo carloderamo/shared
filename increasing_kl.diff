@@ -1,0 +1,28 @@
+diff --git a/dqn/run_gym.py b/dqn/run_gym.py
+index 3edc08c..0574911 100644
+--- a/dqn/run_gym.py
++++ b/dqn/run_gym.py
+@@ -416,7 +416,13 @@ def experiment(idx):
+     np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
+     np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
+     np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
+-    for n_epoch in range(1, max_steps // evaluation_frequency + 1):
++
++    n_epochs = max_steps // evaluation_frequency
++    k_init = args.k
++    k_max = 30
++    delta_k = (k_max-k_init) / n_epochs
++
++    for n_epoch in range(1, n_epochs + 1):
+         if n_epoch >= args.unfreeze_epoch > 0:
+             agent.unfreeze_shared_weights()
+ 
+@@ -427,6 +433,8 @@ def experiment(idx):
+         core.learn(n_steps=evaluation_frequency,
+                    n_steps_per_fit=train_frequency, quiet=args.quiet)
+ 
++        args.k = np.asscalar(np.round(args.k + delta_k))
++
+         print('- Evaluation:')
+         # evaluation step
+         pi.set_epsilon(epsilon_test)

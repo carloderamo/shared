@@ -14,7 +14,7 @@ def get_mean_and_confidence(data):
 
 alg = 'multidqn'
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['l1-weights-1e-4', 'l1-weights-1e-3']
+reg = ['noreg', 'kl-1e-2-30']
 activation = ['sigmoid']
 n_games = len(games)
 
