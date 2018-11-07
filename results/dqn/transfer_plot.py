@@ -12,13 +12,12 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-algs = ['multidqn']
-games = ['acro-kl']
+games = ['acro-noreg']
 game_ids = [1]
-reg = ['noreg', 'kl-1e-2-30']
+reg = ['noreg']
 activation = ['sigmoid']
 n_games = len(games)
-unfreezes = [0, 10, 51]
+unfreezes = [0, 10]
 
 legend_items = list()
 
@@ -29,24 +28,23 @@ for i, g in enumerate(games):
 
 for act in activation:
     for r in reg:
-        for alg in algs:
-            legend_items.append(alg + '-' + r + '-' + act)
-            path = alg + '/' + r + '-' + act + '/'
-            a = np.load(path + 'scores.npy')
-            a_mean, a_err = get_mean_and_confidence(a)
-            for i, idx in enumerate(game_ids):
-                ax.plot(a_mean[idx])
-                ax.fill_between(np.arange(51), a_mean[idx] - a_err[idx], a_mean[idx] + a_err[idx], alpha=.5)
+        legend_items.append('dqn-' + r + '-' + act)
+        path = 'dqn/' + r + '-' + act + '/'
+        a = np.load(path + 'scores.npy')
+        a_mean, a_err = get_mean_and_confidence(a)
+        for i, idx in enumerate(game_ids):
+            ax.plot(a_mean[idx])
+            ax.fill_between(np.arange(51), a_mean[idx] - a_err[idx], a_mean[idx] + a_err[idx], alpha=.5)
     
-        for u in unfreezes:
-            for i, g in zip(game_ids, games):
-                legend_items.append('transfer' + '-unfreeze' + str(u) + '-' + r + '-' + act)
-                file_path = 'transfer' + '/' + g + '/unfreeze' + str(u) + '-' + r + '-' + act + '.npy'
+    for u in unfreezes:
+        for i, g in zip(game_ids, games):
+            legend_items.append('transfer' + '-unfreeze' + str(u) + '-' + r + '-' + act)
+            file_path = 'transfer' + '/' + g + '/unfreeze' + str(u) + '-' + r + '-' + act + '.npy'
 
-                a = np.load(file_path)
-                a_mean, a_err = get_mean_and_confidence(a)
-                ax.plot(a_mean[0])
-                ax.fill_between(np.arange(51), a_mean[0] - a_err[0], a_mean[0] + a_err[0], alpha=.5)
+            a = np.load(file_path)
+            a_mean, a_err = get_mean_and_confidence(a)
+            ax.plot(a_mean[0])
+            ax.fill_between(np.arange(51), a_mean[0] - a_err[0], a_mean[0] + a_err[0], alpha=.5)
 
 plt.legend(legend_items)
 plt.show()
