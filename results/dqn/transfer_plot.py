@@ -18,7 +18,7 @@ game_ids = [1]
 reg = ['noreg', 'kl-1e-2-30']
 activation = ['sigmoid']
 n_games = len(games)
-unfreezes = [10]
+unfreezes = [0, 10, 51]
 
 legend_items = list()
 
