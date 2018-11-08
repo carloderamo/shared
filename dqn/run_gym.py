@@ -157,6 +157,8 @@ def experiment(idx):
                                                 gamma=args.gamma[i]))
         elif g == 'caronhill':
             mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
+        elif g == 'puddleworld':
+            mdp.append(PuddleWorld(horizon=args.horizon[i], gamma=args.gamma[i]))
         else:
             mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
 
