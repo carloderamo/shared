@@ -50,13 +50,7 @@ def experiment(idx):
     parser = argparse.ArgumentParser()
 
     arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games",
-                          type=list,
-                          nargs='+',
-                          default=['Acrobot-v1'],
-                          help='Gym ID of the problem.')
-    arg_game.add_argument("--horizon", type=int, nargs='+')
-    arg_game.add_argument("--gamma", type=float, nargs='+')
+    arg_game.add_argument("--n-games", type=int)
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=100,
@@ -151,15 +145,10 @@ def experiment(idx):
     # MDP
     mdp = list()
     gamma_eval = list()
-    for i, g in enumerate(args.games):
-        if g == 'pendulum':
-            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                                gamma=args.gamma[i]))
-        elif g == 'caronhill':
-            mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-        else:
-            mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-
+    starts = np.load('puddle/start.npy')
+    goals = np.load('puddle/goal.npy')
+    for i in range(args.n_games):
+        mdp.append(PuddleWorld(start=starts[i], goal=goals[i]))
         gamma_eval.append(args.gamma[i])
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
