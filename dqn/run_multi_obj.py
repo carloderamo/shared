@@ -91,7 +91,7 @@ def experiment():
     arg_alg.add_argument("--target-update-frequency", type=int, default=100,
                          help='Number of collected samples before each update'
                               'of the target network.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=1000,
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=2000,
                          help='Number of learning step before each evaluation.'
                               'This number represents an epoch.')
     arg_alg.add_argument("--train-frequency", type=int, default=1,
@@ -109,7 +109,7 @@ def experiment():
                               'reaches this values, it stays constant.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=2000,
+    arg_alg.add_argument("--test-samples", type=int, default=1000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--max-no-op-actions", type=int, default=0,
                          help='Maximum number of no-op action performed at the'
@@ -157,7 +157,8 @@ def experiment():
     goals = np.load('puddle/goal.npy')
     for i in range(game_id, n_games):
         if args.game == 'puddleworld':
-            mdp.append(PuddleWorld(start=starts[i], goal=goals[i]))
+            mdp.append(PuddleWorld(start=starts[i], goal=goals[i],
+                                   horizon=1000))
         else:
             raise ValueError
 
