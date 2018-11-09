@@ -36,20 +36,21 @@ def print_epoch(epoch):
     print('----------------------------------------------------------------')
 
 
-def get_stats(dataset, gamma, idx, games):
-    J = np.mean(compute_J(dataset, gamma[idx]))
-    print(games[idx] + ': J: %f' % J)
+def get_stats(dataset, gamma, idx):
+    J = np.mean(compute_J(dataset, gamma))
+    print(str(idx) + ': J: %f' % J)
 
     return J
 
 
-def experiment(idx):
+def experiment():
     np.random.seed()
 
     # Argument parser
     parser = argparse.ArgumentParser()
 
     arg_game = parser.add_argument_group('Game')
+    arg_game.add_argument("--game", type=str)
     arg_game.add_argument("--n-games", type=int)
 
     arg_mem = parser.add_argument_group('Replay Memory')
@@ -140,35 +141,23 @@ def experiment(idx):
 
     args = parser.parse_args()
 
-    args.games = [''.join(g) for g in args.games]
-
     # MDP
     mdp = list()
-    gamma_eval = list()
     starts = np.load('puddle/start.npy')
     goals = np.load('puddle/goal.npy')
     for i in range(args.n_games):
-        mdp.append(PuddleWorld(start=starts[i], goal=goals[i]))
-        gamma_eval.append(args.gamma[i])
+        if args.game == 'puddleworld':
+            mdp.append(PuddleWorld(start=starts[i], goal=goals[i]))
+        else:
+            raise ValueError
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
-    max_obs_dim = 0
-    max_act_n = 0
-    for i in range(len(args.games)):
-        n = mdp[i].info.observation_space.shape[0]
-        m = mdp[i].info.action_space.n
-        if n > max_obs_dim:
-            max_obs_dim = n
-            max_obs_idx = i
-        if m > max_act_n:
-            max_act_n = m
-            max_act_idx = i
-    gammas = [m.info.gamma for m in mdp]
-    horizons = [m.info.horizon for m in mdp]
-    mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
-                       mdp[max_act_idx].info.action_space, gammas, horizons)
+    gamma_eval = mdp[0].info.gamma
+    mdp_info = MDPInfo(mdp[0].info.observation_space, mdp[0].info.action_space,
+                       [mdp[0].info.gamma] * args.n_games,
+                       [mdp[0].info.horizon] * args.n_games)
 
     assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
@@ -182,7 +171,7 @@ def experiment(idx):
 
         temp_losses = list()
         temp_l1_losses = list()
-        for i in range(len(args.games)):
+        for i in range(args.n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -205,7 +194,7 @@ def experiment(idx):
 
         temp_losses = list()
         temp_kl_losses = list()
-        for i in range(len(args.games)):
+        for i in range(args.n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -226,7 +215,7 @@ def experiment(idx):
         temp_losses = list()
         temp_l1_losses = list()
         l1_loss = list()
-        for i in range(len(args.games)):
+        for i in range(args.n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -250,7 +239,7 @@ def experiment(idx):
         temp_losses = list()
         w = [x.weight[:n_actions_per_head[i][0]] for i, x in enumerate(w)]
         w = torch.cat(w)
-        for i in range(len(args.games)):
+        for i in range(args.n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -264,7 +253,7 @@ def experiment(idx):
         return loss + args.reg_coeff * gl1_loss
 
     scores = list()
-    for _ in range(len(args.games)):
+    for _ in range(args.n_games):
         scores.append(list())
 
     optimizer = dict()
@@ -345,7 +334,7 @@ def experiment(idx):
     # Agent
     algorithm_params = dict(
         batch_size=args.batch_size,
-        n_games=len(args.games),
+        n_games=args.n_games,
         initial_replay_size=initial_replay_size,
         max_replay_size=max_replay_size,
         target_update_frequency=target_update_frequency // train_frequency,
@@ -393,7 +382,7 @@ def experiment(idx):
                             quiet=args.quiet)
     for i in range(len(mdp)):
         d = dataset[i::len(mdp)]
-        scores[i].append(get_stats(d, gamma_eval, i, args.games))
+        scores[i].append(get_stats(d, gamma_eval, i))
 
     if args.unfreeze_epoch > 0:
         agent.freeze_shared_weights()
@@ -401,10 +390,6 @@ def experiment(idx):
     best_score_sum = -np.inf
     best_weights = None
 
-    np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
-    np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -425,7 +410,7 @@ def experiment(idx):
         current_score_sum = 0
         for i in range(len(mdp)):
             d = dataset[i::len(mdp)]
-            current_score = get_stats(d, gamma_eval, i, args.games)
+            current_score = get_stats(d, gamma_eval, i)
             scores[i].append(current_score)
             current_score_sum += current_score
 
@@ -435,13 +420,8 @@ def experiment(idx):
             best_weights = agent.get_shared_weights()
 
         if args.save:
-            np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, n_epoch),
+            np.save(folder_name + 'weights-%d.npy' % n_epoch,
                     agent.approximator.get_weights())
-
-        np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-        np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-        np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
-        np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -450,18 +430,11 @@ def experiment(idx):
 
 
 if __name__ == '__main__':
-    n_experiments = 100
-
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S/')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(i) for i in range(n_experiments))
-
-    scores = np.array([o[0] for o in out])
-    loss = np.array([o[1] for o in out])
-    l1_loss = np.array([o[2] for o in out])
-    v = np.array([o[3] for o in out])
+    scores, loss, l1_loss, v = experiment()
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss_raw.npy', loss)
