@@ -3,7 +3,6 @@ import datetime
 import pathlib
 import sys
 
-from joblib import delayed, Parallel
 import numpy as np
 import torch
 import torch.optim as optim
@@ -51,7 +50,8 @@ def experiment():
 
     arg_game = parser.add_argument_group('Game')
     arg_game.add_argument("--game", type=str)
-    arg_game.add_argument("--n-games", type=int)
+    arg_game.add_argument("--game-id", type=int, default=None)
+    arg_game.add_argument("--n-games", type=int, default=None)
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=100,
@@ -141,11 +141,21 @@ def experiment():
 
     args = parser.parse_args()
 
+    assert args.n_games is None and args.game_id is not None or\
+           args.n_games is not None and args.game_id is None
+
+    if args.n_games is not None:
+        n_games = args.n_games
+        game_id = 0
+    else:
+        n_games = args.game_id + 1
+        game_id = args.game_id
+
     # MDP
     mdp = list()
     starts = np.load('puddle/start.npy')
     goals = np.load('puddle/goal.npy')
-    for i in range(args.n_games):
+    for i in range(game_id, n_games):
         if args.game == 'puddleworld':
             mdp.append(PuddleWorld(start=starts[i], goal=goals[i]))
         else:
@@ -156,8 +166,8 @@ def experiment():
 
     gamma_eval = mdp[0].info.gamma
     mdp_info = MDPInfo(mdp[0].info.observation_space, mdp[0].info.action_space,
-                       [mdp[0].info.gamma] * args.n_games,
-                       [mdp[0].info.horizon] * args.n_games)
+                       [mdp[0].info.gamma] * n_games,
+                       [mdp[0].info.horizon] * n_games)
 
     assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
@@ -171,7 +181,7 @@ def experiment():
 
         temp_losses = list()
         temp_l1_losses = list()
-        for i in range(args.n_games):
+        for i in range(n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -194,7 +204,7 @@ def experiment():
 
         temp_losses = list()
         temp_kl_losses = list()
-        for i in range(args.n_games):
+        for i in range(n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -215,7 +225,7 @@ def experiment():
         temp_losses = list()
         temp_l1_losses = list()
         l1_loss = list()
-        for i in range(args.n_games):
+        for i in range(n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -239,7 +249,7 @@ def experiment():
         temp_losses = list()
         w = [x.weight[:n_actions_per_head[i][0]] for i, x in enumerate(w)]
         w = torch.cat(w)
-        for i in range(args.n_games):
+        for i in range(n_games):
             start = i * args.batch_size
             stop = start + args.batch_size
             temp_losses.append(torch.mean(loss[start:stop]).item())
@@ -253,7 +263,7 @@ def experiment():
         return loss + args.reg_coeff * gl1_loss
 
     scores = list()
-    for _ in range(args.n_games):
+    for _ in range(n_games):
         scores.append(list())
 
     optimizer = dict()
@@ -334,7 +344,7 @@ def experiment():
     # Agent
     algorithm_params = dict(
         batch_size=args.batch_size,
-        n_games=args.n_games,
+        n_games=n_games,
         initial_replay_size=initial_replay_size,
         max_replay_size=max_replay_size,
         target_update_frequency=target_update_frequency // train_frequency,
