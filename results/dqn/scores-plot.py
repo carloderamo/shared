@@ -14,13 +14,13 @@ def get_mean_and_confidence(data):
 
 alg = 'multidqn'
 games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['noreg', 'kl-1e-2-30']
+reg = ['noreg', 'kl-1e-2-30', 'kl-1e-2-5_30', 'reduced-30']
 activation = ['sigmoid']
 n_games = len(games)
 
 legend_items = list()
 
-fig, ax = plt.subplots(n_games, 1)
+fig, ax = plt.subplots(1, n_games)
 for i, g in enumerate(games):
     ax[i].set_title(g)
     ax[i].grid()
