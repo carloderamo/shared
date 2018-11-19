@@ -43,7 +43,7 @@ def get_stats(dataset, gamma, idx):
     return J
 
 
-def experiment(start, end):
+def experiment(start, end, args):
     np.random.seed()
 
     n_games = end - start
