@@ -441,7 +441,7 @@ if __name__ == '__main__':
         scores, loss, l1_loss, v = experiment(0, 100)
     else:
         out = Parallel(n_jobs=-1)(
-            delayed(experiment)(i, i + 1) for i in range(100))
+            delayed(experiment)(i, i + 1, args) for i in range(100))
         scores = [x[0] for x in out]
         loss = [x[1] for x in out]
         l1_loss = [x[2] for x in out]
