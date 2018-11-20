@@ -438,7 +438,7 @@ if __name__ == '__main__':
     pathlib.Path(folder_name).mkdir(parents=True)
 
     if args.multi:
-        scores, loss, l1_loss, v = experiment(0, 100)
+        scores, loss, l1_loss, v = experiment(0, 100, args)
     else:
         out = Parallel(n_jobs=-1)(
             delayed(experiment)(i, i + 1, args) for i in range(100))
