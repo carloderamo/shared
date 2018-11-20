@@ -44,110 +44,8 @@ def get_stats(dataset, idx, games):
     return score
 
 
-def experiment():
+def experiment(args, folder_name):
     np.random.seed()
-
-    # Argument parser
-    parser = argparse.ArgumentParser()
-
-    arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games",
-                          type=list,
-                          nargs='+',
-                          default=['BreakoutNoFrameskip-v4'],
-                          help='Gym ID of the Atari game.')
-    arg_game.add_argument("--screen-width", type=int, default=84,
-                          help='Width of the game screen.')
-    arg_game.add_argument("--screen-height", type=int, default=84,
-                          help='Height of the game screen.')
-
-    arg_mem = parser.add_argument_group('Replay Memory')
-    arg_mem.add_argument("--initial-replay-size", type=int, default=50000,
-                         help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=500000,
-                         help='Max size of the replay memory.')
-
-    arg_net = parser.add_argument_group('Deep Q-Network')
-    arg_net.add_argument("--optimizer",
-                         choices=['adadelta',
-                                  'adam',
-                                  'rmsprop',
-                                  'rmspropcentered'],
-                         default='rmspropcentered',
-                         help='Name of the optimizer to use.')
-    arg_net.add_argument("--learning-rate", type=float, default=.00025,
-                         help='Learning rate value of the optimizer.')
-    arg_net.add_argument("--decay", type=float, default=.95,
-                         help='Discount factor for the history coming from the'
-                              'gradient momentum in rmspropcentered and'
-                              'rmsprop')
-    arg_net.add_argument("--epsilon", type=float, default=1e-8,
-                         help='Epsilon term used in rmspropcentered and'
-                              'rmsprop')
-    arg_net.add_argument("--reg-coeff", type=float, default=1e-4)
-
-    arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
-    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'],
-                         default='sigmoid')
-    arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--batch-size", type=int, default=32,
-                         help='Batch size for each fit of the network.')
-    arg_alg.add_argument("--history-length", type=int, default=4,
-                         help='Number of frames composing a state.')
-    arg_alg.add_argument("--target-update-frequency", type=int, default=10000,
-                         help='Number of collected samples before each update'
-                              'of the target network.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=250000,
-                         help='Number of collected samples before each'
-                              'evaluation. An epoch ends after this number of'
-                              'steps')
-    arg_alg.add_argument("--train-frequency", type=int, default=4,
-                         help='Number of collected samples before each fit of'
-                              'the neural network.')
-    arg_alg.add_argument("--max-steps", type=int, default=50000000,
-                         help='Total number of collected samples.')
-    arg_alg.add_argument("--final-exploration-frame", type=int, default=1000000,
-                         help='Number of collected samples until the exploration'
-                              'rate stops decreasing.')
-    arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
-                         help='Initial value of the exploration rate.')
-    arg_alg.add_argument("--final-exploration-rate", type=float, default=.1,
-                         help='Final value of the exploration rate. When it'
-                              'reaches this values, it stays constant.')
-    arg_alg.add_argument("--test-exploration-rate", type=float, default=.05,
-                         help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=125000,
-                         help='Number of collected samples for each'
-                              'evaluation.')
-    arg_alg.add_argument("--max-no-op-actions", type=int, default=30,
-                         help='Maximum number of no-op actions performed at the'
-                              'beginning of the episodes.')
-    arg_alg.add_argument("--transfer", type=str, default='',
-                         help='Path to  the file of the weights of the common '
-                              'layers to be loaded')
-    arg_alg.add_argument("--save-shared", type=str, default='',
-                         help='filename where to save the shared weights')
-    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
-                         help="Number of epoch where to unfreeze shared weights.")
-
-    arg_utils = parser.add_argument_group('Utils')
-    arg_utils.add_argument('--use-cuda', action='store_true',
-                           help='Flag specifying whether to use the GPU.')
-    arg_utils.add_argument('--save', action='store_true',
-                           help='Flag specifying whether to save the model.')
-    arg_utils.add_argument('--load', type=str,
-                           help='Path of the model to be loaded.')
-    arg_utils.add_argument('--render', action='store_true',
-                           help='Flag specifying whether to render the game.')
-    arg_utils.add_argument('--quiet', action='store_true',
-                           help='Flag specifying whether to hide the progress'
-                                'bar.')
-    arg_utils.add_argument('--debug', action='store_true',
-                           help='Flag specifying whether the script has to be'
-                                'run in debug mode.')
-
-    args = parser.parse_args()
 
     args.games = [''.join(g) for g in args.games]
 
@@ -220,11 +118,6 @@ def experiment():
                        mdp[max_act_idx].info.action_space, gammas, horizons)
 
     # DQN learning run
-
-    # Summary folder
-    folder_name = './logs/atari_' + datetime.datetime.now().strftime(
-        '%Y-%m-%d_%H-%M-%S')
-    pathlib.Path(folder_name).mkdir(parents=True)
 
     # Settings
     if args.debug:
@@ -329,10 +222,10 @@ def experiment():
     best_score_sum = -np.inf
     best_weights = None
 
-    np.save(folder_name + '/scores.npy', scores)
-    np.save(folder_name + '/loss.npy', losses)
-    np.save(folder_name + '/l1_loss.npy', l1_losses)
-    np.save(folder_name + '/v.npy', agent.v_list)
+    np.save(folder_name + 'scores.npy', scores)
+    np.save(folder_name + 'loss.npy', losses)
+    np.save(folder_name + 'l1_loss.npy', l1_losses)
+    np.save(folder_name + 'v.npy', agent.v_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -370,10 +263,10 @@ def experiment():
             np.save(folder_name + 'weights-exp.npy',
                     agent.approximator.get_weights())
 
-        np.save(folder_name + '/scores.npy', scores)
-        np.save(folder_name + '/loss.npy', losses)
-        np.save(folder_name + '/l1_loss.npy', l1_losses)
-        np.save(folder_name + '/v.npy', agent.v_list)
+        np.save(folder_name + 'scores.npy', scores)
+        np.save(folder_name + 'loss.npy', losses)
+        np.save(folder_name + 'l1_loss.npy', l1_losses)
+        np.save(folder_name + 'v.npy', agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -382,4 +275,114 @@ def experiment():
 
 
 if __name__ == '__main__':
-    experiment()
+    # Argument parser
+    parser = argparse.ArgumentParser()
+
+    arg_game = parser.add_argument_group('Game')
+    arg_game.add_argument("--games",
+                          type=list,
+                          nargs='+',
+                          default=['BreakoutNoFrameskip-v4'],
+                          help='Gym ID of the Atari game.')
+    arg_game.add_argument("--screen-width", type=int, default=84,
+                          help='Width of the game screen.')
+    arg_game.add_argument("--screen-height", type=int, default=84,
+                          help='Height of the game screen.')
+
+    arg_mem = parser.add_argument_group('Replay Memory')
+    arg_mem.add_argument("--initial-replay-size", type=int, default=50000,
+                         help='Initial size of the replay memory.')
+    arg_mem.add_argument("--max-replay-size", type=int, default=500000,
+                         help='Max size of the replay memory.')
+
+    arg_net = parser.add_argument_group('Deep Q-Network')
+    arg_net.add_argument("--optimizer",
+                         choices=['adadelta',
+                                  'adam',
+                                  'rmsprop',
+                                  'rmspropcentered'],
+                         default='rmspropcentered',
+                         help='Name of the optimizer to use.')
+    arg_net.add_argument("--learning-rate", type=float, default=.00025,
+                         help='Learning rate value of the optimizer.')
+    arg_net.add_argument("--decay", type=float, default=.95,
+                         help='Discount factor for the history coming from the'
+                              'gradient momentum in rmspropcentered and'
+                              'rmsprop')
+    arg_net.add_argument("--epsilon", type=float, default=1e-8,
+                         help='Epsilon term used in rmspropcentered and'
+                              'rmsprop')
+    arg_net.add_argument("--reg-coeff", type=float, default=1e-4)
+
+    arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
+    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'],
+                         default='sigmoid')
+    arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--batch-size", type=int, default=32,
+                         help='Batch size for each fit of the network.')
+    arg_alg.add_argument("--history-length", type=int, default=4,
+                         help='Number of frames composing a state.')
+    arg_alg.add_argument("--target-update-frequency", type=int, default=10000,
+                         help='Number of collected samples before each update'
+                              'of the target network.')
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=250000,
+                         help='Number of collected samples before each'
+                              'evaluation. An epoch ends after this number of'
+                              'steps')
+    arg_alg.add_argument("--train-frequency", type=int, default=4,
+                         help='Number of collected samples before each fit of'
+                              'the neural network.')
+    arg_alg.add_argument("--max-steps", type=int, default=50000000,
+                         help='Total number of collected samples.')
+    arg_alg.add_argument("--final-exploration-frame", type=int, default=1000000,
+                         help='Number of collected samples until the exploration'
+                              'rate stops decreasing.')
+    arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
+                         help='Initial value of the exploration rate.')
+    arg_alg.add_argument("--final-exploration-rate", type=float, default=.1,
+                         help='Final value of the exploration rate. When it'
+                              'reaches this values, it stays constant.')
+    arg_alg.add_argument("--test-exploration-rate", type=float, default=.05,
+                         help='Exploration rate used during evaluation.')
+    arg_alg.add_argument("--test-samples", type=int, default=125000,
+                         help='Number of collected samples for each'
+                              'evaluation.')
+    arg_alg.add_argument("--max-no-op-actions", type=int, default=30,
+                         help='Maximum number of no-op actions performed at the'
+                              'beginning of the episodes.')
+    arg_alg.add_argument("--transfer", type=str, default='',
+                         help='Path to  the file of the weights of the common '
+                              'layers to be loaded')
+    arg_alg.add_argument("--save-shared", type=str, default='',
+                         help='filename where to save the shared weights')
+    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
+                         help="Number of epoch where to unfreeze shared weights.")
+
+    arg_utils = parser.add_argument_group('Utils')
+    arg_utils.add_argument('--use-cuda', action='store_true',
+                           help='Flag specifying whether to use the GPU.')
+    arg_utils.add_argument('--save', action='store_true',
+                           help='Flag specifying whether to save the model.')
+    arg_utils.add_argument('--load', type=str,
+                           help='Path of the model to be loaded.')
+    arg_utils.add_argument('--render', action='store_true',
+                           help='Flag specifying whether to render the game.')
+    arg_utils.add_argument('--quiet', action='store_true',
+                           help='Flag specifying whether to hide the progress'
+                                'bar.')
+    arg_utils.add_argument('--debug', action='store_true',
+                           help='Flag specifying whether the script has to be'
+                                'run in debug mode.')
+
+    args = parser.parse_args()
+
+    # Summary folder
+    folder_name = './logs/atari_' + datetime.datetime.now().strftime(
+        '%Y-%m-%d_%H-%M-%S/')
+    pathlib.Path(folder_name).mkdir(parents=True)
+
+    with open(folder_name + 'args.pkl', 'wb') as f:
+        pickle.dump(args, f)
+
+    experiment(args, folder_name)
