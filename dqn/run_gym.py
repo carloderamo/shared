@@ -43,108 +43,8 @@ def get_stats(dataset, gamma, idx, games):
     return J
 
 
-def experiment(idx):
+def experiment(args, idx):
     np.random.seed()
-
-    # Argument parser
-    parser = argparse.ArgumentParser()
-
-    arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games",
-                          type=list,
-                          nargs='+',
-                          default=['Acrobot-v1'],
-                          help='Gym ID of the problem.')
-    arg_game.add_argument("--horizon", type=int, nargs='+')
-    arg_game.add_argument("--gamma", type=float, nargs='+')
-
-    arg_mem = parser.add_argument_group('Replay Memory')
-    arg_mem.add_argument("--initial-replay-size", type=int, default=100,
-                         help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=5000,
-                         help='Max size of the replay memory.')
-
-    arg_net = parser.add_argument_group('Deep Q-Network')
-    arg_net.add_argument("--optimizer",
-                         choices=['adadelta',
-                                  'adam',
-                                  'rmsprop',
-                                  'rmspropcentered'],
-                         default='adam',
-                         help='Name of the optimizer to use to learn.')
-    arg_net.add_argument("--learning-rate", type=float, default=.001,
-                         help='Learning rate value of the optimizer. Only used'
-                              'in rmspropcentered')
-    arg_net.add_argument("--decay", type=float, default=.95,
-                         help='Discount factor for the history coming from the'
-                              'gradient momentum in rmspropcentered')
-    arg_net.add_argument("--epsilon", type=float, default=1e-8,
-                         help='Epsilon term used in rmspropcentered')
-    arg_net.add_argument("--reg-coeff", type=float, default=0)
-    arg_net.add_argument("--reg-type", type=str,
-                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
-    arg_net.add_argument("--k", type=float, default=10)
-
-    arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
-    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
-    arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--batch-size", type=int, default=100,
-                         help='Batch size for each fit of the network.')
-    arg_alg.add_argument("--history-length", type=int, default=1,
-                         help='Number of frames composing a state.')
-    arg_alg.add_argument("--target-update-frequency", type=int, default=100,
-                         help='Number of collected samples before each update'
-                              'of the target network.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=1000,
-                         help='Number of learning step before each evaluation.'
-                              'This number represents an epoch.')
-    arg_alg.add_argument("--train-frequency", type=int, default=1,
-                         help='Number of learning steps before each fit of the'
-                              'neural network.')
-    arg_alg.add_argument("--max-steps", type=int, default=50000,
-                         help='Total number of learning steps.')
-    arg_alg.add_argument("--final-exploration-frame", type=int, default=5000,
-                         help='Number of steps until the exploration rate stops'
-                              'decreasing.')
-    arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
-                         help='Initial value of the exploration rate.')
-    arg_alg.add_argument("--final-exploration-rate", type=float, default=.01,
-                         help='Final value of the exploration rate. When it'
-                              'reaches this values, it stays constant.')
-    arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
-                         help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=2000,
-                         help='Number of steps for each evaluation.')
-    arg_alg.add_argument("--max-no-op-actions", type=int, default=0,
-                         help='Maximum number of no-op action performed at the'
-                              'beginning of the episodes. The minimum number is'
-                              'history_length.')
-    arg_alg.add_argument("--transfer", type=str, default='',
-                         help='Path to  the file of the weights of the common '
-                              'layers to be loaded')
-    arg_alg.add_argument("--save-shared", type=str, default='',
-                         help='filename where to save the shared weights')
-    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
-                         help="Number of epoch where to unfreeze shared weights.")
-
-    arg_utils = parser.add_argument_group('Utils')
-    arg_utils.add_argument('--use-cuda', action='store_true',
-                           help='Flag specifying whether to use the GPU.')
-    arg_utils.add_argument('--load', type=str,
-                           help='Path of the model to be loaded.')
-    arg_utils.add_argument('--save', action='store_true',
-                           help='Flag specifying whether to save the model.')
-    arg_utils.add_argument('--render', action='store_true',
-                           help='Flag specifying whether to render the game.')
-    arg_utils.add_argument('--quiet', action='store_true',
-                           help='Flag specifying whether to hide the progress'
-                                'bar.')
-    arg_utils.add_argument('--debug', action='store_true',
-                           help='Flag specifying whether the script has to be'
-                                'run in debug mode.')
-
-    args = parser.parse_args()
 
     args.games = [''.join(g) for g in args.games]
 
@@ -325,7 +225,7 @@ def experiment(idx):
                                    n=args.final_exploration_frame)
     epsilon_test = Parameter(value=args.test_exploration_rate)
     epsilon_random = Parameter(value=1)
-    pi = EpsGreedyMultiple(epsilon=epsilon,
+    pi = EpsGreedyMultiple(parameter=epsilon,
                            n_actions_per_head=n_actions_per_head)
 
     # Approximator
@@ -386,7 +286,7 @@ def experiment(idx):
 
     # Fill replay memory with random dataset
     print_epoch(0)
-    pi.set_epsilon(epsilon_random)
+    pi.set_parameter(epsilon_random)
     core.learn(n_steps=initial_replay_size,
                n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
@@ -399,7 +299,7 @@ def experiment(idx):
         agent.approximator.set_weights(weights)
 
     # Evaluate initial policy
-    pi.set_epsilon(epsilon_test)
+    pi.set_parameter(epsilon_test)
     dataset = core.evaluate(n_steps=test_samples, render=args.render,
                             quiet=args.quiet)
     for i in range(len(mdp)):
@@ -423,13 +323,13 @@ def experiment(idx):
         print_epoch(n_epoch)
         print('- Learning:')
         # learning step
-        pi.set_epsilon(None)
+        pi.set_parameter(None)
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
 
         print('- Evaluation:')
         # evaluation step
-        pi.set_epsilon(epsilon_test)
+        pi.set_parameter(epsilon_test)
         dataset = core.evaluate(n_steps=test_samples,
                                 render=args.render, quiet=args.quiet)
 
@@ -467,7 +367,107 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S/')
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(i) for i in range(n_experiments))
+    # Argument parser
+    parser = argparse.ArgumentParser()
+
+    arg_game = parser.add_argument_group('Game')
+    arg_game.add_argument("--games",
+                          type=list,
+                          nargs='+',
+                          default=['Acrobot-v1'],
+                          help='Gym ID of the problem.')
+    arg_game.add_argument("--horizon", type=int, nargs='+')
+    arg_game.add_argument("--gamma", type=float, nargs='+')
+
+    arg_mem = parser.add_argument_group('Replay Memory')
+    arg_mem.add_argument("--initial-replay-size", type=int, default=100,
+                         help='Initial size of the replay memory.')
+    arg_mem.add_argument("--max-replay-size", type=int, default=5000,
+                         help='Max size of the replay memory.')
+
+    arg_net = parser.add_argument_group('Deep Q-Network')
+    arg_net.add_argument("--optimizer",
+                         choices=['adadelta',
+                                  'adam',
+                                  'rmsprop',
+                                  'rmspropcentered'],
+                         default='adam',
+                         help='Name of the optimizer to use to learn.')
+    arg_net.add_argument("--learning-rate", type=float, default=.001,
+                         help='Learning rate value of the optimizer. Only used'
+                              'in rmspropcentered')
+    arg_net.add_argument("--decay", type=float, default=.95,
+                         help='Discount factor for the history coming from the'
+                              'gradient momentum in rmspropcentered')
+    arg_net.add_argument("--epsilon", type=float, default=1e-8,
+                         help='Epsilon term used in rmspropcentered')
+    arg_net.add_argument("--reg-coeff", type=float, default=0)
+    arg_net.add_argument("--reg-type", type=str,
+                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
+    arg_net.add_argument("--k", type=float, default=10)
+
+    arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
+    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
+    arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--batch-size", type=int, default=100,
+                         help='Batch size for each fit of the network.')
+    arg_alg.add_argument("--history-length", type=int, default=1,
+                         help='Number of frames composing a state.')
+    arg_alg.add_argument("--target-update-frequency", type=int, default=100,
+                         help='Number of collected samples before each update'
+                              'of the target network.')
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=1000,
+                         help='Number of learning step before each evaluation.'
+                              'This number represents an epoch.')
+    arg_alg.add_argument("--train-frequency", type=int, default=1,
+                         help='Number of learning steps before each fit of the'
+                              'neural network.')
+    arg_alg.add_argument("--max-steps", type=int, default=50000,
+                         help='Total number of learning steps.')
+    arg_alg.add_argument("--final-exploration-frame", type=int, default=5000,
+                         help='Number of steps until the exploration rate stops'
+                              'decreasing.')
+    arg_alg.add_argument("--initial-exploration-rate", type=float, default=1.,
+                         help='Initial value of the exploration rate.')
+    arg_alg.add_argument("--final-exploration-rate", type=float, default=.01,
+                         help='Final value of the exploration rate. When it'
+                              'reaches this values, it stays constant.')
+    arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
+                         help='Exploration rate used during evaluation.')
+    arg_alg.add_argument("--test-samples", type=int, default=2000,
+                         help='Number of steps for each evaluation.')
+    arg_alg.add_argument("--max-no-op-actions", type=int, default=0,
+                         help='Maximum number of no-op action performed at the'
+                              'beginning of the episodes. The minimum number is'
+                              'history_length.')
+    arg_alg.add_argument("--transfer", type=str, default='',
+                         help='Path to  the file of the weights of the common '
+                              'layers to be loaded')
+    arg_alg.add_argument("--save-shared", type=str, default='',
+                         help='filename where to save the shared weights')
+    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
+                         help="Number of epoch where to unfreeze shared weights.")
+
+    arg_utils = parser.add_argument_group('Utils')
+    arg_utils.add_argument('--use-cuda', action='store_true',
+                           help='Flag specifying whether to use the GPU.')
+    arg_utils.add_argument('--load', type=str,
+                           help='Path of the model to be loaded.')
+    arg_utils.add_argument('--save', action='store_true',
+                           help='Flag specifying whether to save the model.')
+    arg_utils.add_argument('--render', action='store_true',
+                           help='Flag specifying whether to render the game.')
+    arg_utils.add_argument('--quiet', action='store_true',
+                           help='Flag specifying whether to hide the progress'
+                                'bar.')
+    arg_utils.add_argument('--debug', action='store_true',
+                           help='Flag specifying whether the script has to be'
+                                'run in debug mode.')
+
+    args = parser.parse_args()
+
+    out = Parallel(n_jobs=-1)(delayed(experiment)(args, i) for i in range(n_experiments))
 
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
