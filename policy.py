@@ -6,23 +6,38 @@ from mushroom.policy import ParametricPolicy, TDPolicy
 from mushroom.utils.parameters import Parameter
 
 
-class EpsGreedyMultiple(TDPolicy):
-    def __init__(self, epsilon, n_actions_per_head):
+class Multiple(TDPolicy):
+    def __init__(self, parameter, n_actions_per_head):
         super().__init__()
 
-        assert isinstance(epsilon, Parameter) and isinstance(n_actions_per_head,
-                                                             list)
+        assert isinstance(parameter, Parameter) and isinstance(n_actions_per_head,
+                                                               list)
         self._n_actions_per_head = n_actions_per_head
 
         n_heads = len(n_actions_per_head)
 
-        if isinstance(epsilon, list):
-            self._explorative_epsilons = deepcopy(epsilon)
+        if isinstance(parameter, list):
+            self._explorative_pars = deepcopy(parameter)
         else:
-            self._explorative_epsilons = [deepcopy(epsilon)
-                                          for _ in range(n_heads)]
-        self._epsilons = [None] * n_heads
+            self._explorative_pars = [deepcopy(parameter) for _ in range(n_heads)]
+        self._pars = [None] * n_heads
 
+    def set_parameter(self, parameter):
+        assert isinstance(parameter, Parameter) or parameter is None
+
+        if parameter is None:
+            for i in range(len(self._pars)):
+                self._pars[i] = self._explorative_pars[i]
+        else:
+            for i in range(len(self._pars)):
+                self._pars[i] = parameter
+
+    def update(self, state):
+        idx = state[0]
+        self._pars[idx].update(state)
+
+
+class EpsGreedyMultiple(Multiple):
     def __call__(self, *args):
         idx = args[0]
         state = np.array(args[1])
@@ -48,7 +63,7 @@ class EpsGreedyMultiple(TDPolicy):
     def draw_action(self, state):
         idx = state[0]
         state = np.array(state[1])
-        if not np.random.uniform() < self._epsilons[idx](state):
+        if not np.random.uniform() < self._pars[idx](state):
             q = self._approximator.predict(
                 state, idx=np.array([idx]))[:self._n_actions_per_head[idx][0]]
             max_a = np.argwhere(q == np.max(q)).ravel()
@@ -62,19 +77,26 @@ class EpsGreedyMultiple(TDPolicy):
 
         return np.array([np.random.choice(self._n_actions_per_head[idx][0])])
 
-    def set_epsilon(self, epsilon):
-        assert isinstance(epsilon, Parameter) or epsilon is None
 
-        if epsilon is None:
-            for i in range(len(self._epsilons)):
-                self._epsilons[i] = self._explorative_epsilons[i]
+class BoltzmannMultiple(Multiple):
+    def __call__(self, args):
+        idx = args[0]
+        state = args[1]
+        q_beta = self._approximator.predict(
+            state, idx=np.array([idx])) * self._pars[idx](state)
+        q_beta -= q_beta.max()
+        qs = np.exp(q_beta)
+
+        if len(args) == 3:
+            action = args[2]
+
+            return qs[action] / np.sum(qs)
         else:
-            for i in range(len(self._epsilons)):
-                self._epsilons[i] = epsilon
+            return qs / np.sum(qs)
 
-    def update(self, state):
-        idx = state[0]
-        self._epsilons[idx].update(state)
+    def draw_action(self, state):
+        return np.array([np.random.choice(self._approximator.n_actions,
+                                          p=self(state))])
 
 
 class EpsGreedyEnsemble(TDPolicy):
