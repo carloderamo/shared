@@ -20,6 +20,7 @@ from mushroom.utils.parameters import LinearDecayParameter, Parameter
 
 from core import Core
 from dqn import DQN, DoubleDQN
+from networks import AtariNetwork
 from policy import EpsGreedyMultiple
 
 """
@@ -135,6 +136,8 @@ def experiment():
                            help='Flag specifying whether to use the GPU.')
     arg_utils.add_argument('--save', action='store_true',
                            help='Flag specifying whether to save the model.')
+    arg_utils.add_argument('--load', type=str,
+                           help='Path of the model to be loaded.')
     arg_utils.add_argument('--render', action='store_true',
                            help='Flag specifying whether to render the game.')
     arg_utils.add_argument('--quiet', action='store_true',
@@ -247,7 +250,7 @@ def experiment():
                                    n=args.final_exploration_frame)
     epsilon_test = Parameter(value=args.test_exploration_rate)
     epsilon_random = Parameter(value=1)
-    pi = EpsGreedyMultiple(epsilon=epsilon,
+    pi = EpsGreedyMultiple(parameter=epsilon,
                            n_actions_per_head=n_actions_per_head)
 
     # Approximator
@@ -298,7 +301,7 @@ def experiment():
 
     # Fill replay memory with random dataset
     print_epoch(0)
-    pi.set_epsilon(epsilon_random)
+    pi.set_parameter(epsilon_random)
     core.learn(n_steps=initial_replay_size,
                n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
@@ -313,7 +316,7 @@ def experiment():
     for m in mdp:
         m.set_episode_end(False)
     # Evaluate initial policy
-    pi.set_epsilon(epsilon_test)
+    pi.set_parameter(epsilon_test)
     dataset = core.evaluate(n_steps=test_samples, render=args.render,
                             quiet=args.quiet)
     for i in range(len(mdp)):
@@ -339,7 +342,7 @@ def experiment():
         # learning step
         for m in mdp:
             m.set_episode_end(True)
-        pi.set_epsilon(None)
+        pi.set_parameter(None)
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
 
@@ -347,7 +350,7 @@ def experiment():
         # evaluation step
         for m in mdp:
             m.set_episode_end(False)
-        pi.set_epsilon(epsilon_test)
+        pi.set_parameter(epsilon_test)
         dataset = core.evaluate(n_steps=test_samples,
                                 render=args.render, quiet=args.quiet)
 

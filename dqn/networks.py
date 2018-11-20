@@ -173,7 +173,10 @@ class AtariNetwork(nn.Module):
             nn.init.xavier_uniform_(self._h5[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, idx=None, get_features=False):
+    def forward(self, state, action=None, idx=None, get_features=False,
+                get_weights=False):
+        assert not (get_features and get_weights)
+
         state = state.float() / 255.
 
         h1 = list()
@@ -217,6 +220,8 @@ class AtariNetwork(nn.Module):
 
         if get_features:
             return q, h_f
+        elif get_weights:
+            return q, self._h5
         else:
             return q
 
