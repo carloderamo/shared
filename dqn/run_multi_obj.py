@@ -211,7 +211,7 @@ def experiment(start, end, args):
                                    n=args.final_exploration_frame)
     epsilon_test = Parameter(value=args.test_exploration_rate)
     epsilon_random = Parameter(value=1)
-    pi = EpsGreedyMultiple(epsilon=epsilon,
+    pi = EpsGreedyMultiple(parameter=epsilon,
                            n_actions_per_head=n_actions_per_head)
 
     # Approximator
@@ -272,7 +272,7 @@ def experiment(start, end, args):
 
     # Fill replay memory with random dataset
     print_epoch(0)
-    pi.set_epsilon(epsilon_random)
+    pi.set_parameter(epsilon_random)
     core.learn(n_steps=initial_replay_size,
                n_steps_per_fit=initial_replay_size, quiet=args.quiet)
 
@@ -285,7 +285,7 @@ def experiment(start, end, args):
         agent.approximator.set_weights(weights)
 
     # Evaluate initial policy
-    pi.set_epsilon(epsilon_test)
+    pi.set_parameter(epsilon_test)
     dataset = core.evaluate(n_steps=test_samples, render=args.render,
                             quiet=args.quiet)
     for i in range(len(mdp)):
@@ -305,13 +305,13 @@ def experiment(start, end, args):
         print_epoch(n_epoch)
         print('- Learning:')
         # learning step
-        pi.set_epsilon(None)
+        pi.set_parameter(None)
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
 
         print('- Evaluation:')
         # evaluation step
-        pi.set_epsilon(epsilon_test)
+        pi.set_parameter(epsilon_test)
         dataset = core.evaluate(n_steps=test_samples,
                                 render=args.render, quiet=args.quiet)
 
