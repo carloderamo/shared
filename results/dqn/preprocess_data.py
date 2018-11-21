@@ -16,10 +16,14 @@ def preprocess(dataset, evaluation_frequency=1000):
     return np.array(prepro_dataset)
     
     
-alg = 'multidqn'
+#alg = 'multidqn'
+#games = ['cart', 'acro', 'mc', 'coh', 'pend']
+#reg = ['kl-1e-2-20']
 
-games = ['cart', 'acro', 'mc', 'coh', 'pend']
-reg = ['kl-1e-2-20']
+alg = 'multitask'
+games = ['puddleworld']
+reg = ['single']
+
 activation = ['sigmoid']
 files = ['loss', 'reg_loss', 'v']
 
@@ -32,6 +36,16 @@ if alg == 'multidqn':
                 a = np.load(path + '/' + f + '_raw.npy')
                 a = preprocess(a)
                 np.save(path + '/' + f + '.npy', a)
+elif alg == 'multitask':
+    for act in activation:
+        for r in reg:
+            for g in games:
+                for f in files:
+                    title = r + '-' + act
+                    path = alg + '/' + g + '/' + title
+                    a = np.load(path + '/' + f + '_raw.npy')
+                    a = preprocess(a)
+                    np.save(path + '/' + f + '.npy', a)
 else:
     for act in activation:
         for r in reg:
