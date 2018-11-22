@@ -14,7 +14,8 @@ def get_mean_and_confidence(data):
 
 base_dir = 'multitask'
 games = ['puddleworld']
-reg = ['single']
+reg = ['single', 'multi', 'kl-1e-2-5', 'kl-1e-2-10', 
+       'kl-1e-2-15', 'kl-1e-2-20', 'kl-1e-2-25', 'kl-1e-2-30']
 #reg = ['single', 'kl-1e-2-30', 'kl-1e-2-5_30', 'reduced-30']
 activation = ['sigmoid']
 
@@ -29,10 +30,10 @@ for g in games:
             a = np.squeeze(np.load(path + 'scores.npy'))
             a_mean, a_err = get_mean_and_confidence(a)
             plt.plot(a_mean)
-            plt.fill_between(np.arange(len(a_mean)),
+            '''plt.fill_between(np.arange(len(a_mean)),
                              a_mean - a_err,
                              a_mean + a_err,
-                             alpha=.5)
+                             alpha=.5)'''
 
 plt.legend(legend_items)
 plt.show()

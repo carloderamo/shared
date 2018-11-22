@@ -22,7 +22,8 @@ def preprocess(dataset, evaluation_frequency=1000):
 
 alg = 'multitask'
 games = ['puddleworld']
-reg = ['single']
+reg = ['single', 'multi', 'kl-1e-2-5', 'kl-1e-2-10', 
+       'kl-1e-2-15', 'kl-1e-2-20', 'kl-1e-2-25', 'kl-1e-2-30']
 
 activation = ['sigmoid']
 files = ['loss', 'reg_loss', 'v']
