@@ -71,7 +71,7 @@ class ActorNetwork(nn.Module):
         if self._features == 'relu':
             h_f = F.relu(self._h2(cat_h1))
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h2(cat_h1))
+            h_f = torch.sigmoid(self._h2(cat_h1))
         else:
             raise ValueError
         if self._dropout:
@@ -184,7 +184,7 @@ class CriticNetwork(nn.Module):
         if self._features == 'relu':
             h_f = F.relu(cat_h2)
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(cat_h2)
+            h_f = torch.sigmoid(cat_h2)
         else:
             raise ValueError
 

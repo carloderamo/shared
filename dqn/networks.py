@@ -64,7 +64,7 @@ class GymNetwork(nn.Module):
         if self._features == 'relu':
             h_f = F.relu(self._h3(h_f))
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h3(h_f))
+            h_f = torch.sigmoid(self._h3(h_f))
         else:
             raise ValueError
         if self._dropout:
@@ -192,7 +192,7 @@ class AtariNetwork(nn.Module):
         if self._features == 'relu':
             h_f = F.relu(self._h4(h_f))
         elif self._features == 'sigmoid':
-            h_f = F.sigmoid(self._h4(h_f))
+            h_f = torch.sigmoid(self._h4(h_f))
         else:
             raise ValueError
 
