@@ -433,7 +433,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    folder_name = './logs/gym_' + datetime.datetime.now().strftime(
+    folder_name = './logs/multitask_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S/')
     pathlib.Path(folder_name).mkdir(parents=True)
 
