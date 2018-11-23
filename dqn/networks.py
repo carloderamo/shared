@@ -18,7 +18,9 @@ class GymNetwork(nn.Module):
         self._n_shared = 4
         self._features = features
 
-        n_features = 80
+        #FIXME ADD PARAMETER
+        #n_features = 80 # FOR GYM
+        n_features = 160 # FOR PUDDLEWORLD
 
         self._h1 = nn.ModuleList(
             [nn.Linear(self._n_input[i][0], n_features) for i in range(
