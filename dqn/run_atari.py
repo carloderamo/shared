@@ -374,12 +374,14 @@ if __name__ == '__main__':
     arg_utils.add_argument('--debug', action='store_true',
                            help='Flag specifying whether the script has to be'
                                 'run in debug mode.')
+    arg_utils.add_argument('--postfix', type=str, default='store_true',
+                           help='Flag used to add a postfix to the folder name')
 
     args = parser.parse_args()
 
     # Summary folder
     folder_name = './logs/atari_' + datetime.datetime.now().strftime(
-        '%Y-%m-%d_%H-%M-%S/')
+        '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
     with open(folder_name + 'args.pkl', 'wb') as f:
