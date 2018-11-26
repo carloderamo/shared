@@ -7,7 +7,7 @@ import numpy as np
 
 class GymNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features):
+                 features, n_features=80):
         super(GymNetwork, self).__init__()
 
         self._n_input = input_shape
@@ -17,10 +17,6 @@ class GymNetwork(nn.Module):
         self._dropout = dropout
         self._n_shared = 4
         self._features = features
-
-        #FIXME ADD PARAMETER
-        #n_features = 80 # FOR GYM
-        n_features = 160 # FOR PUDDLEWORLD
 
         self._h1 = nn.ModuleList(
             [nn.Linear(self._n_input[i][0], n_features) for i in range(

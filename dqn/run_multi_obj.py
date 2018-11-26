@@ -234,7 +234,8 @@ def experiment(start, end, args):
         loss=regularized_loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
-        features=args.features
+        features=args.features,
+        n_features=args.n_features
     )
 
     approximator = PyTorchApproximator
@@ -344,12 +345,15 @@ if __name__ == '__main__':
     arg_game = parser.add_argument_group('Game')
     arg_game.add_argument("--game", type=str)
     arg_game.add_argument("--multi", action='store_true')
+    arg_game.add_argument("--n-games", type=int, default=100,
+                          help='number of games to be played')
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=100,
                          help='Initial size of the replay memory.')
     arg_mem.add_argument("--max-replay-size", type=int, default=5000,
                          help='Max size of the replay memory.')
+
 
     arg_net = parser.add_argument_group('Deep Q-Network')
     arg_net.add_argument("--optimizer",
@@ -371,6 +375,8 @@ if __name__ == '__main__':
     arg_net.add_argument("--reg-type", type=str,
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
+    arg_net.add_argument("--n-features", type=int, default=80,
+                         help='number of features of the network')
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
@@ -440,10 +446,10 @@ if __name__ == '__main__':
     pathlib.Path(folder_name).mkdir(parents=True)
 
     if args.multi:
-        scores, loss, l1_loss, v = experiment(0, 100, args)
+        scores, loss, l1_loss, v = experiment(0, args.n_games, args)
     else:
         out = Parallel(n_jobs=-1)(
-            delayed(experiment)(i, i + 1, args) for i in range(100))
+            delayed(experiment)(i, i + 1, args) for i in range(args.n_games))
         scores = [x[0] for x in out]
         loss = [x[1] for x in out]
         l1_loss = [x[2] for x in out]
