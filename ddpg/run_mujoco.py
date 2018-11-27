@@ -22,222 +22,7 @@ from core import Core
 from ddpg import DDPG
 from policy import OrnsteinUhlenbeckPolicy
 
-
-class ActorNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head,
-                 use_cuda, dropout, features):
-        super().__init__()
-
-        self._n_input = input_shape
-        self._n_games = len(n_actions_per_head)
-        self._max_actions = max(n_actions_per_head)[0]
-        self._use_cuda = use_cuda
-        self._dropout = dropout
-        self._features = features
-        self._n_shared = 2
-
-        self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], 400) for i in range(
-                len(input_shape))]
-        )
-        self._h2 = nn.Linear(400, 300)
-        self._h3 = nn.ModuleList(
-            [nn.Linear(300, self._max_actions) for _ in range(
-                self._n_games)]
-        )
-
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
-
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
-        nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
-                         b=1 / np.sqrt(fan_in))
-        for i in range(self._n_games):
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
-            nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
-                             b=1 / np.sqrt(fan_in))
-            nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
-            nn.init.uniform_(self._h3[i].bias, a=-3e-3, b=3e-3)
-
-    def forward(self, state, idx=None, get_features=False):
-        state = state.float()
-
-        h1 = list()
-        for i in np.unique(idx):
-            idxs = np.argwhere(idx == i).ravel()
-            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
-        cat_h1 = torch.cat(h1)
-
-        if self._features == 'relu':
-            h_f = F.relu(self._h2(cat_h1))
-        elif self._features == 'sigmoid':
-            h_f = torch.sigmoid(self._h2(cat_h1))
-        else:
-            raise ValueError
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
-
-        a = [F.tanh(self._h3[i](h_f)) for i in range(self._n_games)]
-        a = torch.stack(a, dim=1)
-
-        if idx is not None:
-            idx = torch.from_numpy(idx)
-            if self._use_cuda:
-                idx = idx.cuda()
-            a_idx = a.gather(1, idx.view(-1, 1).repeat(
-                1, self._max_actions).unsqueeze(1)
-                )
-
-            a = torch.squeeze(a_idx, 1)
-
-        if get_features:
-            return a, h_f
-        else:
-            return a
-
-    def get_shared_weights(self):
-        p2 = list()
-
-        for p in self._h2.parameters():
-            p2.append(p.data.detach().cpu().numpy())
-
-        return p2
-
-    def set_shared_weights(self, weights):
-        w2 = weights
-
-        for p, w in zip(self._h2.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-
-    def freeze_shared_weights(self):
-        for p in self._h2.parameters():
-            p.requires_grad = False
-
-    def unfreeze_shared_weights(self):
-        for p in self._h2.parameters():
-            p.requires_grad = True
-
-
-class CriticNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features):
-        super().__init__()
-
-        self._n_input = input_shape
-        self._n_games = len(n_actions_per_head)
-        self._max_actions = max(n_actions_per_head)[0]
-        self._n_actions_per_head = n_actions_per_head
-        self._use_cuda = use_cuda
-        self._dropout = dropout
-        self._features = features
-        self._n_shared = 2
-        n_hidden_1 = 400
-        n_hidden_2 = 300
-
-        self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], n_hidden_1) for i in range(
-                len(input_shape))]
-        )
-        self._h2_s = nn.Linear(n_hidden_1, n_hidden_2)
-        self._h3 = nn.ModuleList(
-            [nn.Linear(n_hidden_2, 1) for _ in range(
-                self._n_games)]
-        )
-        self._h2_a = nn.ModuleList(
-            [nn.Linear(n_actions_per_head[i][0], n_hidden_2, bias=False) for i in range(
-                len(n_actions_per_head))]
-        )
-
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
-
-        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2_s.weight)
-        nn.init.uniform_(self._h2_s.weight, a=-1 / np.sqrt(fan_in),
-                         b=1 / np.sqrt(fan_in))
-        for i in range(self._n_games):
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(
-                self._h2_a[i].weight)
-            nn.init.uniform_(self._h2_a[i].weight, a=-1 / np.sqrt(fan_in),
-                             b=1 / np.sqrt(fan_in))
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h1[i].weight)
-            nn.init.uniform_(self._h1[i].weight, a=-1 / np.sqrt(fan_in),
-                             b=1 / np.sqrt(fan_in))
-            nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
-            nn.init.uniform_(self._h3[i].bias, a=-3e-3, b=3e-3)
-
-    def forward(self, state, action, idx=None, get_features=False):
-        state = state.float()
-        action = action.float()
-        if not isinstance(idx, np.ndarray):
-            idx = idx.cpu().numpy().astype(np.int)
-
-        h2 = list()
-        for i in np.unique(idx):
-            idxs = np.argwhere(idx == i).ravel()
-            h1 = F.relu(self._h1[i](state[idxs, :self._n_input[i][0]]))
-            a = action[idxs, :self._n_actions_per_head[i][0]]
-            h2.append(self._h2_s(h1) + self._h2_a[i](a))
-
-        cat_h2 = torch.cat(h2)
-
-        if self._features == 'relu':
-            h_f = F.relu(cat_h2)
-        elif self._features == 'sigmoid':
-            h_f = torch.sigmoid(cat_h2)
-        else:
-            raise ValueError
-
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
-
-        q = [self._h3[i](h_f) for i in range(self._n_games)]
-        q = torch.stack(q, dim=1).squeeze(-1)
-
-        if idx is not None:
-            idx = torch.from_numpy(idx)
-            if self._use_cuda:
-                idx = idx.cuda()
-
-            q_idx = q.gather(1, idx.unsqueeze(-1))
-            q = torch.squeeze(q_idx, 1)
-
-        if get_features:
-            return q, h_f
-        else:
-            return q
-
-    def get_shared_weights(self):
-        p2 = list()
-
-        for p in self._h2_s.parameters():
-            p2.append(p.data.detach().cpu().numpy())
-        for p in self._h2_a.parameters():
-            p2.append(p.data.detach().cpu().numpy())
-
-        return p2
-
-    def set_shared_weights(self, weights):
-        w2 = weights
-
-        for p, w in zip(self._h2_s.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-        for p, w in zip(self._h2_a.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-
-    def freeze_shared_weights(self):
-        for p in self._h2_s.parameters():
-            p.requires_grad = False
-        for p in self._h2_a.parameters():
-            p.requires_grad = False
-
-    def unfreeze_shared_weights(self):
-        for p in self._h2_s.parameters():
-            p.requires_grad = True
-        for p in self._h2_a.parameters():
-            p.requires_grad = True
+from networks import ActorNetwork, CriticNetwork
 
 
 def print_epoch(epoch):
@@ -253,73 +38,8 @@ def get_stats(dataset, gamma, idx, domains, tasks):
     return J
 
 
-def experiment(idx):
+def experiment(idx, args):
     np.random.seed()
-
-    # Argument parser
-    parser = argparse.ArgumentParser()
-
-    arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games", type=list, nargs='+',
-                          default=['cartpole', 'swingup'])
-    arg_game.add_argument("--horizon", type=int, nargs='+')
-    arg_game.add_argument("--gamma", type=float, nargs='+')
-
-    arg_mem = parser.add_argument_group('Replay Memory')
-    arg_mem.add_argument("--initial-replay-size", type=int, default=64,
-                         help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=1000000,
-                         help='Max size of the replay memory.')
-
-    arg_net = parser.add_argument_group('Deep Q-Network')
-    arg_net.add_argument("--learning-rate-actor", type=float, default=1e-4,
-                         help='Learning rate value of the optimizer. Only used'
-                              'in rmspropcentered')
-    arg_net.add_argument("--learning-rate-critic", type=float, default=1e-3,
-                         help='Learning rate value of the optimizer. Only used'
-                              'in rmspropcentered')
-    arg_net.add_argument("--reg-coeff", type=float, default=0)
-
-    arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
-    arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--batch-size", type=int, default=64,
-                         help='Batch size for each fit of the network.')
-    arg_alg.add_argument("--tau", type=float, default=1e-3)
-    arg_alg.add_argument("--history-length", type=int, default=1,
-                         help='Number of frames composing a state.')
-    arg_alg.add_argument("--evaluation-frequency", type=int, default=10000,
-                         help='Number of learning step before each evaluation.'
-                              'This number represents an epoch.')
-    arg_alg.add_argument("--max-steps", type=int, default=1000000,
-                         help='Total number of learning steps.')
-    arg_alg.add_argument("--test-samples", type=int, default=5000,
-                         help='Number of steps for each evaluation.')
-    arg_alg.add_argument("--transfer", type=str, default='',
-                         help='Path to  the file of the weights of the common '
-                              'layers to be loaded')
-    arg_alg.add_argument("--save-shared", type=str, default='',
-                         help='filename where to save the shared weights')
-    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
-                         help="Number of epoch where to unfreeze shared weights.")
-
-    arg_utils = parser.add_argument_group('Utils')
-    arg_utils.add_argument('--use-cuda', action='store_true',
-                           help='Flag specifying whether to use the GPU.')
-    arg_utils.add_argument('--load', type=str,
-                           help='Path of the model to be loaded.')
-    arg_utils.add_argument('--save', action='store_true',
-                           help='Flag specifying whether to save the model.')
-    arg_utils.add_argument('--render', action='store_true',
-                           help='Flag specifying whether to render the game.')
-    arg_utils.add_argument('--quiet', action='store_true',
-                           help='Flag specifying whether to hide the progress'
-                                'bar.')
-    arg_utils.add_argument('--debug', action='store_true',
-                           help='Flag specifying whether the script has to be'
-                                'run in debug mode.')
-
-    args = parser.parse_args()
 
     args.games = [''.join(g) for g in args.games]
 
@@ -522,11 +242,13 @@ def experiment(idx):
             best_weights = agent.get_shared_weights()
 
         if args.save:
-            np.save(folder_name + 'best_weights-exp-%d.npy' % idx, agent.policy.get_weights())
+            np.save(folder_name + 'best_weights-exp-%d.npy' % idx,
+                    agent.policy.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
-        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
+                critic_l1_losses)
         np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
@@ -538,11 +260,79 @@ def experiment(idx):
 if __name__ == '__main__':
     n_experiments = 1
 
-    folder_name = './logs/gym_' + datetime.datetime.now().strftime(
-        '%Y-%m-%d_%H-%M-%S/')
+    # Argument parser
+    parser = argparse.ArgumentParser()
+
+    arg_game = parser.add_argument_group('Game')
+    arg_game.add_argument("--games", type=list, nargs='+',
+                          default=['cartpole', 'swingup'])
+    arg_game.add_argument("--horizon", type=int, nargs='+')
+    arg_game.add_argument("--gamma", type=float, nargs='+')
+
+    arg_mem = parser.add_argument_group('Replay Memory')
+    arg_mem.add_argument("--initial-replay-size", type=int, default=64,
+                         help='Initial size of the replay memory.')
+    arg_mem.add_argument("--max-replay-size", type=int, default=1000000,
+                         help='Max size of the replay memory.')
+
+    arg_net = parser.add_argument_group('Deep Q-Network')
+    arg_net.add_argument("--learning-rate-actor", type=float, default=1e-4,
+                         help='Learning rate value of the optimizer. Only used'
+                              'in rmspropcentered')
+    arg_net.add_argument("--learning-rate-critic", type=float, default=1e-3,
+                         help='Learning rate value of the optimizer. Only used'
+                              'in rmspropcentered')
+    arg_net.add_argument("--reg-coeff", type=float, default=0)
+
+    arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
+    arg_alg.add_argument("--dropout", action='store_true')
+    arg_alg.add_argument("--batch-size", type=int, default=64,
+                         help='Batch size for each fit of the network.')
+    arg_alg.add_argument("--tau", type=float, default=1e-3)
+    arg_alg.add_argument("--history-length", type=int, default=1,
+                         help='Number of frames composing a state.')
+    arg_alg.add_argument("--evaluation-frequency", type=int, default=10000,
+                         help='Number of learning step before each evaluation.'
+                              'This number represents an epoch.')
+    arg_alg.add_argument("--max-steps", type=int, default=1000000,
+                         help='Total number of learning steps.')
+    arg_alg.add_argument("--test-samples", type=int, default=5000,
+                         help='Number of steps for each evaluation.')
+    arg_alg.add_argument("--transfer", type=str, default='',
+                         help='Path to  the file of the weights of the common '
+                              'layers to be loaded')
+    arg_alg.add_argument("--save-shared", type=str, default='',
+                         help='filename where to save the shared weights')
+    arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
+                         help="Number of epoch where to unfreeze shared weights.")
+
+    arg_utils = parser.add_argument_group('Utils')
+    arg_utils.add_argument('--use-cuda', action='store_true',
+                           help='Flag specifying whether to use the GPU.')
+    arg_utils.add_argument('--load', type=str,
+                           help='Path of the model to be loaded.')
+    arg_utils.add_argument('--save', action='store_true',
+                           help='Flag specifying whether to save the model.')
+    arg_utils.add_argument('--render', action='store_true',
+                           help='Flag specifying whether to render the game.')
+    arg_utils.add_argument('--quiet', action='store_true',
+                           help='Flag specifying whether to hide the progress'
+                                'bar.')
+    arg_utils.add_argument('--debug', action='store_true',
+                           help='Flag specifying whether the script has to be'
+                                'run in debug mode.')
+    arg_utils.add_argument('--postfix', type=str, default='',
+                           help='Flag used to add a postfix to the folder name')
+
+    args = parser.parse_args()
+
+    folder_name = './logs/mujoco_' + datetime.datetime.now().strftime(
+        '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(i) for i in range(n_experiments))
+    out = Parallel(n_jobs=-1)(delayed(experiment)(i, args)
+                              for i in range(n_experiments))
 
     scores = np.array([o[0] for o in out])
     critic_loss = np.array([o[1] for o in out])
