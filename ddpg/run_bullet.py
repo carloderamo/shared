@@ -262,7 +262,7 @@ if __name__ == '__main__':
                           default=['AntBulletEnv-v0'])
     arg_game.add_argument("--horizon", type=int, nargs='+')
     arg_game.add_argument("--gamma", type=float, nargs='+')
-    arg_game.add_argument("--n-exp", type=int, nargs=1)
+    arg_game.add_argument("--n-exp", type=int)
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=64,
