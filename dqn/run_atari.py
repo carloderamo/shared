@@ -383,7 +383,6 @@ if __name__ == '__main__':
     folder_name = './logs/atari_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
-
     with open(folder_name + 'args.pkl', 'wb') as f:
         pickle.dump(args, f)
 

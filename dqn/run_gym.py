@@ -361,8 +361,6 @@ def experiment(args, idx):
 
 
 if __name__ == '__main__':
-    n_experiments = 100
-
     # Argument parser
     parser = argparse.ArgumentParser()
 
@@ -374,6 +372,7 @@ if __name__ == '__main__':
                           help='Gym ID of the problem.')
     arg_game.add_argument("--horizon", type=int, nargs='+')
     arg_game.add_argument("--gamma", type=float, nargs='+')
+    arg_game.add_argument("--n-exp", type=int, nargs=1)
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=100,
@@ -468,8 +467,11 @@ if __name__ == '__main__':
     folder_name = './logs/gym_' + datetime.datetime.now().strftime(
         '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
+    with open(folder_name + 'args.pkl', 'wb') as f:
+        pickle.dump(args, f)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(args, i) for i in range(n_experiments))
+    out = Parallel(n_jobs=-1)(delayed(experiment)(args, i)
+                              for i in range(args.n_exp))
 
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
@@ -480,5 +482,3 @@ if __name__ == '__main__':
     np.save(folder_name + 'loss_raw.npy', loss)
     np.save(folder_name + 'reg_loss_raw.npy', l1_loss)
     np.save(folder_name + 'v_raw.npy', v)
-    with open(folder_name + 'args.pkl', 'wb') as f:
-        pickle.dump(args, f)

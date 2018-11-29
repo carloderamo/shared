@@ -445,6 +445,9 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
+    with open(folder_name + 'args.pkl', 'wb') as f:
+        pickle.dump(args, f)
+
     if args.multi:
         scores, loss, l1_loss, v = experiment(0, args.n_games, args)
     else:
@@ -459,5 +462,3 @@ if __name__ == '__main__':
     np.save(folder_name + 'loss_raw.npy', loss)
     np.save(folder_name + 'reg_loss_raw.npy', l1_loss)
     np.save(folder_name + 'v_raw.npy', v)
-    with open(folder_name + 'args.pkl', 'wb') as f:
-        pickle.dump(args, f)

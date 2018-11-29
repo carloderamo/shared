@@ -258,8 +258,6 @@ def experiment(idx, args):
 
 
 if __name__ == '__main__':
-    n_experiments = 1
-
     # Argument parser
     parser = argparse.ArgumentParser()
 
@@ -268,6 +266,7 @@ if __name__ == '__main__':
                           default=['cartpole', 'swingup'])
     arg_game.add_argument("--horizon", type=int, nargs='+')
     arg_game.add_argument("--gamma", type=float, nargs='+')
+    arg_game.add_argument("--n-exp", type=int, nargs=1)
 
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=64,
@@ -331,8 +330,11 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S') + args.postfix + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
+    with open(folder_name + 'args.pkl', 'wb') as f:
+        pickle.dump(args, f)
+
     out = Parallel(n_jobs=-1)(delayed(experiment)(i, args)
-                              for i in range(n_experiments))
+                              for i in range(args.n_exp))
 
     scores = np.array([o[0] for o in out])
     critic_loss = np.array([o[1] for o in out])
@@ -340,6 +342,6 @@ if __name__ == '__main__':
     qs = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'critic_loss.npy', critic_loss)
-    np.save(folder_name + 'critic_l1_loss.npy', critic_l1_loss)
-    np.save(folder_name + 'qs.npy', qs)
+    np.save(folder_name + 'critic_loss_raw.npy', critic_loss)
+    np.save(folder_name + 'critic_l1_loss_raw.npy', critic_l1_loss)
+    np.save(folder_name + 'qs_raw.npy', qs)
