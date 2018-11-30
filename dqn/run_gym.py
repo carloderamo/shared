@@ -5,9 +5,7 @@ import sys
 
 from joblib import delayed, Parallel
 import numpy as np
-import torch
 import torch.optim as optim
-import torch.nn.functional as F
 
 import pickle
 
@@ -22,6 +20,7 @@ from core import Core
 from dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
+from losses import *
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -83,97 +82,6 @@ def experiment(args, idx):
 
     assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
-    losses = list()
-    reg_losses = list()
-    def features_l1_loss(arg, y):
-        yhat, h_f = arg
-
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
-        l1_loss = torch.norm(h_f, 1, dim=1)
-
-        temp_losses = list()
-        temp_l1_losses = list()
-        for i in range(len(args.games)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-            temp_l1_losses.append(torch.mean(l1_loss[start:stop]).item())
-        losses.append(temp_losses)
-        reg_losses.append(temp_l1_losses)
-
-        loss = torch.mean(loss)
-        l1_loss = torch.mean(l1_loss)
-
-        return loss + args.reg_coeff * l1_loss
-
-    def features_kl_loss(arg, y):
-        yhat, h_f = arg
-
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
-        mu_s = torch.sum(h_f, dim=1)
-
-        kl_loss = -args.k * torch.log(mu_s) + mu_s
-
-        temp_losses = list()
-        temp_kl_losses = list()
-        for i in range(len(args.games)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-            temp_kl_losses.append(torch.mean(kl_loss[start:stop]).item())
-        losses.append(temp_losses)
-        reg_losses.append(temp_kl_losses)
-
-        loss = torch.mean(loss)
-        kl_loss = torch.mean(kl_loss)
-
-        return loss + args.reg_coeff * kl_loss
-
-    def weights_l1_loss(arg, y):
-        yhat, w = arg
-
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
-
-        temp_losses = list()
-        temp_l1_losses = list()
-        l1_loss = list()
-        for i in range(len(args.games)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-
-            tmp = torch.norm(w[i].weight[:n_actions_per_head[i][0]], 1)
-            l1_loss.append(tmp)
-            temp_l1_losses.append(tmp.item())
-        losses.append(temp_losses)
-        reg_losses.append(temp_l1_losses)
-
-        loss = torch.mean(loss)
-        l1_loss = torch.mean(torch.Tensor(l1_loss))
-
-        return loss + args.reg_coeff * l1_loss
-
-    def weights_gl1_loss(arg, y):
-        yhat, w = arg
-
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
-
-        temp_losses = list()
-        w = [x.weight[:n_actions_per_head[i][0]] for i, x in enumerate(w)]
-        w = torch.cat(w)
-        for i in range(len(args.games)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-        losses.append(temp_losses)
-
-        gl1_loss = torch.norm(torch.norm(w, 2, dim=0), 1)
-        reg_losses.append(gl1_loss.item())
-
-        loss = torch.mean(loss)
-
-        return loss + args.reg_coeff * gl1_loss
-
     scores = list()
     for _ in range(len(args.games)):
         scores.append(list())
@@ -230,14 +138,24 @@ def experiment(args, idx):
 
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
+    n_games = len(args.games)
     if args.reg_type == 'l1':
-        regularized_loss = features_l1_loss
+        regularized_loss = FeaturesL1Loss(args.reg_coeff, n_games,
+                                          args.batch_size,
+                                          args.evaluation_frequency)
     elif args.reg_type == 'l1-weights':
-        regularized_loss = weights_l1_loss
+        regularized_loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
+                                         n_games, args.batch_size,
+                                         args.evaluation_frequency)
     elif args.reg_type == 'gl1-weights':
-        regularized_loss = weights_gl1_loss
+        regularized_loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
+                                         n_games, args.batch_size,
+                                         args.evaluation_frequency)
     else:
-        regularized_loss = features_kl_loss
+        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
+                                          args.batch_size,
+                                          args.evaluation_frequency)
+
     approximator_params = dict(
         network=GymNetwork,
         input_shape=input_shape,
@@ -313,8 +231,9 @@ def experiment(args, idx):
     best_weights = None
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
+    np.save(folder_name + 'loss-exp-%d.npy' % idx, regularized_loss.get_losses())
+    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
+            regularized_loss.get_reg_losses())
     np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -350,14 +269,17 @@ def experiment(args, idx):
                     agent.approximator.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-        np.save(folder_name + 'loss-exp-%d.npy' % idx, losses)
-        np.save(folder_name + 'reg_loss-exp-%d.npy' % idx, reg_losses)
+        np.save(folder_name + 'loss-exp-%d.npy' % idx,
+                regularized_loss.get_losses())
+        np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
+                regularized_loss.get_reg_losses())
         np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, losses, reg_losses, agent.v_list
+    return scores, regularized_loss.get_losses(), \
+           regularized_loss.get_reg_losses(), agent.v_list
 
 
 if __name__ == '__main__':
@@ -479,6 +401,6 @@ if __name__ == '__main__':
     v = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'loss_raw.npy', loss)
-    np.save(folder_name + 'reg_loss_raw.npy', l1_loss)
+    np.save(folder_name + 'loss.npy', loss)
+    np.save(folder_name + 'reg_loss.npy', l1_loss)
     np.save(folder_name + 'v_raw.npy', v)

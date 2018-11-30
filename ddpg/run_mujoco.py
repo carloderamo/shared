@@ -23,6 +23,7 @@ from ddpg import DDPG
 from policy import OrnsteinUhlenbeckPolicy
 
 from networks import ActorNetwork, CriticNetwork
+from losses import *
 
 
 def print_epoch(epoch):
@@ -45,24 +46,6 @@ def experiment(idx, args):
 
     domains = args.games[::2]
     tasks = args.games[1::2]
-
-    critic_losses = list()
-    critic_l1_losses = list()
-    def critic_loss(arg, y):
-        yhat, h_f = arg
-
-        loss = F.mse_loss(yhat, y, reduce=False)
-        temp_losses = list()
-        for i in range(len(domains)):
-            start = i * args.batch_size
-            stop = start + args.batch_size
-            temp_losses.append(torch.mean(loss[start:stop]).item())
-        critic_losses.append(temp_losses)
-        loss = torch.mean(loss)
-        l1_loss = torch.norm(h_f, 1) / h_f.shape[0]
-        critic_l1_losses.append(l1_loss.item())
-
-        return loss + args.reg_coeff * l1_loss
 
     scores = list()
     for _ in range(len(domains)):
@@ -133,6 +116,24 @@ def experiment(idx, args):
                          max_action_value=max_action_value)
 
     # Approximator
+    n_games = len(args.games)
+    if args.reg_type == 'l1':
+        regularized_loss = FeaturesL1Loss(args.reg_coeff, n_games,
+                                          args.batch_size,
+                                          args.evaluation_frequency)
+    elif args.reg_type == 'l1-weights':
+        regularized_loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
+                                         n_games, args.batch_size,
+                                         args.evaluation_frequency)
+    elif args.reg_type == 'gl1-weights':
+        regularized_loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
+                                         n_games, args.batch_size,
+                                         args.evaluation_frequency)
+    else:
+        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
+                                          args.batch_size,
+                                          args.evaluation_frequency)
+
     actor_approximator = PyTorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
 
@@ -155,7 +156,7 @@ def experiment(idx, args):
         output_shape=(1,),
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer_actor,
-        loss=critic_loss,
+        loss=regularized_loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features
@@ -211,8 +212,10 @@ def experiment(idx, args):
     best_weights = None
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
-    np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx, critic_l1_losses)
+    np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
+            regularized_loss.get_losses())
+    np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
+            regularized_loss.get_reg_losses())
     np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -246,15 +249,17 @@ def experiment(idx, args):
                     agent.policy.get_weights())
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx, critic_losses)
+        np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
+                regularized_loss.get_losses())
         np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
-                critic_l1_losses)
+                regularized_loss.get_reg_losses())
         np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, critic_losses, critic_l1_losses, agent.q_list
+    return scores, regularized_loss.get_losses(), \
+           regularized_loss.get_reg_losses(), agent.q_list
 
 
 if __name__ == '__main__':
