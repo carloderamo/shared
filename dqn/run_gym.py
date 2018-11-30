@@ -231,10 +231,12 @@ def experiment(args, idx):
     best_weights = None
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'loss-exp-%d.npy' % idx, regularized_loss.get_losses())
+    np.save(folder_name + 'loss-exp-%d.npy' % idx,
+            agent.approximator.model._loss.get_losses())
     np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-            regularized_loss.get_reg_losses())
+            agent.approximator.model._loss.get_reg_losses())
     np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
+
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -270,16 +272,16 @@ def experiment(args, idx):
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'loss-exp-%d.npy' % idx,
-                regularized_loss.get_losses())
+                agent.approximator.model._loss.get_losses())
         np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-                regularized_loss.get_reg_losses())
+                agent.approximator.model._loss.get_reg_losses())
         np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, regularized_loss.get_losses(), \
-           regularized_loss.get_reg_losses(), agent.v_list
+    return scores,  agent.approximator.model._loss.get_losses(), \
+           agent.approximator.model._loss.get_reg_losses(), agent.v_list
 
 
 if __name__ == '__main__':
@@ -381,7 +383,7 @@ if __name__ == '__main__':
     arg_utils.add_argument('--debug', action='store_true',
                            help='Flag specifying whether the script has to be'
                                 'run in debug mode.')
-    arg_utils.add_argument('--postfix', type=str, default='store_true',
+    arg_utils.add_argument('--postfix', type=str, default='',
                            help='Flag used to add a postfix to the folder name')
 
     args = parser.parse_args()

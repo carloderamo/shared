@@ -213,9 +213,9 @@ def experiment(idx, args):
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
     np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
-            regularized_loss.get_losses())
+            agent._critic_approximator.model._loss.get_losses())
     np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
-            regularized_loss.get_reg_losses())
+            agent._critic_approximator.model._loss.get_reg_losses())
     np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -250,16 +250,16 @@ def experiment(idx, args):
 
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
-                regularized_loss.get_losses())
+                agent._critic_approximator.model._loss.get_losses())
         np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
-                regularized_loss.get_reg_losses())
+                agent._critic_approximator.model._loss.get_reg_losses())
         np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, regularized_loss.get_losses(), \
-           regularized_loss.get_reg_losses(), agent.q_list
+    return scores, agent._critic_approximator.model._loss.get_losses(), \
+           agent._critic_approximator.model._loss.get_reg_losses(), agent.q_list
 
 
 if __name__ == '__main__':
@@ -287,6 +287,9 @@ if __name__ == '__main__':
                          help='Learning rate value of the optimizer. Only used'
                               'in rmspropcentered')
     arg_net.add_argument("--reg-coeff", type=float, default=0)
+    arg_net.add_argument("--reg-type", type=str,
+                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
+    arg_net.add_argument("--k", type=float, default=10)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
