@@ -28,7 +28,7 @@ class DDPG(Agent):
                  mdp_info, batch_size, initial_replay_size, max_replay_size,
                  tau, actor_params, critic_params, policy_params,
                  n_actions_per_head, history_length=1, n_input_per_mdp=None,
-                 n_games=1, dtype=np.uint8):
+                 n_games=1, dtype=np.uint8, log_q=False):
         self._batch_size = batch_size
         self._n_games = n_games
         if n_input_per_mdp is None:
@@ -70,6 +70,8 @@ class DDPG(Agent):
             self._critic_approximator.model.get_weights())
 
         policy = policy_class(self._actor_approximator, **policy_params)
+
+        self._log_q = log_q
 
         super().__init__(policy, mdp_info)
 
@@ -172,7 +174,8 @@ class DDPG(Agent):
         q = self._target_critic_approximator(self._next_state, a,
                                              idx=self._next_state_idxs).ravel()
 
-        self.q_list.append(q.mean())
+        if self._log_q:
+            self.q_list.append(q.mean())
 
         out_q = np.zeros(self._batch_size * self._n_games)
         for i in range(self._n_games):

@@ -249,7 +249,9 @@ def experiment(idx, args):
                 agent._critic_approximator.model._loss.get_losses())
         np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
                 agent._critic_approximator.model._loss.get_reg_losses())
-        np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
+
+        if len(agent.q_list) > 0:
+            np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -342,9 +344,9 @@ if __name__ == '__main__':
     scores = np.array([o[0] for o in out])
     critic_loss = np.array([o[1] for o in out])
     critic_l1_loss = np.array([o[2] for o in out])
-    qs = np.array([o[3] for o in out])
+    #qs = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'critic_loss.npy', critic_loss)
     np.save(folder_name + 'critic_l1_loss.npy', critic_l1_loss)
-    np.save(folder_name + 'qs_raw.npy', qs)
+    #np.save(folder_name + 'qs_raw.npy', qs)
