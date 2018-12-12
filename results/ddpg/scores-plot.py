@@ -13,6 +13,8 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 alg = 'multi_pendulum'
+reg = ['noreg', 'kl-100-1e-2']
+activation = ['sigmoid']
 games = ['InvertedPendulumBulletEnv-v0', 'InvertedDoublePendulumBulletEnv-v0',
          'InvertedPendulumSwingupBulletEnv-v0']
 
@@ -30,13 +32,17 @@ for i, g in enumerate(games):
     ax[i].grid()
 
 if alg != '':
-    path = alg + '/'
-    legend_items.append('multi')
-    a = np.load(path + 'scores.npy')
-    a_mean, a_err = get_mean_and_confidence(a)
-    for i, g in enumerate(games):
-        ax[i].plot(a_mean[i])
-        ax[i].fill_between(np.arange(len(a_mean[i])), a_mean[i] - a_err[i], a_mean[i] + a_err[i], alpha=.5)
+    for r in reg:
+        for act in activation:
+            name = r + '-' + act
+            path = alg + '/' + name + '/'
+    
+            legend_items.append(name)
+            a = np.load(path + 'scores.npy')
+            a_mean, a_err = get_mean_and_confidence(a)
+            for i, g in enumerate(games):
+                ax[i].plot(a_mean[i])
+                ax[i].fill_between(np.arange(len(a_mean[i])), a_mean[i] - a_err[i], a_mean[i] + a_err[i], alpha=.5)
 
 
 legend_items.append('single')
