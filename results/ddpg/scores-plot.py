@@ -44,16 +44,18 @@ if alg != '':
                 ax[i].plot(a_mean[i])
                 ax[i].fill_between(np.arange(len(a_mean[i])), a_mean[i] - a_err[i], a_mean[i] + a_err[i], alpha=.5)
 
-
-legend_items.append('single')
-for i, g in enumerate(games):
-    path = g + '/'
-    a = np.load(path + 'scores.npy')
-    a_mean, a_err = get_mean_and_confidence(a)
-    ax[i].plot(a_mean[0])
-    ax[i].fill_between(np.arange(len(a_mean[0])),
-                       a_mean[0] - a_err[0],
-                       a_mean[0] + a_err[0], alpha=.5)
+for r in reg:
+    for act in activation:
+        name = r + '-' + act
+        legend_items.append('single ' + name)
+        for i, g in enumerate(games):
+            path = 'single/' + name + '/' + g + '/'
+            a = np.load(path + 'scores.npy')
+            a_mean, a_err = get_mean_and_confidence(a)
+            ax[i].plot(a_mean[0])
+            ax[i].fill_between(np.arange(len(a_mean[0])),
+                               a_mean[0] - a_err[0],
+                               a_mean[0] + a_err[0], alpha=.5)
 
 plt.legend(legend_items)
 plt.show()
