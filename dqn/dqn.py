@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import numpy as np
-from scipy.special import logsumexp
 
 from mushroom.algorithms.agent import Agent
 from mushroom.approximators.regressor import Ensemble, Regressor
