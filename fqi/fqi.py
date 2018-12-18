@@ -80,8 +80,6 @@ class FQI(Agent):
                 parse_multi_dataset(dataset, self._n_input_per_mdp,
                                     self._max_n_state)
 
-            print('shape of state', state.shape)
-
             if self._target is None:
                 self._target = reward
             else:
