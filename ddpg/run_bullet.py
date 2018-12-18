@@ -282,7 +282,7 @@ if __name__ == '__main__':
                          help='Max size of the replay memory.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
-    arg_net.add_argument("--hidden-neurons", type=int, nargs='2',
+    arg_net.add_argument("--hidden-neurons", type=int, nargs=2,
                          default=[400, 300])
     arg_net.add_argument("--learning-rate-actor", type=float, default=1e-4,
                          help='Learning rate value of the optimizer. Only used'
