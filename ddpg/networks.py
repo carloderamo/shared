@@ -5,8 +5,8 @@ import numpy as np
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head,
-                 use_cuda, dropout, features):
+    def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
+                 n_hidden_2, use_cuda, dropout, features):
         super().__init__()
 
         self._n_input = input_shape
@@ -18,12 +18,12 @@ class ActorNetwork(nn.Module):
         self._n_shared = 2
 
         self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], 400) for i in range(
+            [nn.Linear(self._n_input[i][0], n_hidden_1) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(400, 300)
+        self._h2 = nn.Linear(n_hidden_1, n_hidden_2)
         self._h3 = nn.ModuleList(
-            [nn.Linear(300, self._max_actions) for _ in range(
+            [nn.Linear(n_hidden_2, self._max_actions) for _ in range(
                 self._n_games)]
         )
 
@@ -101,7 +101,8 @@ class ActorNetwork(nn.Module):
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
+    def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
+                 n_hidden_2, use_cuda, dropout,
                  features):
         super().__init__()
 
@@ -113,8 +114,6 @@ class CriticNetwork(nn.Module):
         self._dropout = dropout
         self._features = features
         self._n_shared = 2
-        n_hidden_1 = 400
-        n_hidden_2 = 300
 
         self._h1 = nn.ModuleList(
             [nn.Linear(self._n_input[i][0], n_hidden_1) for i in range(

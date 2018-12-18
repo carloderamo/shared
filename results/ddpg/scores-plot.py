@@ -12,15 +12,19 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-alg = 'multi_pendulum'
+show_pendulum = False
+
+if show_pendulum:
+    alg = 'multi_pendulum'
+    games = ['InvertedPendulumBulletEnv-v0', 'InvertedDoublePendulumBulletEnv-v0',
+             'InvertedPendulumSwingupBulletEnv-v0']
+else:
+    alg = 'multi_walkers'
+    games = ['AntBulletEnv-v0', 'HopperBulletEnv-v0',
+             'Walker2DBulletEnv-v0', 'HalfCheetahBulletEnv-v0']
+
 reg = ['noreg', 'kl-100-1e-2']
 activation = ['sigmoid']
-games = ['InvertedPendulumBulletEnv-v0', 'InvertedDoublePendulumBulletEnv-v0',
-         'InvertedPendulumSwingupBulletEnv-v0']
-
-#alg = ''
-#games = ['AntBulletEnv-v0', 'HopperBulletEnv-v0',
-#         'Walker2DBulletEnv-v0', 'HalfCheetahBulletEnv-v0']
 
 n_games = len(games)
 
