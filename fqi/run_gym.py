@@ -22,12 +22,6 @@ from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import *
 
-"""
-This script runs Atari experiments with DQN as presented in:
-"Human-Level Control Through Deep Reinforcement Learning". Mnih V. et al.. 2015.
-
-"""
-
 
 def get_stats(dataset, gamma, idx, games):
     J = np.mean(compute_J(dataset, gamma[idx]))
@@ -121,21 +115,9 @@ def experiment(args, idx):
     input_shape = [m.info.observation_space.shape for m in mdp]
     n_games = len(args.games)
     if args.reg_type == 'l1':
-        regularized_loss = FeaturesL1Loss(args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
-    elif args.reg_type == 'l1-weights':
-        regularized_loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
-    elif args.reg_type == 'gl1-weights':
-        regularized_loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
+        regularized_loss = FeaturesL1Loss(args.reg_coeff)
     else:
-        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
+        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff)
 
     approximator_params = dict(
         network=GymNetwork,
@@ -153,7 +135,7 @@ def experiment(args, idx):
     approximator = PyTorchApproximator
 
     # Agent
-    fit_params = dict()
+    fit_params = dict(n_epochs=args.n_regressor_fit_epochs)
 
     algorithm_params = dict(
         n_iterations=args.n_iterations,
@@ -165,8 +147,8 @@ def experiment(args, idx):
         quiet=False)
 
     agent = FQI(approximator, pi, mdp_info,
-                          approximator_params=approximator_params,
-                          **algorithm_params)
+                approximator_params=approximator_params,
+                **algorithm_params)
 
     # Algorithm
     core = Core(agent, mdp)
@@ -187,16 +169,6 @@ def experiment(args, idx):
     for i in range(len(mdp)):
         d = dataset[i::len(mdp)]
         scores[i].append(get_stats(d, gamma_eval, i, args.games))
-
-    if args.unfreeze_epoch > 0:
-        agent.freeze_shared_weights()
-
-    np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'loss-exp-%d.npy' % idx,
-            agent.approximator.model._loss.get_losses())
-    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-            agent.approximator.model._loss.get_reg_losses())
-    np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     print('- Learning:')
     # learning step
@@ -230,14 +202,8 @@ def experiment(args, idx):
                 agent.approximator.get_weights())
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
-    np.save(folder_name + 'loss-exp-%d.npy' % idx,
-                agent.approximator.model._loss.get_losses())
-    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-                agent.approximator.model._loss.get_reg_losses())
-    np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
-    return scores,  agent.approximator.model._loss.get_losses(), \
-           agent.approximator.model._loss.get_reg_losses()
+    return scores
 
 
 if __name__ == '__main__':
@@ -254,7 +220,7 @@ if __name__ == '__main__':
     arg_game.add_argument("--gamma", type=float, nargs='+')
     arg_game.add_argument("--n-exp", type=int)
 
-    arg_net = parser.add_argument_group('FQI')
+    arg_net = parser.add_argument_group('Network params')
     arg_net.add_argument("--optimizer",
                          choices=['adadelta',
                                   'adam',
@@ -274,12 +240,18 @@ if __name__ == '__main__':
     arg_net.add_argument("--reg-type", type=str,
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
+    arg_net.add_argument("--n-regressor-fit-epochs", type=int, default=5000,
+                         help="number of optimization steps for each fit of "
+                              "the regressor")
+    arg_net.add_argument("--batch-size", type=int, default=100,
+                         help='Batch size for each fit of the network.')
 
     arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--n-iterations", type=int, default=30,
+                         help="Number of iterations of the FQI algorithm for "
+                              "each fit call")
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--batch-size", type=int, default=100,
-                         help='Batch size for each fit of the network.')
     arg_alg.add_argument("--max-steps", type=int, default=50000,
                          help='Total number of learning steps.')
     arg_alg.add_argument("--exploration-rate", type=float, default=1.,
@@ -325,10 +297,6 @@ if __name__ == '__main__':
     out = Parallel(n_jobs=-1)(delayed(experiment)(args, i)
                               for i in range(args.n_exp))
 
-    scores = np.array([o[0] for o in out])
-    loss = np.array([o[1] for o in out])
-    l1_loss = np.array([o[2] for o in out])
+    scores = np.array(out)
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'loss.npy', loss)
-    np.save(folder_name + 'reg_loss.npy', l1_loss)

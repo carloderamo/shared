@@ -12,7 +12,7 @@ def parse_multi_dataset(dataset, n_input_per_mdp, max_n_state):
 
     max_state_shape = (max_n_state,)
 
-    idxs = np.ones(len(dataset))
+    idxs = np.ones(len(dataset), dtype=int)
     state = np.ones((len(dataset),) + max_state_shape)
     action = np.ones((len(dataset),) + (1,))
     reward = np.ones(len(dataset))
@@ -21,13 +21,13 @@ def parse_multi_dataset(dataset, n_input_per_mdp, max_n_state):
     last = np.ones(len(dataset))
 
     for i in range(len(dataset)):
-        idxs[i] = dataset[i][0]
-        state[i, :n_input_per_mdp[idxs[i]][0]] = dataset[i][1][0]
-        action[i, :] = dataset[i][1][1]
-        reward[i] = dataset[i][1][2]
-        next_state[i, :n_input_per_mdp[idxs[i]][0]] = dataset[i][1][3]
-        absorbing[i] = dataset[i][1][4]
-        last[i] = dataset[i][1][5]
+        idxs[i] = dataset[i][0][0]
+        state[i, :n_input_per_mdp[idxs[i]][0]] = dataset[i][0][1]
+        action[i, :] = dataset[i][1]
+        reward[i] = dataset[i][2]
+        next_state[i, :n_input_per_mdp[idxs[i]][0]] = dataset[i][3][1]
+        absorbing[i] = dataset[i][4]
+        last[i] = dataset[i][5]
 
     return np.array(idxs), np.array(state), np.array(action), np.array(reward), \
            np.array(next_state), np.array(absorbing), np.array(last)
@@ -63,7 +63,13 @@ class FQI(Agent):
 
         self._max_n_state = 0
         for s in self._n_input_per_mdp:
-            self._max_n_state = np.max(s[0], self._max_n_state)
+            print('s: ', s[0])
+            print('max: ', self._max_n_state)
+            self._max_n_state = np.maximum(s[0], self._max_n_state)
+            print('new max: ', self._max_n_state)
+            print('-----------------------------------------------------------')
+
+
 
         self.approximator = Regressor(approximator,
                                       **self._approximator_params)
@@ -79,6 +85,9 @@ class FQI(Agent):
             idxs, state, action, reward, next_state, absorbing, _ = \
                 parse_multi_dataset(dataset, self._n_input_per_mdp,
                                     self._max_n_state)
+
+            print('shape of state', state.shape)
+
             if self._target is None:
                 self._target = reward
             else:
@@ -86,11 +95,14 @@ class FQI(Agent):
                 if np.any(absorbing):
                     q *= 1 - absorbing.reshape(-1, 1)
 
-                max_q = np.ones(len(q))
+                gamma_max_q = np.ones(len(q))
 
                 for i, q_i in enumerate(q):
-                    max_q[i] = np.max(q_i[:self._n_action_per_head[i]])
-                self._target = reward + self.mdp_info.gamma * max_q
+                    n_actions = self._n_action_per_head[idxs[i]][0]
+                    gamma_max_q[i] = np.max(q_i[:n_actions])
+                    gamma_max_q[i] *= self.mdp_info.gamma[idxs[i]]
+
+                self._target = reward + gamma_max_q
 
             self.approximator.fit(state, action, self._target, idx=idxs,
                                   get_features=self._get_features,
