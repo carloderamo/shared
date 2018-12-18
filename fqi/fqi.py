@@ -63,13 +63,7 @@ class FQI(Agent):
 
         self._max_n_state = 0
         for s in self._n_input_per_mdp:
-            print('s: ', s[0])
-            print('max: ', self._max_n_state)
             self._max_n_state = np.maximum(s[0], self._max_n_state)
-            print('new max: ', self._max_n_state)
-            print('-----------------------------------------------------------')
-
-
 
         self.approximator = Regressor(approximator,
                                       **self._approximator_params)
