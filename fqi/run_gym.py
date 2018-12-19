@@ -129,7 +129,9 @@ def experiment(args, idx):
         loss=regularized_loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
-        features=args.features
+        features=args.features,
+        quiet=False,
+        batch_size=args.batch_size
     )
 
     approximator = PyTorchApproximator
@@ -240,7 +242,7 @@ if __name__ == '__main__':
     arg_net.add_argument("--reg-type", type=str,
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
-    arg_net.add_argument("--n-regressor-fit-epochs", type=int, default=5000,
+    arg_net.add_argument("--n-regressor-fit-epochs", type=int, default=2000,
                          help="number of optimization steps for each fit of "
                               "the regressor")
     arg_net.add_argument("--batch-size", type=int, default=100,

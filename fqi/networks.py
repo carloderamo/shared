@@ -50,6 +50,8 @@ class GymNetwork(nn.Module):
         state = state.float()
 
         h1 = list()
+        if not isinstance(idx, np.ndarray):
+            idx = idx.detach().cpu().numpy()  # TODO: porcata
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
             h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))

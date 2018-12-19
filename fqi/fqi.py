@@ -96,7 +96,7 @@ class FQI(Agent):
 
                 self._target = reward + gamma_max_q
 
-            self.approximator.fit(state, action, self._target, idx=idxs,
-                                  get_features=self._get_features,
-                                  get_weights=self._get_weights,
-                                  **self._fit_params)
+            self.approximator.model.fit(state, action, idxs, self._target,  # TODO: porcata
+                                        get_features=self._get_features,
+                                        get_weights=self._get_weights,
+                                        **self._fit_params)
