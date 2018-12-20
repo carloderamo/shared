@@ -137,7 +137,11 @@ def experiment(args, idx):
     approximator = PyTorchApproximator
 
     # Agent
-    fit_params = dict(n_epochs=args.n_regressor_fit_epochs)
+    if args.n_fit_epochs == np.inf:
+        fit_params = dict(n_epochs=args.n_fit_epochs, epsilon=args.fit_epsilon,
+                          patience=args.fit_patience)
+    else:
+        fit_params = dict(n_epochs=args.n_fit_epochs)
 
     algorithm_params = dict(
         n_iterations=args.n_iterations,
@@ -242,9 +246,9 @@ if __name__ == '__main__':
     arg_net.add_argument("--reg-type", type=str,
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
-    arg_net.add_argument("--n-regressor-fit-epochs", type=int, default=2000,
-                         help="number of optimization steps for each fit of "
-                              "the regressor")
+    arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
+    arg_net.add_argument("--fit-epsilon", type=int, default=1e-6)
+    arg_net.add_argument("--fit-patience", type=int, default=20)
     arg_net.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
 
