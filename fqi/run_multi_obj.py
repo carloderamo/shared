@@ -234,7 +234,7 @@ if __name__ == '__main__':
                               "each fit call")
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--max-steps", type=int, default=10000,
+    arg_alg.add_argument("--max-steps", type=int, default=50000,
                          help='Total number of learning steps.')
     arg_alg.add_argument("--exploration-rate", type=float, default=1.,
                          help='Initial value of the exploration rate.')
