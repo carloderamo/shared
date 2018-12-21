@@ -168,20 +168,18 @@ def experiment(args, idx):
         weights = np.load(args.load)
         agent.approximator.set_weights(weights)
 
-    # Evaluate initial policy
-    pi.set_parameter(epsilon_test)
-    dataset = core.evaluate(n_steps=test_samples, render=args.render,
-                            quiet=args.quiet)
-    for i in range(len(mdp)):
-        d = dataset[i::len(mdp)]
-        scores[i].append(get_stats(d, gamma_eval, i, args.games))
-
     print('- Learning:')
     # learning step
-    pi.set_parameter(None)
-    core.learn(n_steps=max_steps,
-               n_steps_per_fit=max_steps,
-               quiet=args.quiet)
+    if args.dataset is not None:
+        with open(args.dataset, 'rb') as f:
+            dataset = pickle.load(f)
+
+        agent.fit(dataset)
+    else:
+        pi.set_parameter(None)
+        core.learn(n_steps=max_steps,
+                   n_steps_per_fit=max_steps,
+                   quiet=args.quiet)
 
     print('- Evaluation:')
     # evaluation step
@@ -277,6 +275,7 @@ if __name__ == '__main__':
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
                            help='Flag specifying whether to use the GPU.')
+    arg_utils.add_argument('--dataset', default=None, type=str)
     arg_utils.add_argument('--load', type=str,
                            help='Path of the model to be loaded.')
     arg_utils.add_argument('--save', action='store_true',
