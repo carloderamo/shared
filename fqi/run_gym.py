@@ -131,7 +131,7 @@ def experiment(args, idx):
         dropout=args.dropout,
         features=args.features,
         quiet=False,
-        batch_size=args.batch_size
+        batch_size=args.batch_size * n_games
     )
 
     approximator = PyTorchApproximator
@@ -201,7 +201,7 @@ def experiment(args, idx):
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
     if args.save:
-        n_epoch = 1 #TODO change this if more epochs are needed
+        n_epoch = 1  # TODO: change this if more epochs are needed
         np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, n_epoch),
                 agent.approximator.get_weights())
 
@@ -247,7 +247,7 @@ if __name__ == '__main__':
     arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
     arg_net.add_argument("--fit-epsilon", type=int, default=1e-6)
     arg_net.add_argument("--fit-patience", type=int, default=20)
-    arg_net.add_argument("--batch-size", type=int, default=100,
+    arg_net.add_argument("--batch-size", type=int, default=5000,
                          help='Batch size for each fit of the network.')
 
     arg_alg = parser.add_argument_group('Algorithm')

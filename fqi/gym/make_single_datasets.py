@@ -3,7 +3,7 @@ import pickle
 
 folder = '0.5'
 
-mdps = ['cart', 'acro', 'mc', 'coh', 'pend']
+mdps = ['CartPole-v0', 'Acrobot-v1', 'MountainCar-v0', 'caronhill', 'pendulum']
 
 with open(folder + '/dataset.pkl', 'rb') as f:
     dataset = pickle.load(f)
