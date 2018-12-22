@@ -248,7 +248,7 @@ if __name__ == '__main__':
                          help='Batch size for each fit of the network.')
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--n-iterations", type=int, default=30,
+    arg_alg.add_argument("--n-iterations", type=int, default=100,
                          help="Number of iterations of the FQI algorithm for "
                               "each fit call")
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
