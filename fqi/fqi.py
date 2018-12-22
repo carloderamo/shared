@@ -38,7 +38,6 @@ class FQI(Agent):
                  n_actions_per_head, n_input_per_mdp=None, n_games=1,
                  reg_type=None, fit_params=None, approximator_params=None,
                  quiet=False):
-
         if reg_type == 'l1-weights' or reg_type == 'gl1-weights':
             self._get_features = False
             self._get_weights = True
