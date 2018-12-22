@@ -4,6 +4,7 @@ import pathlib
 import sys
 
 from joblib import delayed, Parallel
+from tqdm import trange
 import numpy as np
 import torch.optim as optim
 
@@ -144,13 +145,13 @@ def experiment(args, idx):
         fit_params = dict(n_epochs=args.n_fit_epochs)
 
     algorithm_params = dict(
-        n_iterations=args.n_iterations,
+        n_iterations=1,
         n_actions_per_head=n_actions_per_head,
         n_input_per_mdp=n_input_per_mdp,
         n_games=len(args.games),
         reg_type=args.reg_type,
         fit_params=fit_params,
-        quiet=False)
+        quiet=True)
 
     agent = FQI(approximator, pi, mdp_info,
                 approximator_params=approximator_params,
@@ -173,37 +174,33 @@ def experiment(args, idx):
     if args.dataset is not None:
         with open(args.dataset, 'rb') as f:
             dataset = pickle.load(f)
-
-        agent.fit(dataset)
     else:
         pi.set_parameter(None)
-        core.learn(n_steps=max_steps,
-                   n_steps_per_fit=max_steps,
-                   quiet=args.quiet)
+        dataset = core.evaluate(n_steps=max_steps, quiet=args.quiet)
 
-    print('- Evaluation:')
-    # evaluation step
-    pi.set_parameter(epsilon_test)
-    dataset = core.evaluate(n_steps=test_samples,
-                            render=args.render,
-                            quiet=args.quiet)
+    for it in trange(args.n_iterations):
+        agent.fit(dataset)
 
-    current_score_sum = 0
-    for i in range(len(mdp)):
-        d = dataset[i::len(mdp)]
-        current_score = get_stats(d, gamma_eval, i, args.games)
-        scores[i].append(current_score)
-        current_score_sum += current_score
+        # evaluation step
+        pi.set_parameter(epsilon_test)
+        eval_dataset = core.evaluate(n_steps=test_samples, render=args.render,
+                                     quiet=args.quiet)
 
-    # Save shared weights
-    if args.save_shared:
-        best_weights = agent.get_shared_weights()
-        pickle.dump(best_weights, open(args.save_shared, 'wb'))
+        current_score_sum = 0
+        for i in range(len(mdp)):
+            d = eval_dataset[i::len(mdp)]
+            current_score = get_stats(d, gamma_eval, i, args.games)
+            scores[i].append(current_score)
+            current_score_sum += current_score
 
-    if args.save:
-        n_epoch = 1  # TODO: change this if more epochs are needed
-        np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, n_epoch),
-                agent.approximator.get_weights())
+        # Save shared weights
+        if args.save_shared:
+            best_weights = agent.get_shared_weights()
+            pickle.dump(best_weights, open(args.save_shared, 'wb'))
+
+        if args.save:
+            np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, it),
+                    agent.approximator.get_weights())
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
 
@@ -245,7 +242,7 @@ if __name__ == '__main__':
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
     arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
-    arg_net.add_argument("--fit-epsilon", type=int, default=1e-6)
+    arg_net.add_argument("--fit-epsilon", type=float, default=1e-6)
     arg_net.add_argument("--fit-patience", type=int, default=20)
     arg_net.add_argument("--batch-size", type=int, default=5000,
                          help='Batch size for each fit of the network.')
