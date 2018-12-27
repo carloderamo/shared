@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 from mushroom.approximators import Regressor
 from mushroom.approximators.parametric import PyTorchApproximator
@@ -29,11 +30,28 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
         ax.plot_surface(xv, yv, outputs)
 
 
-folder_name = 'folder/'
-#game_idx = 0 # single
-game_idx = 2 # multi
+############################################################### PLOT PARAMETERS
 
-args = pickle.load(open(folder_name + 'args.pkl'))
+step = 2
+max_step = 22
+
+surface = True
+
+#single = False
+single = True
+
+############################################################### PLOT PARAMETERS
+
+if single:
+    fig_title = 'single'
+    folder_name = 'logs/batch_gym_2018-12-27_17-00-55single/'
+    game_idx = 0
+else:
+    fig_title = 'multi'
+    folder_name = 'logs/batch_gym_2018-12-27_17-02-13multi/'
+    game_idx = 2
+
+args = pickle.load(open(folder_name + 'args.pkl', 'rb'))
 
 args.games = [''.join(g) for g in args.games]
 
@@ -76,8 +94,6 @@ scores = list()
 for _ in range(len(args.games)):
     scores.append(list())
 
-optimizer = dict()
-
 # FQI learning run
 
 # Settings
@@ -98,8 +114,6 @@ approximator_params = dict(
     output_shape=(max(n_actions_per_head)[0],),
     n_actions=max(n_actions_per_head)[0],
     n_actions_per_head=n_actions_per_head,
-    optimizer=optimizer,
-    loss=None,
     use_cuda=args.use_cuda,
     dropout=args.dropout,
     features=args.features,
@@ -110,19 +124,24 @@ approximator_params = dict(
 
 q_funct = Regressor(PyTorchApproximator, **approximator_params)
 
-step = 5
-max_step = 20
+n_subplot = max_step // step
 
-n_subplot = max_step / step
+if surface:
+    fig, ax = plt.subplots(1, n_subplot, subplot_kw=dict(projection='3d'))
+else:
+    fig, ax = plt.subplots(1, n_subplot)
 
-fig, ax = plt.subplots(1, n_subplot)
+fig.suptitle(fig_title)
 
-for i in range(0, max_step, step):
-    weights = np.load(folder_name + 'weights-exp-0-%d.npy' % i)
+for i in range(n_subplot):
+    epoch = i*step
+    weights = np.load(folder_name + 'weights-exp-0-%d.npy' % epoch)
     q_funct.set_weights(weights)
 
+    ax[i].set_title(epoch)
     v_plot(q_funct, game_idx,
            mdp[game_idx].info.observation_space, ax[i],
-           n_actions_per_head[game_idx],
-           contours=True)
+           n_actions_per_head[game_idx][0],
+           contours=not surface)
 
+plt.show()
