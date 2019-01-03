@@ -10,6 +10,7 @@ from networks import GymNetwork
 
 
 def v_plot(approximator, game_idx, observation_space, ax, n_actions,
+           min_z, max_z, train_dataset, target,
            contours=False, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
     y = np.linspace(observation_space.low[1], observation_space.high[1], n)
@@ -24,36 +25,68 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
                                                        dtype=np.int)*game_idx)
     outputs = outputs[:, :n_actions].max(1).reshape(xv.shape)
 
+    delta_z = max_z - min_z
+
+    outputs *= delta_z
+    outputs += min_z
+
+    target = target*delta_z
+    target = target + min_z
+
     if contours:
         ax.contour(xv, yv, outputs)
     else:
         ax.plot_surface(xv, yv, outputs)
 
+    x = list()
+    y = list()
+    z = list()
+    for i, step in enumerate(train_dataset):
+        x_i = step[0][1][0]
+        y_i = step[0][1][1]
+        z_i = target[i]
+        x.append(x_i)
+        y.append(y_i)
+        z.append(z_i)
+    ax.scatter(x, y, z, c='g')
+
+
+
 
 ############################################################### PLOT PARAMETERS
 
-step = 2
-max_step = 22
+step = 1
+first_step = 0
+max_step = 2
 
 surface = True
 
-#single = False
+single = False
 single = True
+
+min_z = -100
+max_z = -1
+
+z_lim = [-2, max_z]
+
+eps_dataset = '0.2'
 
 ############################################################### PLOT PARAMETERS
 
 if single:
     fig_title = 'single'
-    folder_name = 'logs/batch_gym_2018-12-27_17-00-55single/'
+    folder_name = 'logs/single/'
     game_idx = 0
 else:
     fig_title = 'multi'
-    folder_name = 'logs/batch_gym_2018-12-27_17-02-13multi/'
+    folder_name = 'logs/multi/'
     game_idx = 2
 
 args = pickle.load(open(folder_name + 'args.pkl', 'rb'))
 
 args.games = [''.join(g) for g in args.games]
+
+train_dataset = pickle.load(open('gym/'+ eps_dataset+'/MountainCar-v0.pkl', 'rb'))
 
 # MDP
 mdp = list()
@@ -124,7 +157,7 @@ approximator_params = dict(
 
 q_funct = Regressor(PyTorchApproximator, **approximator_params)
 
-n_subplot = max_step // step
+n_subplot = (max_step - first_step) // step
 
 if surface:
     fig, ax = plt.subplots(1, n_subplot, subplot_kw=dict(projection='3d'))
@@ -134,14 +167,20 @@ else:
 fig.suptitle(fig_title)
 
 for i in range(n_subplot):
-    epoch = i*step
+    epoch = first_step+i*step
     weights = np.load(folder_name + 'weights-exp-0-%d.npy' % epoch)
+    target = np.load(folder_name + 'targets-exp-0-%d.npy' % epoch)
     q_funct.set_weights(weights)
 
     ax[i].set_title(epoch)
     v_plot(q_funct, game_idx,
            mdp[game_idx].info.observation_space, ax[i],
            n_actions_per_head[game_idx][0],
+           min_z, max_z,
+           train_dataset, target,
            contours=not surface)
+
+    if surface:
+        ax[i].axes.set_zlim3d(z_lim)
 
 plt.show()

@@ -33,15 +33,22 @@ class GymNetwork(nn.Module):
             self._h2_dropout = nn.Dropout2d()
             self._h3_dropout = nn.Dropout2d()
 
+        self.weights_init()
+
+    def weights_init(self):
         nn.init.xavier_uniform_(self._h2.weight,
                                 gain=nn.init.calculate_gain('relu'))
+        nn.init.constant_(self._h2.bias, 0)
         nn.init.xavier_uniform_(self._h3.weight,
                                 gain=nn.init.calculate_gain('relu'))
+        nn.init.constant_(self._h3.bias, 0)
         for i in range(self._n_games):
             nn.init.xavier_uniform_(self._h1[i].weight,
                                     gain=nn.init.calculate_gain('relu'))
+            nn.init.constant_(self._h1[i].bias, 0)
             nn.init.xavier_uniform_(self._h4[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
+            nn.init.constant_(self._h4[i].bias, 0)
 
     def forward(self, state, action=None, idx=None, get_features=False,
                 get_weights=False):
@@ -70,7 +77,7 @@ class GymNetwork(nn.Module):
         if self._dropout:
             h_f = self._h3_dropout(h_f)
 
-        q = [self._h4[i](h_f) for i in range(self._n_games)]
+        q = [torch.sigmoid(self._h4[i](h_f)) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
 
         if action is not None:

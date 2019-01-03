@@ -17,7 +17,7 @@ class FeaturesL1Loss(LossFunction):
     def __call__(self, arg, y):
         yhat, h_f = arg
 
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        loss = F.mse_loss(yhat, y, reduce=False)
         l1_loss = torch.norm(h_f, 1, dim=1)
 
         loss = torch.mean(loss)

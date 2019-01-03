@@ -2,9 +2,10 @@ import argparse
 import datetime
 import pathlib
 import sys
+import tqdm
 
 from joblib import delayed, Parallel
-from tqdm import trange
+from tqdm import trange, tqdm
 import numpy as np
 import torch.optim as optim
 
@@ -26,7 +27,7 @@ from losses import *
 
 def get_stats(dataset, gamma, idx, games):
     J = np.mean(compute_J(dataset, gamma[idx]))
-    print(games[idx] + ': J: %f' % J)
+    tqdm.write(games[idx] + ': J: %f' % J)
 
     return J
 
@@ -39,14 +40,30 @@ def experiment(args, idx):
     # MDP
     mdp = list()
     gamma_eval = list()
+    min_list = list()
+    max_list = list()
     for i, g in enumerate(args.games):
         if g == 'pendulum':
             mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
                                                 gamma=args.gamma[i]))
+            min_list.append(-1)
+            max_list.append(0)
         elif g == 'caronhill':
             mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
+            min_list.append(-1)
+            max_list.append(1)
         else:
             mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+            if g == 'CartPole-v0':
+                min_list.append(1)
+                max_list.append(100)
+            elif g == 'Acrobot-v1':
+                min_list.append(-100)
+                max_list.append(0)
+            else:
+                min_list.append(-100)
+                max_list.append(-1)
+
 
         gamma_eval.append(args.gamma[i])
 
@@ -128,6 +145,7 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer,
         loss=regularized_loss,
+        reinitialize=True,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features,
@@ -149,6 +167,8 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         n_input_per_mdp=n_input_per_mdp,
         n_games=len(args.games),
+        min_q=np.array(min_list),
+        max_q=np.array(max_list),
         reg_type=args.reg_type,
         fit_params=fit_params,
         quiet=True)
@@ -187,6 +207,7 @@ def experiment(args, idx):
                                      quiet=args.quiet)
 
         current_score_sum = 0
+        tqdm.write('-- Iteration %d' % it)
         for i in range(len(mdp)):
             d = eval_dataset[i::len(mdp)]
             current_score = get_stats(d, gamma_eval, i, args.games)
@@ -201,6 +222,8 @@ def experiment(args, idx):
         if args.save:
             np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, it),
                     agent.approximator.get_weights())
+            np.save(folder_name + 'targets-exp-%d-%d.npy' % (idx, it),
+                    agent._target)
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
 
@@ -242,8 +265,8 @@ if __name__ == '__main__':
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
     arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
-    arg_net.add_argument("--fit-epsilon", type=float, default=1e-6)
-    arg_net.add_argument("--fit-patience", type=int, default=20)
+    arg_net.add_argument("--fit-epsilon", type=float, default=1e-8)
+    arg_net.add_argument("--fit-patience", type=int, default=500)
     arg_net.add_argument("--batch-size", type=int, default=5000,
                          help='Batch size for each fit of the network.')
 
