@@ -40,30 +40,15 @@ def experiment(args, idx):
     # MDP
     mdp = list()
     gamma_eval = list()
-    min_list = list()
-    max_list = list()
+
     for i, g in enumerate(args.games):
         if g == 'pendulum':
             mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
                                                 gamma=args.gamma[i]))
-            min_list.append(-1)
-            max_list.append(0)
         elif g == 'caronhill':
             mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-            min_list.append(-1)
-            max_list.append(1)
         else:
             mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-            if g == 'CartPole-v0':
-                min_list.append(1)
-                max_list.append(100)
-            elif g == 'Acrobot-v1':
-                min_list.append(-100)
-                max_list.append(0)
-            else:
-                min_list.append(-100)
-                max_list.append(-1)
-
 
         gamma_eval.append(args.gamma[i])
 
@@ -167,8 +152,6 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         n_input_per_mdp=n_input_per_mdp,
         n_games=len(args.games),
-        min_q=np.array(min_list),
-        max_q=np.array(max_list),
         reg_type=args.reg_type,
         fit_params=fit_params,
         quiet=True)
@@ -252,9 +235,8 @@ if __name__ == '__main__':
                                   'rmspropcentered'],
                          default='adam',
                          help='Name of the optimizer to use to learn.')
-    arg_net.add_argument("--learning-rate", type=float, default=.001,
-                         help='Learning rate value of the optimizer. Only used'
-                              'in rmspropcentered')
+    arg_net.add_argument("--learning-rate", type=float, default=1e-4,
+                         help='Learning rate value of the optimizer.')
     arg_net.add_argument("--decay", type=float, default=.95,
                          help='Discount factor for the history coming from the'
                               'gradient momentum in rmspropcentered')
@@ -265,8 +247,8 @@ if __name__ == '__main__':
                          choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
     arg_net.add_argument("--k", type=float, default=10)
     arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
-    arg_net.add_argument("--fit-epsilon", type=float, default=1e-8)
-    arg_net.add_argument("--fit-patience", type=int, default=500)
+    arg_net.add_argument("--fit-epsilon", type=float, default=1e-6)
+    arg_net.add_argument("--fit-patience", type=int, default=50)
     arg_net.add_argument("--batch-size", type=int, default=5000,
                          help='Batch size for each fit of the network.')
 

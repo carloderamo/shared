@@ -10,7 +10,7 @@ from networks import GymNetwork
 
 
 def v_plot(approximator, game_idx, observation_space, ax, n_actions,
-           min_z, max_z, train_dataset, target,
+           train_dataset, target,
            contours=False, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
     y = np.linspace(observation_space.low[1], observation_space.high[1], n)
@@ -24,14 +24,6 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
     outputs = approximator.predict(inputs, idx=np.ones(len(inputs),
                                                        dtype=np.int)*game_idx)
     outputs = outputs[:, :n_actions].max(1).reshape(xv.shape)
-
-    delta_z = max_z - min_z
-
-    outputs *= delta_z
-    outputs += min_z
-
-    target = target*delta_z
-    target = target + min_z
 
     if contours:
         ax.contour(xv, yv, outputs)
@@ -55,9 +47,9 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
 
 ############################################################### PLOT PARAMETERS
 
-step = 1
+step = 2
 first_step = 0
-max_step = 2
+max_step = 20
 
 surface = True
 
@@ -67,7 +59,7 @@ single = True
 min_z = -100
 max_z = -1
 
-z_lim = [-2, max_z]
+z_lim = [0, 1]
 
 eps_dataset = '0.2'
 
@@ -76,6 +68,8 @@ eps_dataset = '0.2'
 if single:
     fig_title = 'single'
     folder_name = 'logs/single/'
+    folder_name = 'logs/batch_gym_2019-01-04_00-16-00single/'
+    #folder_name = 'logs/batch_gym_2019-01-03_23-54-03single/'
     game_idx = 0
 else:
     fig_title = 'multi'
@@ -176,7 +170,6 @@ for i in range(n_subplot):
     v_plot(q_funct, game_idx,
            mdp[game_idx].info.observation_space, ax[i],
            n_actions_per_head[game_idx][0],
-           min_z, max_z,
            train_dataset, target,
            contours=not surface)
 
