@@ -89,6 +89,8 @@ class ActorNetwork(nn.Module):
 
         for p, w in zip(self._h2.parameters(), w2):
             w_tensor = torch.from_numpy(w).type(p.data.dtype)
+            if self._use_cuda:
+                w_tensor = w_tensor.cuda()
             p.data = w_tensor
 
     def freeze_shared_weights(self):
@@ -192,8 +194,6 @@ class CriticNetwork(nn.Module):
 
         for p in self._h2_s.parameters():
             p2.append(p.data.detach().cpu().numpy())
-        for p in self._h2_a.parameters():
-            p2.append(p.data.detach().cpu().numpy())
 
         return p2
 
@@ -202,19 +202,14 @@ class CriticNetwork(nn.Module):
 
         for p, w in zip(self._h2_s.parameters(), w2):
             w_tensor = torch.from_numpy(w).type(p.data.dtype)
-            p.data = w_tensor
-        for p, w in zip(self._h2_a.parameters(), w2):
-            w_tensor = torch.from_numpy(w).type(p.data.dtype)
+            if self._use_cuda:
+                w_tensor = w_tensor.cuda()
             p.data = w_tensor
 
     def freeze_shared_weights(self):
         for p in self._h2_s.parameters():
             p.requires_grad = False
-        for p in self._h2_a.parameters():
-            p.requires_grad = False
 
     def unfreeze_shared_weights(self):
         for p in self._h2_s.parameters():
-            p.requires_grad = True
-        for p in self._h2_a.parameters():
             p.requires_grad = True
