@@ -150,10 +150,12 @@ class DDPG(Agent):
         self._actor_approximator.model.network.set_shared_weights(weights[1])
 
     def freeze_shared_weights(self):
-        return self.approximator.model.network.freeze_shared_weights()
+        self._critic_approximator.model.network.freeze_shared_weights()
+        self._actor_approximator.model.network.freeze_shared_weights()
 
     def unfreeze_shared_weights(self):
-        self.approximator.model.network.unfreeze_shared_weights()
+        self._critic_approximator.model.network.unfreeze_shared_weights()
+        self._actor_approximator.model.network.unfreeze_shared_weights()
 
     def _update_target(self):
         """

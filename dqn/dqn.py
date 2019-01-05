@@ -132,7 +132,7 @@ class DQN(Agent):
                 self._update_target()
 
     def get_shared_weights(self):
-        return self.approximator.model.network.get_shared_weights()
+        self.approximator.model.network.get_shared_weights()
 
     def set_shared_weights(self, weights):
         self.approximator.model.network.set_shared_weights(weights)
