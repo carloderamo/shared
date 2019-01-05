@@ -37,7 +37,7 @@ class FQI(Agent):
     def __init__(self, approximator, policy, mdp_info, n_iterations,
                  n_actions_per_head, n_input_per_mdp=None, n_games=1,
                  reg_type=None, fit_params=None, approximator_params=None,
-                 quiet=False, min_q=None, max_q=None):
+                 quiet=False):
         if reg_type == 'l1-weights' or reg_type == 'gl1-weights':
             self._get_features = False
             self._get_weights = True
@@ -69,13 +69,8 @@ class FQI(Agent):
         policy.set_q(self.approximator)
 
         self._target = None
-
-        if min_q is not None and max_q is not None:
-            self._min = min_q
-            self._delta = max_q - min_q
-        else:
-            self._min = 0
-            self._delta = 1
+        self._min = 0
+        self._delta = 1
 
         super().__init__(policy, mdp_info)
 
@@ -87,30 +82,38 @@ class FQI(Agent):
                                     self._max_n_state)
 
             if self._target is None:
-                self._target = reward.copy()
-                for i, t_i in enumerate(self._target):
-                    self._target[i] = (t_i - self._min[idxs[i]])/\
-                                   self._delta[idxs[i]]
+                self._target = self._normalize(reward)
             else:
                 q = self.approximator.predict(next_state, idx=idxs)
+                q = self._normalize_back(q)
 
                 gamma_max_q = np.ones(len(q))
 
                 for i, q_i in enumerate(q):
                     n_actions = self._n_action_per_head[idxs[i]][0]
-                    gamma_max_q[i] = np.max(q_i[:n_actions])*\
-                                     self._delta[idxs[i]] + \
-                                     self._min[idxs[i]] if not absorbing[i] \
-                        else 0
+                    gamma_max_q[i] = np.max(q_i[:n_actions])\
+                        if not absorbing[i] else 0
                     gamma_max_q[i] *= self.mdp_info.gamma[idxs[i]]
 
-                self._target = reward + gamma_max_q
-
-                for i, t_i in enumerate(self._target):
-                    self._target[i] = (t_i - self._min[idxs[i]])/\
-                                   self._delta[idxs[i]]
+                self._target = self._normalize(reward + gamma_max_q)
 
             self.approximator.model.fit(state, action, idxs, self._target,  # TODO: porcata
                                         get_features=self._get_features,
                                         get_weights=self._get_weights,
                                         **self._fit_params)
+
+    def _normalize(self, target):
+        min_t = np.min(target)
+        max_t = np.max(target)
+
+        if min_t == max_t:
+            self._min = min_t
+            self._delta = 1
+        else:
+            self._min = min_t
+            self._delta = 1
+
+        return (target - self._min)/self._delta
+
+    def _normalize_back(self, target):
+        return target*self._delta + self._min
