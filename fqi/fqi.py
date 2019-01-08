@@ -69,8 +69,8 @@ class FQI(Agent):
         policy.set_q(self.approximator)
 
         self._target = None
-        self._min = 0
-        self._delta = 1
+        self._min = np.zeros(self._n_games)
+        self._delta = np.ones(self._n_games)
 
         super().__init__(policy, mdp_info)
 
@@ -82,10 +82,10 @@ class FQI(Agent):
                                     self._max_n_state)
 
             if self._target is None:
-                self._target = self._normalize(reward)
+                self._target = self._normalize(reward, idxs)
             else:
                 q = self.approximator.predict(next_state, idx=idxs)
-                q = self._normalize_back(q)
+                q = self._normalize_back(q, idxs)
 
                 gamma_max_q = np.ones(len(q))
 
@@ -95,25 +95,39 @@ class FQI(Agent):
                         if not absorbing[i] else 0
                     gamma_max_q[i] *= self.mdp_info.gamma[idxs[i]]
 
-                self._target = self._normalize(reward + gamma_max_q)
+                self._target = self._normalize(reward + gamma_max_q, idxs)
 
             self.approximator.model.fit(state, action, idxs, self._target,  # TODO: porcata
                                         get_features=self._get_features,
                                         get_weights=self._get_weights,
                                         **self._fit_params)
 
-    def _normalize(self, target):
-        min_t = np.min(target)
-        max_t = np.max(target)
+    def _normalize(self, target, idxs):
 
-        if min_t == max_t:
-            self._min = min_t
-            self._delta = 1
-        else:
-            self._min = min_t
-            self._delta = 1
+        new_target = target.copy()
+        for g in range(self._n_games):
+            t_idxs = np.argwhere(idxs == g)
+            target_g = target[t_idxs]
 
-        return (target - self._min)/self._delta
+            min_t = np.min(target_g)
+            max_t = np.max(target_g)
 
-    def _normalize_back(self, target):
-        return target*self._delta + self._min
+            if min_t == max_t:
+                self._min[g] = min_t
+                self._delta[g] = 1
+            else:
+                self._min[g] = min_t
+                self._delta[g] = max_t - min_t
+
+            new_target[t_idxs] = (target_g - self._min[g])/self._delta[g]
+
+        return new_target
+
+    def _normalize_back(self, target, idxs):
+        new_target = target.copy()
+
+        for g in range(self._n_games):
+            t_idxs = np.argwhere(idxs == g)
+            new_target[t_idxs] = target[t_idxs]*self._delta[g] + self._min[g]
+
+        return new_target
