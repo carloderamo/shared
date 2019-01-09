@@ -47,9 +47,9 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
 
 ############################################################### PLOT PARAMETERS
 
-step = 2
-first_step = 0
-max_step = 20
+step = 1
+first_step = 95
+max_step = 100
 
 surface = True
 
@@ -67,9 +67,8 @@ eps_dataset = '0.2'
 
 if single:
     fig_title = 'single'
-    folder_name = 'logs/single/'
-    folder_name = 'logs/batch_gym_2019-01-04_00-16-00single/'
-    #folder_name = 'logs/batch_gym_2019-01-03_23-54-03single/'
+    folder_name = 'logs/mc_single/'
+    #folder_name = 'logs/batch_gym_2019-01-08_11-28-41_single/'
     game_idx = 0
 else:
     fig_title = 'multi'
@@ -141,7 +140,7 @@ approximator_params = dict(
     output_shape=(max(n_actions_per_head)[0],),
     n_actions=max(n_actions_per_head)[0],
     n_actions_per_head=n_actions_per_head,
-    use_cuda=args.use_cuda,
+    use_cuda=False,
     dropout=args.dropout,
     features=args.features,
     quiet=False,

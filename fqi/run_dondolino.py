@@ -14,9 +14,9 @@ import pickle
 sys.path.append('..')
 
 from mushroom.approximators.parametric import PyTorchApproximator
-from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
+from mushroom.environments import *
 
 from core import Core
 from fqi import FQI
@@ -24,10 +24,12 @@ from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import *
 
+from pendulum import InvertedPendulumDiscreteV2
 
-def get_stats(dataset, gamma, idx, games):
+
+def get_stats(dataset, gamma, idx, mass):
     J = np.mean(compute_J(dataset, gamma[idx]))
-    tqdm.write(games[idx] + ': J: %f' % J)
+    tqdm.write('m - %f: J: %f' % (mass[idx], J))
 
     return J
 
@@ -35,29 +37,21 @@ def get_stats(dataset, gamma, idx, games):
 def experiment(args, idx):
     np.random.seed()
 
-    args.games = [''.join(g) for g in args.games]
 
     # MDP
     mdp = list()
     gamma_eval = list()
 
-    for i, g in enumerate(args.games):
-        if g == 'pendulum':
-            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                                gamma=args.gamma[i]))
-        elif g == 'caronhill':
-            mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-        else:
-            mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
-
-        gamma_eval.append(args.gamma[i])
+    for i, m in enumerate(args.pendulum_mass):
+        mdp.append(InvertedPendulumDiscreteV2(m=m))
+        gamma_eval.append(mdp[-1].info.gamma)
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
     max_obs_dim = 0
     max_act_n = 0
-    for i in range(len(args.games)):
+    for i in range(len(args.pendulum_mass)):
         n = mdp[i].info.observation_space.shape[0]
         m = mdp[i].info.action_space.n
         if n > max_obs_dim:
@@ -74,7 +68,7 @@ def experiment(args, idx):
     assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
     scores = list()
-    for _ in range(len(args.games)):
+    for _ in range(len(args.pendulum_mass)):
         scores.append(list())
 
     optimizer = dict()
@@ -116,7 +110,7 @@ def experiment(args, idx):
 
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
-    n_games = len(args.games)
+    n_games = len(args.pendulum_mass)
     if args.reg_type == 'l1':
         regularized_loss = FeaturesL1Loss(args.reg_coeff)
     else:
@@ -151,7 +145,7 @@ def experiment(args, idx):
         n_iterations=1,
         n_actions_per_head=n_actions_per_head,
         n_input_per_mdp=n_input_per_mdp,
-        n_games=len(args.games),
+        n_games=len(args.pendulum_mass),
         reg_type=args.reg_type,
         fit_params=fit_params,
         quiet=True)
@@ -193,7 +187,7 @@ def experiment(args, idx):
         tqdm.write('-- Iteration %d' % it)
         for i in range(len(mdp)):
             d = eval_dataset[i::len(mdp)]
-            current_score = get_stats(d, gamma_eval, i, args.games)
+            current_score = get_stats(d, gamma_eval, i, args.pendulum_mass)
             scores[i].append(current_score)
             current_score_sum += current_score
 
@@ -222,13 +216,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     arg_game = parser.add_argument_group('Game')
-    arg_game.add_argument("--games",
-                          type=list,
-                          nargs='+',
-                          default=['Acrobot-v1'],
-                          help='Gym ID of the problem.')
-    arg_game.add_argument("--horizon", type=int, nargs='+')
-    arg_game.add_argument("--gamma", type=float, nargs='+')
+    arg_game.add_argument("--pendulum-mass", type=float, nargs='+')
     arg_game.add_argument("--n-exp", type=int)
 
     arg_net = parser.add_argument_group('Network params')
@@ -262,13 +250,13 @@ if __name__ == '__main__':
                               "each fit call")
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--max-steps", type=int, default=50000,
+    arg_alg.add_argument("--max-steps", type=int, default=10000,
                          help='Total number of learning steps.')
     arg_alg.add_argument("--exploration-rate", type=float, default=1.,
                          help='Initial value of the exploration rate.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=2000,
+    arg_alg.add_argument("--test-samples", type=int, default=6000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--transfer", type=str, default='',
                          help='Path to  the file of the weights of the common '
