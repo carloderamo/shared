@@ -17,10 +17,9 @@ class FeaturesL1Loss(LossFunction):
     def __call__(self, arg, y):
         yhat, h_f = arg
 
-        loss = F.mse_loss(yhat, y, reduce=False)
-        l1_loss = torch.norm(h_f, 1, dim=1)
+        loss = F.mse_loss(yhat, y)
 
-        loss = torch.mean(loss)
+        l1_loss = torch.norm(h_f, 1, dim=1)
         l1_loss = torch.mean(l1_loss)
 
         return loss + self._reg_coeff * l1_loss
@@ -34,12 +33,10 @@ class FeaturesKLLoss(LossFunction):
     def __call__(self, arg, y):
         yhat, h_f = arg
 
-        loss = F.smooth_l1_loss(yhat, y, reduce=False)
+        loss = F.mse_loss(yhat, y)
+
         mu_s = torch.sum(h_f, dim=1)
-
         kl_loss = -self._k * torch.log(mu_s) + mu_s
-
-        loss = torch.mean(loss)
         kl_loss = torch.mean(kl_loss)
 
         return loss + self._reg_coeff * kl_loss
