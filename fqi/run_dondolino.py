@@ -173,6 +173,7 @@ def experiment(args, idx):
     else:
         pi.set_parameter(None)
         dataset = core.evaluate(n_steps=max_steps, quiet=args.quiet)
+        pickle.dump(dataset, open(folder_name + 'dataset.pkl', 'wb'))
 
     for it in trange(args.n_iterations):
         agent.fit(dataset)
