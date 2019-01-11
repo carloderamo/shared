@@ -37,7 +37,6 @@ def get_stats(dataset, gamma, idx, mass):
 def experiment(args, idx):
     np.random.seed()
 
-
     # MDP
     mdp = list()
     gamma_eval = list()
