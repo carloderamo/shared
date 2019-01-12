@@ -13,7 +13,7 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric import PyTorchApproximator
+from pytorch_multi_network import PyTorchMultyApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
@@ -138,7 +138,7 @@ def experiment(args, idx):
         batch_size=args.batch_size * n_games
     )
 
-    approximator = PyTorchApproximator
+    approximator = PyTorchMultyApproximator
 
     # Agent
     if args.n_fit_epochs == np.inf:

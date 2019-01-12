@@ -97,10 +97,11 @@ class FQI(Agent):
 
                 self._target = self._normalize(reward + gamma_max_q, idxs)
 
-            self.approximator.fit(state, action, self._target,  # TODO: porcata
-                                  idx=idxs, get_features=self._get_features,
-                                  get_weights=self._get_weights,
-                                  **self._fit_params)
+            self.approximator.model.fit(state, action, idxs, self._target,
+                                        # TODO:porcata
+                                        get_features=self._get_features,
+                                        get_weights=self._get_weights,
+                                        **self._fit_params)
 
     def _normalize(self, target, idxs):
         new_target = target.copy()
