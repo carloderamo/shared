@@ -41,7 +41,7 @@ class InvertedPendulumDiscreteV2(Environment):
         self._dt = .1
         self._max_u = max_u
         self._noise_u = noise_u
-        high = np.array([np.inf, np.inf])
+        high = np.array([np.pi, 50])
 
         # MDP properties
         observation_space = spaces.Box(low=-high, high=high)
