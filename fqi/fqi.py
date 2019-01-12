@@ -75,12 +75,12 @@ class FQI(Agent):
         super().__init__(policy, mdp_info)
 
     def fit(self, dataset):
+        idxs, state, action, reward, next_state, absorbing, _ = \
+            parse_multi_dataset(dataset, self._n_input_per_mdp,
+                                self._max_n_state)
+
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
-            idxs, state, action, reward, next_state, absorbing, _ = \
-                parse_multi_dataset(dataset, self._n_input_per_mdp,
-                                    self._max_n_state)
-
             if self._target is None:
                 self._target = self._normalize(reward, idxs)
             else:
@@ -97,16 +97,15 @@ class FQI(Agent):
 
                 self._target = self._normalize(reward + gamma_max_q, idxs)
 
-            self.approximator.model.fit(state, action, idxs, self._target,  # TODO: porcata
-                                        get_features=self._get_features,
-                                        get_weights=self._get_weights,
-                                        **self._fit_params)
+            self.approximator.fit(state, action, self._target,  # TODO: porcata
+                                  idx=idxs, get_features=self._get_features,
+                                  get_weights=self._get_weights,
+                                  **self._fit_params)
 
     def _normalize(self, target, idxs):
-
         new_target = target.copy()
         for g in range(self._n_games):
-            t_idxs = np.argwhere(idxs == g)
+            t_idxs = np.argwhere(idxs == g).ravel()
             target_g = target[t_idxs]
 
             min_t = np.min(target_g)
@@ -119,7 +118,7 @@ class FQI(Agent):
                 self._min[g] = min_t
                 self._delta[g] = max_t - min_t
 
-            new_target[t_idxs] = (target_g - self._min[g])/self._delta[g]
+            new_target[t_idxs] = (target_g - self._min[g]) / self._delta[g]
 
         return new_target
 
@@ -127,7 +126,7 @@ class FQI(Agent):
         new_target = target.copy()
 
         for g in range(self._n_games):
-            t_idxs = np.argwhere(idxs == g)
-            new_target[t_idxs] = target[t_idxs]*self._delta[g] + self._min[g]
+            t_idxs = np.argwhere(idxs == g).ravel()
+            new_target[t_idxs] = target[t_idxs] * self._delta[g] + self._min[g]
 
         return new_target

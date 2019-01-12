@@ -7,10 +7,12 @@ from mushroom.approximators import Regressor
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.environments import *
 from networks import GymNetwork
+from pendulum import *
 
 
 def v_plot(approximator, game_idx, observation_space, ax, n_actions,
-           train_dataset, target, min_t, delta_t,
+           train_dataset, target,
+           min_t, delta_t,
            contours=False, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
     y = np.linspace(observation_space.low[1], observation_space.high[1], n)
@@ -23,6 +25,7 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
     inputs = np.array(inputs)
     outputs = approximator.predict(inputs, idx=np.ones(len(inputs),
                                                        dtype=np.int)*game_idx)
+
     outputs = outputs[:, :n_actions].max(1).reshape(xv.shape)
 
     outputs = outputs*delta_t+min_t
@@ -31,7 +34,6 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
         ax.contour(xv, yv, outputs)
     else:
         ax.plot_surface(xv, yv, outputs)
-
 
     x = list()
     y = list()
@@ -43,8 +45,8 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
         x.append(x_i)
         y.append(y_i)
         z.append(z_i)
-    ax.scatter(x, y, z, c='g')
 
+    ax.scatter(x, y, z, c='g')
 
 def max_plot(approximator, game_idx, observation_space, ax, n_actions, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
@@ -70,63 +72,49 @@ def max_plot(approximator, game_idx, observation_space, ax, n_actions, n=25):
 plot_action_indx = True
 plot_action_indx = False
 
-step = 20
-first_step = 100
-max_step = 200
+step = 1
+first_step = 0
+max_step = 1
 
 surface = True
+#surface = False
+
 
 single = False
-single = True
+#single = True
 
 eps_dataset = '0.2'
-game_name = 'MountainCar-v0'
-#game_name = 'caronhill'
+game_idx = 1
 
 ############################################################### PLOT PARAMETERS
 
 if single:
     fig_title = 'single'
-    folder_name = 'logs/mc_single/'
-    #folder_name = 'logs/batch_gym_2019-01-08_11-28-41_single/'
+    folder_name = 'logs/dondolino_single/'
     game_idx = 0
 else:
     fig_title = 'multi'
-    folder_name = 'logs/multi/'
-
-    if game_name == 'caronhill':
-        game_idx = 3
-    elif game_name == 'MountainCar-v0':
-        game_idx = 2
-    else:
-        raise NotImplementedError()
+    folder_name = 'logs/dondolino_multi/'
 
 args = pickle.load(open(folder_name + 'args.pkl', 'rb'))
 
-args.games = [''.join(g) for g in args.games]
 
-train_dataset = pickle.load(open('gym/'+ eps_dataset +'/' + game_name + '.pkl', 'rb'))
+train_dataset = pickle.load(open(folder_name + 'dataset.pkl', 'rb'))
 
 # MDP
 mdp = list()
 gamma_eval = list()
-for i, g in enumerate(args.games):
-    if g == 'pendulum':
-        mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                            gamma=args.gamma[i]))
-    elif g == 'caronhill':
-        mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
-    else:
-        mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
+for m in args.pendulum_mass:
+    mdp.append(InvertedPendulumDiscreteV2(m=m))
 
-    gamma_eval.append(args.gamma[i])
+    gamma_eval.append(mdp[-1].info.gamma)
 
 n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
 n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
 max_obs_dim = 0
 max_act_n = 0
-for i in range(len(args.games)):
+for i in range(len(args.pendulum_mass)):
     n = mdp[i].info.observation_space.shape[0]
     m = mdp[i].info.action_space.n
     if n > max_obs_dim:
@@ -143,7 +131,7 @@ mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
 assert args.reg_type != 'kl' or args.features == 'sigmoid'
 
 scores = list()
-for _ in range(len(args.games)):
+for _ in range(len(args.pendulum_mass)):
     scores.append(list())
 
 # FQI learning run
@@ -158,7 +146,7 @@ else:
 
 # Approximator
 input_shape = [m.info.observation_space.shape for m in mdp]
-n_games = len(args.games)
+n_games = len(args.pendulum_mass)
 
 approximator_params = dict(
     network=GymNetwork,
@@ -183,6 +171,7 @@ if surface and not plot_action_indx:
 else:
     fig, ax = plt.subplots(1, n_subplot)
 
+ax = np.atleast_1d(ax)
 fig.suptitle(fig_title)
 
 for i in range(n_subplot):
