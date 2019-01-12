@@ -75,9 +75,31 @@ class FQI(Agent):
         super().__init__(policy, mdp_info)
 
     def fit(self, dataset):
-        idxs, state, action, reward, next_state, absorbing, _ = \
+        temp_idxs, temp_state, temp_action, temp_reward, temp_next_state, temp_absorbing, _ = \
             parse_multi_dataset(dataset, self._n_input_per_mdp,
                                 self._max_n_state)
+
+        _, idx_count = np.unique(temp_idxs, return_counts=True)
+
+        idxs = np.zeros(temp_idxs.shape, dtype=np.int)
+        state = np.zeros(temp_state.shape)
+        action = np.zeros(temp_action.shape)
+        reward = np.zeros(temp_reward.shape)
+        next_state = np.zeros(temp_next_state.shape)
+        absorbing = np.zeros(temp_absorbing.shape)
+
+        start = 0
+        for i in range(self._n_games):
+            stop = start + idx_count[i]
+
+            idxs[start:stop] = temp_idxs[i::self._n_games]
+            state[start:stop] = temp_state[i::self._n_games]
+            action[start:stop] = temp_action[i::self._n_games]
+            reward[start:stop] = temp_reward[i::self._n_games]
+            next_state[start:stop] = temp_next_state[i::self._n_games]
+            absorbing[start:stop] = temp_absorbing[i::self._n_games]
+
+            start = stop
 
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):

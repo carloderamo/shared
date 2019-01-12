@@ -5,7 +5,7 @@ from tqdm import trange, tqdm
 from multi_minibatches import multi_minibatch_generator
 
 
-class PyTorchMultyApproximator:
+class PyTorchMultiApproximator:
     """
     Class to interface a pytorch model to the mushroom Regressor interface.
     This class implements all is needed to use a generic pytorch model and train
