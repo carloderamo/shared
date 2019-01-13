@@ -51,8 +51,9 @@ for act in activation:
 
 plt.xlabel('#Epochs', fontsize='xx-large')
 plt.ylabel('Performance', fontsize='xx-large')
-plt.xticks(fontsize='xx-large')
+plt.xticks([0, 25, 50], fontsize='xx-large')
 plt.yticks(fontsize='xx-large')
+plt.title('Acrobot', fontsize='xx-large')
 
 plt.grid()
 

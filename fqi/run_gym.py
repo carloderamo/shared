@@ -268,7 +268,7 @@ if __name__ == '__main__':
                          help='Initial value of the exploration rate.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=2000,
+    arg_alg.add_argument("--test-samples", type=int, default=1000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--transfer", type=str, default='',
                          help='Path to  the file of the weights of the common '

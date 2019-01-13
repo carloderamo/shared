@@ -13,7 +13,7 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 folders = ['dqn', 'multidqn']
-games = ['cart', 'acro', 'mc', 'coh', 'pend']
+games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendulum']
 reg = ['noreg']
 activation = ['sigmoid']
 n_games = len(games)
@@ -27,7 +27,7 @@ for i, g in enumerate(games):
         for r in reg:
             s = r + '-' + act
             plt.subplot(n_settings, n_games, i * n_settings + j)
-            # plt.title(g + '-' + s)
+            plt.title(g, fontsize='xx-large')
             
             single = np.load('dqn/' + s + '/scores.npy')[:, i]
             single_mean, single_err = get_mean_and_confidence(single)
@@ -43,7 +43,7 @@ for i, g in enumerate(games):
 
             plt.xlabel('#Epochs', fontsize='xx-large')
 
-            plt.xticks(fontsize='xx-large')
+            plt.xticks([0, 25, 50], fontsize='xx-large')
             plt.yticks(fontsize='xx-large')
 
             if i == 0:

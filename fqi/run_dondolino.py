@@ -23,7 +23,6 @@ from fqi import FQI
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import *
-
 from pendulum import InvertedPendulumDiscreteV2
 
 
@@ -241,22 +240,22 @@ if __name__ == '__main__':
     arg_net.add_argument("--n-fit-epochs", type=int, default=np.inf)
     arg_net.add_argument("--fit-epsilon", type=float, default=1e-6)
     arg_net.add_argument("--fit-patience", type=int, default=50)
-    arg_net.add_argument("--batch-size", type=int, default=5000,
+    arg_net.add_argument("--batch-size", type=int, default=500,
                          help='Batch size for each fit of the network.')
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--n-iterations", type=int, default=100,
+    arg_alg.add_argument("--n-iterations", type=int, default=20,
                          help="Number of iterations of the FQI algorithm for "
                               "each fit call")
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--dropout", action='store_true')
-    arg_alg.add_argument("--max-steps", type=int, default=10000,
+    arg_alg.add_argument("--max-steps", type=int, default=1000,
                          help='Total number of learning steps.')
     arg_alg.add_argument("--exploration-rate", type=float, default=1.,
                          help='Initial value of the exploration rate.')
     arg_alg.add_argument("--test-exploration-rate", type=float, default=0.,
                          help='Exploration rate used during evaluation.')
-    arg_alg.add_argument("--test-samples", type=int, default=6000,
+    arg_alg.add_argument("--test-samples", type=int, default=1000,
                          help='Number of steps for each evaluation.')
     arg_alg.add_argument("--transfer", type=str, default='',
                          help='Path to  the file of the weights of the common '
