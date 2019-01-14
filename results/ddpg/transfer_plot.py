@@ -17,7 +17,7 @@ game_ids = [0]
 reg = ['noreg']
 activation = ['sigmoid']
 n_games = len(games)
-unfreezes = [101]
+unfreezes = [0, 101]
 
 legend_items = list()
 
@@ -38,7 +38,7 @@ for act in activation:
     
     for u in unfreezes:
         for i, g in zip(game_ids, games):
-            if u == 51:
+            if u == 101:
                 legend_items.append('No unfreeze')
             else:
                 legend_items.append('Unfreeze-' + str(u))
@@ -56,7 +56,9 @@ plt.yticks(fontsize='xx-large')
 
 plt.grid()
 
-plt.legend(legend_items, fontsize='xx-large', loc='lower right')
+plt.title('Inverted-Double-Pendulum', fontsize='xx-large')
+
+plt.legend(legend_items, fontsize='xx-large', bbox_to_anchor=[.45, .61])
 
 plt.show()
     
