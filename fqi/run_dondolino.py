@@ -184,11 +184,18 @@ def experiment(args, idx):
 
         current_score_sum = 0
         tqdm.write('-- Iteration %d' % it)
+
+        old_target = 0.
         for i in range(len(mdp)):
             d = eval_dataset[i::len(mdp)]
             current_score = get_stats(d, gamma_eval, i, args.pendulum_mass)
             scores[i].append(current_score)
             current_score_sum += current_score
+
+            tqdm.write('Norm-2: %f' % np.linalg.norm(agent._target - old_target))
+            tqdm.write('Norm-inf: %f' % np.linalg.norm(agent._target - old_target, ord=np.inf))
+
+            old_target = agent._target
 
         # Save shared weights
         if args.save_shared:
