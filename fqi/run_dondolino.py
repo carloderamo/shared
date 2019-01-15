@@ -192,10 +192,10 @@ def experiment(args, idx):
             scores[i].append(current_score)
             current_score_sum += current_score
 
-            tqdm.write('Norm-2: %f' % np.linalg.norm(agent._target - old_target))
-            tqdm.write('Norm-inf: %f' % np.linalg.norm(agent._target - old_target, ord=np.inf))
+        tqdm.write('Norm-2: %f' % np.linalg.norm(agent._target - old_target))
+        tqdm.write('Norm-inf: %f' % np.linalg.norm(agent._target - old_target, ord=np.inf))
 
-            old_target = agent._target
+        old_target = agent._target
 
         # Save shared weights
         if args.save_shared:
