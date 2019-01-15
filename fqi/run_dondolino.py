@@ -41,7 +41,7 @@ def experiment(args, idx):
     gamma_eval = list()
 
     for i, m in enumerate(args.pendulum_mass):
-        mdp.append(InvertedPendulumDiscrete(m=m))
+        mdp.append(InvertedPendulumDiscreteV2(m=m))
         gamma_eval.append(mdp[-1].info.gamma)
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
