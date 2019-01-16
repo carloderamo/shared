@@ -195,7 +195,7 @@ def experiment(args, idx):
             start = max_steps * i
             stop = start + max_steps
 
-            t_new = agent._target[start:stop] * agent._delta + agent._min
+            t_new = agent._target[start:stop] * agent._delta[i] + agent._min[i]
 
             tqdm.write('Norm-2: %f' % np.linalg.norm(t_new - old_target[start:stop]))
             tqdm.write('Norm-inf: %f' % np.linalg.norm(t_new - old_target[start:stop], ord=np.inf))
