@@ -81,7 +81,7 @@ surface = True
 
 
 single = False
-#single = True
+single = True
 
 eps_dataset = '0.2'
 game_idx = 1
@@ -90,11 +90,11 @@ game_idx = 1
 
 if single:
     fig_title = 'single'
-    folder_name = 'logs/dondolino_single/'
+    folder_name = 'logs/batch_gym_2019-01-15_15-53-17/'
     game_idx = 0
 else:
     fig_title = 'multi'
-    folder_name = 'logs/dondolino_multi/'
+    folder_name = 'logs/batch_gym_2019-01-15_15-53-14/'
 
 args = pickle.load(open(folder_name + 'args.pkl', 'rb'))
 
