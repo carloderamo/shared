@@ -15,7 +15,8 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
            min_t, delta_t,
            contours=False, n=25):
     x = np.linspace(observation_space.low[0], observation_space.high[0], n)
-    y = np.linspace(observation_space.low[1], observation_space.high[1], n)
+    # y = np.linspace(observation_space.low[1], observation_space.high[1], n)
+    y = np.linspace(-10, 10, n)
     xv, yv = np.meshgrid(x, y)
 
     inputs = list()
@@ -33,15 +34,19 @@ def v_plot(approximator, game_idx, observation_space, ax, n_actions,
     if contours:
         ax.contour(xv, yv, outputs)
     else:
-        ax.plot_surface(xv, yv, outputs)
+        ax.plot_surface(xv, yv, outputs, alpha=.9)
 
     x = list()
     y = list()
     z = list()
-    for i, step in enumerate(train_dataset):
+    n_samples = len(train_dataset) // n_games
+    start = n_samples * game_idx
+    stop = start + n_samples
+    game_target = target[start:stop]
+    for i, step in enumerate(train_dataset[game_idx::n_games]):
         x_i = step[0][1][0]
         y_i = step[0][1][1]
-        z_i = target[i]*delta_t+min_t
+        z_i = game_target[i] * delta_t + min_t
         x.append(x_i)
         y.append(y_i)
         z.append(z_i)
@@ -72,19 +77,18 @@ def max_plot(approximator, game_idx, observation_space, ax, n_actions, n=25):
 plot_action_indx = True
 plot_action_indx = False
 
-step = 1
+step = 2
 first_step = 0
-max_step = 1
+max_step = 10
 
 surface = True
 #surface = False
 
-
 single = False
-single = True
+#single = True
 
 eps_dataset = '0.2'
-game_idx = 1
+game_idx = 3
 
 ############################################################### PLOT PARAMETERS
 
