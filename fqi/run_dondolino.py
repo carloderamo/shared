@@ -210,12 +210,13 @@ def experiment(args, idx):
         if args.save:
             np.save(folder_name + 'weights-exp-%d-%d.npy' % (idx, it),
                     agent.approximator.get_weights())
-            np.save(folder_name + 'targets-exp-%d-%d.npy' % (idx, it),
-                    agent._target)
-            np.save(folder_name + 'min-exp-%d-%d.npy' % (idx, it),
-                    agent._min)
-            np.save(folder_name + 'delta-exp-%d-%d.npy' % (idx, it),
-                    agent._delta)
+
+        np.save(folder_name + 'targets-exp-%d-%d.npy' % (idx, it),
+                agent._target)
+        np.save(folder_name + 'min-exp-%d-%d.npy' % (idx, it),
+                agent._min)
+        np.save(folder_name + 'delta-exp-%d-%d.npy' % (idx, it),
+                agent._delta)
 
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
 
