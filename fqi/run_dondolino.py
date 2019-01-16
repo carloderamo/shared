@@ -174,6 +174,7 @@ def experiment(args, idx):
         dataset = core.evaluate(n_steps=max_steps, quiet=args.quiet)
         pickle.dump(dataset, open(folder_name + 'dataset.pkl', 'wb'))
 
+    old_target = np.zeros(len(dataset))
     for it in trange(args.n_iterations):
         agent.fit(dataset)
 
@@ -185,7 +186,6 @@ def experiment(args, idx):
         current_score_sum = 0
         tqdm.write('-- Iteration %d' % it)
 
-        old_target = np.zeros(len(agent._target))
         for i in range(len(mdp)):
             d = eval_dataset[i::len(mdp)]
             current_score = get_stats(d, gamma_eval, i, args.pendulum_mass)
@@ -199,6 +199,8 @@ def experiment(args, idx):
 
             tqdm.write('Norm-2: %f' % np.linalg.norm(t_new - old_target[start:stop]))
             tqdm.write('Norm-inf: %f' % np.linalg.norm(t_new - old_target[start:stop], ord=np.inf))
+            tqdm.write(str(t_new))
+            tqdm.write(str(old_target[start:stop]))
 
             old_target[start:stop] = t_new
 
