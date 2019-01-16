@@ -199,8 +199,6 @@ def experiment(args, idx):
 
             tqdm.write('Norm-2: %f' % np.linalg.norm(t_new - old_target[start:stop]))
             tqdm.write('Norm-inf: %f' % np.linalg.norm(t_new - old_target[start:stop], ord=np.inf))
-            tqdm.write(str(t_new))
-            tqdm.write(str(old_target[start:stop]))
 
             old_target[start:stop] = t_new
 
