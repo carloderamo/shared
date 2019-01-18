@@ -13,7 +13,7 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 folders = ['fqi', 'multifqi']
-games = ['2', '5', '10']
+games = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 n_games = len(games)
 
 # plt.suptitle('FQI VS MULTI')
