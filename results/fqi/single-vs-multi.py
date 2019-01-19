@@ -20,7 +20,7 @@ n_games = len(games)
 
 for i, g in enumerate(games):
     j = 1
-    plt.subplot(1, n_games, i + 1)
+    plt.subplot(n_games, 1, i + 1)
     plt.title(g, fontsize='xx-large')
     
     single = np.load('single/' + g + '.npy')[:, 0]
@@ -30,14 +30,14 @@ for i, g in enumerate(games):
     multi_mean, multi_err = get_mean_and_confidence(multi)
     
     plt.plot(single_mean, linewidth=3)
-    plt.fill_between(np.arange(20), single_mean - single_err, single_mean + single_err, alpha=.5)
+    plt.fill_between(np.arange(100), single_mean - single_err, single_mean + single_err, alpha=.5)
     
     plt.plot(multi_mean, linewidth=3)
-    plt.fill_between(np.arange(20), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
+    plt.fill_between(np.arange(100), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
 
     plt.xlabel('#Epochs', fontsize='xx-large')
 
-    plt.xticks([0, 10, 20], fontsize='xx-large')
+    plt.xticks([0, 50, 100], fontsize='xx-large')
     plt.yticks(fontsize='xx-large')
 
     if i == 0:
