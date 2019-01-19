@@ -122,6 +122,9 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer,
         loss=regularized_loss,
+        n_hidden_1=args.hidden_neurons[0],
+        n_hidden_2=args.hidden_neurons[1],
+        n_hidden_3=args.hidden_neurons[2],
         reinitialize=True,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
@@ -255,6 +258,8 @@ if __name__ == '__main__':
     arg_net.add_argument("--fit-patience", type=int, default=50)
     arg_net.add_argument("--batch-size", type=int, default=500,
                          help='Batch size for each fit of the network.')
+    arg_net.add_argument("--hidden-neurons", type=int, nargs=3,
+                         default=[80, 80, 80])
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--n-iterations", type=int, default=20,

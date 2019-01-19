@@ -7,7 +7,7 @@ import numpy as np
 
 class GymNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features, n_features=80):
+                 features, n_hidden_1, n_hidden_2, n_hidden_3):
         super(GymNetwork, self).__init__()
 
         self._n_input = input_shape
@@ -19,13 +19,13 @@ class GymNetwork(nn.Module):
         self._features = features
 
         self._h1 = nn.ModuleList(
-            [nn.Linear(self._n_input[i][0], n_features) for i in range(
+            [nn.Linear(self._n_input[i][0], n_hidden_1) for i in range(
                 len(input_shape))]
         )
-        self._h2 = nn.Linear(n_features, n_features)
-        self._h3 = nn.Linear(n_features, n_features)
+        self._h2 = nn.Linear(n_hidden_1, n_hidden_2)
+        self._h3 = nn.Linear(n_hidden_2, n_hidden_3)
         self._h4 = nn.ModuleList(
-            [nn.Linear(n_features, self._max_actions) for _ in range(
+            [nn.Linear(n_hidden_3, self._max_actions) for _ in range(
                 self._n_games)]
         )
 
