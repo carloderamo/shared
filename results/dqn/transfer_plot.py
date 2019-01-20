@@ -28,7 +28,7 @@ fig, ax = plt.subplots(n_games, 1)
 
 for act in activation:
     for r in reg:
-        legend_items.append('Single DQN')
+        legend_items.append('No initialization')
         path = 'dqn/' + r + '-' + act + '/'
         a = np.load(path + 'scores.npy')
         a_mean, a_err = get_mean_and_confidence(a)
