@@ -30,14 +30,14 @@ for i, g in enumerate(games):
     multi_mean, multi_err = get_mean_and_confidence(multi)
     
     plt.plot(single_mean, linewidth=3)
-    plt.fill_between(np.arange(100), single_mean - single_err, single_mean + single_err, alpha=.5)
+    plt.fill_between(np.arange(50), single_mean - single_err, single_mean + single_err, alpha=.5)
     
     plt.plot(multi_mean, linewidth=3)
-    plt.fill_between(np.arange(100), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
+    plt.fill_between(np.arange(50), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
 
     plt.xlabel('#Epochs', fontsize='xx-large')
 
-    plt.xticks([0, 50, 100], fontsize='xx-large')
+    plt.xticks([0, 25, 50], fontsize='xx-large')
     plt.yticks(fontsize='xx-large')
 
     if i == 0:
