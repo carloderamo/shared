@@ -127,21 +127,20 @@ def experiment(start, end, args):
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
     if args.reg_type == 'l1':
-        regularized_loss = FeaturesL1Loss(args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
+        loss = FeaturesL1Loss(args.reg_coeff, n_games,
+                              args.batch_size, args.evaluation_frequency)
     elif args.reg_type == 'l1-weights':
-        regularized_loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
+        loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff, n_games,
+                             args.batch_size, args.evaluation_frequency)
     elif args.reg_type == 'gl1-weights':
-        regularized_loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
+        loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff, n_games,
+                             args.batch_size, args.evaluation_frequency)
+    elif args.reg_type == 'kl':
+        loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
+                              args.batch_size, args.evaluation_frequency)
     else:
-        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
+        loss = LossFunction(args.reg_coeff, n_games, args.batch_size,
+                            args.evaluation_frequency)
     approximator_params = dict(
         network=GymNetwork,
         input_shape=input_shape,
@@ -149,7 +148,7 @@ def experiment(start, end, args):
         n_actions=max(n_actions_per_head)[0],
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer,
-        loss=regularized_loss,
+        loss=loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features,

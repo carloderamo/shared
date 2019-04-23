@@ -114,21 +114,23 @@ def experiment(idx, args):
     # Approximator
     n_games = len(args.games)
     if args.reg_type == 'l1':
-        regularized_loss = FeaturesL1Loss(args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
+        loss = FeaturesL1Loss(args.reg_coeff, n_games,
+                              args.batch_size,
+                              args.evaluation_frequency)
     elif args.reg_type == 'l1-weights':
-        regularized_loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
+        loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff,
+                             n_games, args.batch_size,
+                             args.evaluation_frequency)
     elif args.reg_type == 'gl1-weights':
-        regularized_loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
-                                         n_games, args.batch_size,
-                                         args.evaluation_frequency)
+        loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff,
+                             n_games, args.batch_size,
+                             args.evaluation_frequency)
+    elif args.reg_type == 'kl':
+        loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
+                              args.batch_size, args.evaluation_frequency)
     else:
-        regularized_loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
-                                          args.batch_size,
-                                          args.evaluation_frequency)
+        loss = LossFunction(args.reg_coeff, n_games, args.batch_size,
+                            args.evaluation_frequency)
 
     actor_approximator = PyTorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
@@ -156,7 +158,7 @@ def experiment(idx, args):
         n_hidden_1=args.hidden_neurons[0],
         n_hidden_2=args.hidden_neurons[1],
         optimizer=optimizer_actor,
-        loss=regularized_loss,
+        loss=loss,
         use_cuda=args.use_cuda,
         dropout=args.dropout,
         features=args.features
@@ -283,7 +285,7 @@ if __name__ == '__main__':
 
     arg_net = parser.add_argument_group('Deep Q-Network')
     arg_net.add_argument("--hidden-neurons", type=int, nargs=2,
-                         default=[400, 300])
+                         default=[600, 500])
     arg_net.add_argument("--learning-rate-actor", type=float, default=1e-4,
                          help='Learning rate value of the optimizer. Only used'
                               'in rmspropcentered')

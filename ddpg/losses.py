@@ -20,7 +20,9 @@ class LossFunction(object):
         return self._reg_losses
 
     def __call__(self, arg, y):
-        raise NotImplementedError
+        yhat, h_f = arg
+
+        return F.smooth_l1_loss(yhat, y)
 
     def _need_log(self):
         self._counter += 1
