@@ -184,6 +184,8 @@ class OrnsteinUhlenbeckPolicy(ParametricPolicy):
 
         self._n_actions_per_head = n_actions_per_head
 
+        self.eval = None
+
     def __call__(self, state, action):
         raise NotImplementedError
 
@@ -196,7 +198,10 @@ class OrnsteinUhlenbeckPolicy(ParametricPolicy):
             np.sqrt(self._dt) * np.random.normal(size=self._approximator.output_shape)
         self._x_prev[idx] = x
 
-        return mu[:self._n_actions_per_head[idx][0]] + x[:self._n_actions_per_head[idx][0]]
+        if not self.eval:
+            return mu[:self._n_actions_per_head[idx][0]] + x[:self._n_actions_per_head[idx][0]]
+        else:
+            return mu[:self._n_actions_per_head[idx][0]]
 
     def set_weights(self, weights):
         self._approximator.set_weights(weights)
