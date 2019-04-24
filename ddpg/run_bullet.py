@@ -61,7 +61,7 @@ def experiment(idx, args):
         mdp.append(Gym(g, args.horizon[i], args.gamma[i]))
         gamma_eval.append(args.gamma[i])
     if args.render:
-        mdp[3].render(mode='human')
+        mdp[0].render(mode='human')
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.shape[0],) for m in mdp]
