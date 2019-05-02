@@ -49,12 +49,7 @@ class ActorNetwork(nn.Module):
             h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
         cat_h1 = torch.cat(h1)
 
-        if self._features == 'relu':
-            h_f = F.relu(self._h2(cat_h1))
-        elif self._features == 'sigmoid':
-            h_f = torch.sigmoid(self._h2(cat_h1))
-        else:
-            raise ValueError
+        h_f = F.relu(self._h2(cat_h1))
         if self._dropout:
             h_f = self._h2_dropout(h_f)
 
