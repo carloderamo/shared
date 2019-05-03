@@ -15,12 +15,12 @@ def get_mean_and_confidence(data):
 show_pendulum = True
 
 if show_pendulum:
-    alg = 'multi_pendulum500'
+    alg = 'multi_pendulum'
     games = ['InvertedPendulumBulletEnv-v0', 'InvertedDoublePendulumBulletEnv-v0',
              'InvertedPendulumSwingupBulletEnv-v0']
     titles = ['Inverted-Pendulum', 'Inverted-Double-Pendulum', 'Inverted-Pendulum-Swingup']
 else:
-    alg = 'multi_walkers'
+    alg = 'multi_walker'
     games = ['AntBulletEnv-v0', 'HopperBulletEnv-v0',
              'Walker2DBulletEnv-v0', 'HalfCheetahBulletEnv-v0']
     titles = ['Ant', 'Hopper', 'Walker', 'Half-Cheetah']
@@ -42,7 +42,7 @@ for r in reg:
         name = r + '-' + act
         legend_items.append('single ' + name)
         for i, g in enumerate(games):
-            path = 'single500/' + name + '/' + g + '/'
+            path = 'single/' + name + '/' + g + '/'
             a = np.load(path + 'scores.npy')
             a_mean, a_err = get_mean_and_confidence(a)
             ax[i].plot(a_mean[0], linewidth=3)

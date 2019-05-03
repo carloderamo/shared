@@ -350,7 +350,7 @@ if __name__ == '__main__':
     with open(folder_name + 'args.pkl', 'wb') as f:
         pickle.dump(args, f)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(i, args)
+    out = Parallel(n_jobs=4)(delayed(experiment)(i, args)
                               for i in range(args.n_exp))
 
     scores = np.array([o[0] for o in out])
