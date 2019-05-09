@@ -27,7 +27,7 @@ for i, g in enumerate(games):
         for r in reg:
             s = r + '-' + act
             plt.subplot(n_settings, n_games, i * n_settings + j)
-            plt.title(g, fontsize='xx-large')
+            plt.title(g, fontsize=20)
             
             single = np.load('dqn/' + s + '/scores.npy')[:, i]
             single_mean, single_err = get_mean_and_confidence(single)
@@ -41,13 +41,13 @@ for i, g in enumerate(games):
             plt.plot(multi_mean, linewidth=3)
             plt.fill_between(np.arange(51), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
 
-            plt.xlabel('#Epochs', fontsize='xx-large')
+            plt.xlabel('#Epochs', fontsize=20)
 
-            plt.xticks([0, 25, 50], fontsize='xx-large')
-            plt.yticks(fontsize='xx-large')
+            plt.xticks([0, 25, 50], fontsize=20)
+            plt.yticks(fontsize=20)
 
             if i == 0:
-                plt.ylabel('Performance', fontsize='xx-large')
+                plt.ylabel('Performance', fontsize=20)
             
             plt.grid()
             
@@ -55,7 +55,7 @@ for i, g in enumerate(games):
             
             j += 1
 
-plt.legend(['DQN', 'MULTI'], fontsize='xx-large', loc='lower right')
+plt.legend(['DQN', 'MULTI'], fontsize=20, loc='lower right')
 
 plt.show()
 

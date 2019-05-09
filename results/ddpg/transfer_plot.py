@@ -49,16 +49,16 @@ for act in activation:
             ax.plot(a_mean[0], linewidth=3)
             ax.fill_between(np.arange(101), a_mean[0] - a_err[0], a_mean[0] + a_err[0], alpha=.5)
 
-plt.xlabel('#Epochs', fontsize='xx-large')
-plt.ylabel('Performance', fontsize='xx-large')
-plt.xticks(fontsize='xx-large')
-plt.yticks(fontsize='xx-large')
+plt.xlabel('#Epochs', fontsize=35)
+plt.ylabel('Performance', fontsize=35)
+plt.xticks([0,50,100], fontsize=35)
+plt.yticks(fontsize=35)
 
 plt.grid()
 
-plt.title('Inverted-Double-Pendulum', fontsize='xx-large')
+plt.title('Inverted-Double-Pendulum', fontsize=35)
 
-plt.legend(legend_items, fontsize='xx-large', bbox_to_anchor=[.45, .61])
+plt.legend(legend_items, fontsize=35, bbox_to_anchor=[.35, .7])
 
 plt.show()
-    
+

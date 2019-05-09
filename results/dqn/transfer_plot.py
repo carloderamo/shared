@@ -49,15 +49,15 @@ for act in activation:
             ax.plot(a_mean[0], linewidth=3)
             ax.fill_between(np.arange(51), a_mean[0] - a_err[0], a_mean[0] + a_err[0], alpha=.5)
 
-plt.xlabel('#Epochs', fontsize=25)
-plt.ylabel('Performance', fontsize=25)
-plt.xticks([0, 25, 50], fontsize=25)
-plt.yticks(fontsize=25)
-plt.title('Acrobot', fontsize=25)
+plt.xlabel('#Epochs', fontsize=35)
+plt.ylabel('Performance', fontsize=35)
+plt.xticks([0, 25, 50], fontsize=35)
+plt.yticks(fontsize=35)
+plt.title('Acrobot', fontsize=35)
 
 plt.grid()
 
-plt.legend(legend_items, fontsize='xx-large', loc='lower right')
+plt.legend(legend_items, fontsize=25, loc='lower right')
 
 plt.show()
     
