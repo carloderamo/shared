@@ -202,8 +202,10 @@ def experiment(idx, args):
         agent.policy.set_weights(weights)
 
     # Evaluate initial policy
+    agent.policy.eval = True
     dataset = core.evaluate(n_steps=test_samples, render=args.render,
                             quiet=args.quiet)
+    agent.policy.eval = False
     for i in range(len(mdp)):
         d = dataset[i::len(mdp)]
         scores[i].append(get_stats(d, gamma_eval, i, domains, tasks))
@@ -232,8 +234,10 @@ def experiment(idx, args):
 
         print('- Evaluation:')
         # evaluation step
+        agent.policy.eval = True
         dataset = core.evaluate(n_steps=test_samples,
                                 render=args.render, quiet=args.quiet)
+        agent.policy.eval = False
 
         current_score_sum = 0
         for i in range(len(mdp)):
