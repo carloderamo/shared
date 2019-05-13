@@ -66,6 +66,8 @@ def experiment(idx, args):
     for i, g in enumerate(zip(domains, tasks)):
         mdp.append(Mujoco(g[0], g[1], args.horizon[i], args.gamma[i]))
         gamma_eval.append(args.gamma[i])
+    if args.render:
+        mdp[0].render(mode='human')
 
     n_input_per_mdp = [m.info.observation_space.shape for m in mdp]
     n_actions_per_head = [(m.info.action_space.shape[0],) for m in mdp]
@@ -260,7 +262,9 @@ def experiment(idx, args):
                 agent._critic_approximator.model._loss.get_losses())
         np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
                 agent._critic_approximator.model._loss.get_reg_losses())
-        np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
+
+        if len(agent.q_list) > 0:
+            np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
@@ -283,7 +287,7 @@ if __name__ == '__main__':
     arg_mem = parser.add_argument_group('Replay Memory')
     arg_mem.add_argument("--initial-replay-size", type=int, default=64,
                          help='Initial size of the replay memory.')
-    arg_mem.add_argument("--max-replay-size", type=int, default=1000000,
+    arg_mem.add_argument("--max-replay-size", type=int, default=50000,
                          help='Max size of the replay memory.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
