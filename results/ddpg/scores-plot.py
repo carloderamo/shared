@@ -42,8 +42,8 @@ for r in reg:
         name = r + '-' + act
         legend_items.append('single ' + name)
         for i, g in enumerate(games):
-            path = 'single/' + name + '/' + g + '/'
-            a = np.load(path + 'scores.npy')
+            path = 'single/' + name + '/' + g
+            a = np.load(path + '.npy')
             a_mean, a_err = get_mean_and_confidence(a)
             ax[i].plot(a_mean[0], linewidth=3)
             ax[i].fill_between(np.arange(len(a_mean[0])),
