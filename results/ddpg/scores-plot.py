@@ -23,7 +23,7 @@ if show_pendulum:
 else:
     alg = 'multi_walker'
     games = ['hop_stand', 'walk_walk', 'chee_run']
-    titles = ['Hopper-Stand', 'Walker-Walk', 'Half-Cheetah-Run']
+    titles = ['Hopper', 'Walker', 'Half-Cheetah']
 
 reg = ['noreg']
 activation = ['sigmoid']
