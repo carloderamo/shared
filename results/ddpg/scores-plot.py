@@ -12,7 +12,7 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-show_pendulum = True
+show_pendulum = False
 leg_idx = 0 if show_pendulum else -1
 
 if show_pendulum:
