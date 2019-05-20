@@ -13,6 +13,7 @@ def get_mean_and_confidence(data):
     return mean, interval
 
 show_pendulum = True
+leg_idx = 0 if show_pendulum else -1
 
 if show_pendulum:
     alg = 'multi_pendulum'
@@ -21,9 +22,8 @@ if show_pendulum:
     titles = ['Inverted-Pendulum', 'Inverted-Double-Pendulum', 'Inverted-Pendulum-Swingup']
 else:
     alg = 'multi_walker'
-    games = ['AntBulletEnv-v0', 'HopperBulletEnv-v0',
-             'Walker2DBulletEnv-v0', 'HalfCheetahBulletEnv-v0']
-    titles = ['Ant', 'Hopper', 'Walker', 'Half-Cheetah']
+    games = ['hop_stand', 'walk_walk', 'chee_run']
+    titles = ['Hopper', 'Walker', 'Half-Cheetah']
 
 reg = ['noreg']
 activation = ['sigmoid']
@@ -34,7 +34,7 @@ legend_items = list()
 
 fig, ax = plt.subplots(1, n_games)
 for i, t in enumerate(titles):
-    ax[i].set_title(t, fontsize='xx-large')
+    ax[i].set_title(t, fontsize=22)
     ax[i].grid()
 
 for r in reg:
@@ -62,15 +62,15 @@ if alg != '':
             for i, g in enumerate(games):
                 ax[i].plot(a_mean[i], linewidth=3)
                 ax[i].fill_between(np.arange(len(a_mean[i])), a_mean[i] - a_err[i], a_mean[i] + a_err[i], alpha=.5)
-                ax[i].set_xlabel('#Epochs', fontsize='xx-large')
+                ax[i].set_xlabel('#Epochs', fontsize=22)
                 if i == 0:
-                    ax[i].set_ylabel('Performance', fontsize='xx-large')
+                    ax[i].set_ylabel('Performance', fontsize=22)
                 for tick in ax[i].xaxis.get_major_ticks():
-                    tick.label.set_fontsize('xx-large')
+                    tick.label.set_fontsize(22)
                     tick.label
                 for tick in ax[i].yaxis.get_major_ticks():
-                    tick.label.set_fontsize('xx-large')
+                    tick.label.set_fontsize(22)
                 ax[i].set_xticks([0, 50, 100])
 
-ax[0].legend(['DDPG', 'MULTI'], loc='lower right', fontsize='xx-large')
+ax[leg_idx].legend(['DDPG', 'MULTI'], loc='lower right', fontsize=22)
 plt.show()
