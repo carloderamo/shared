@@ -70,7 +70,6 @@ plt.grid()
 
 plt.title(title, fontsize=35)
 
-plt.legend(legend_items, fontsize=35, bbox_to_anchor=[.35, .7])
+plt.legend(legend_items, fontsize=35, loc='best')
 
 plt.show()
-
