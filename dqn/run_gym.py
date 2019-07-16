@@ -14,13 +14,13 @@ sys.path.append('..')
 from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
-from mushroom.utils.parameters import LinearDecayParameter, Parameter
+from mushroom.utils.parameters import LinearParameter, Parameter
 
 from core import Core
-from dqn import DQN, DoubleDQN
+from dqn import DQN
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
-from losses import *
+from losses import LossFunction
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -80,8 +80,6 @@ def experiment(args, idx):
     mdp_info = MDPInfo(mdp[max_obs_idx].info.observation_space,
                        mdp[max_act_idx].info.action_space, gammas, horizons)
 
-    assert args.reg_type != 'kl' or args.features == 'sigmoid'
-
     scores = list()
     for _ in range(len(args.games)):
         scores.append(list())
@@ -89,10 +87,12 @@ def experiment(args, idx):
     optimizer = dict()
     if args.optimizer == 'adam':
         optimizer['class'] = optim.Adam
-        optimizer['params'] = dict(lr=args.learning_rate)
+        optimizer['params'] = dict(lr=args.learning_rate,
+                                   eps=args.epsilon)
     elif args.optimizer == 'adadelta':
         optimizer['class'] = optim.Adadelta
-        optimizer['params'] = dict(lr=args.learning_rate)
+        optimizer['params'] = dict(lr=args.learning_rate,
+                                   eps=args.epsilon)
     elif args.optimizer == 'rmsprop':
         optimizer['class'] = optim.RMSprop
         optimizer['params'] = dict(lr=args.learning_rate,
@@ -128,9 +128,9 @@ def experiment(args, idx):
         max_steps = args.max_steps
 
     # Policy
-    epsilon = LinearDecayParameter(value=args.initial_exploration_rate,
-                                   min_value=args.final_exploration_rate,
-                                   n=args.final_exploration_frame)
+    epsilon = LinearParameter(value=args.initial_exploration_rate,
+                              threshold_value=args.final_exploration_rate,
+                              n=args.final_exploration_frame)
     epsilon_test = Parameter(value=args.test_exploration_rate)
     epsilon_random = Parameter(value=1)
     pi = EpsGreedyMultiple(parameter=epsilon,
@@ -139,21 +139,8 @@ def experiment(args, idx):
     # Approximator
     input_shape = [m.info.observation_space.shape for m in mdp]
     n_games = len(args.games)
-    if args.reg_type == 'l1':
-        loss = FeaturesL1Loss(args.reg_coeff, n_games,
-                              args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'l1-weights':
-        loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff, n_games,
-                             args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'gl1-weights':
-        loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff, n_games,
-                             args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'kl':
-        loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
-                              args.batch_size, args.evaluation_frequency)
-    else:
-        loss = LossFunction(args.reg_coeff, n_games, args.batch_size,
-                            args.evaluation_frequency)
+    loss = LossFunction(n_games, args.batch_size,
+                        args.evaluation_frequency)
 
     approximator_params = dict(
         network=GymNetwork,
@@ -164,7 +151,6 @@ def experiment(args, idx):
         optimizer=optimizer,
         loss=loss,
         use_cuda=args.use_cuda,
-        dropout=args.dropout,
         features=args.features
     )
 
@@ -181,20 +167,12 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         clip_reward=False,
         history_length=args.history_length,
-        reg_type=args.reg_type,
         dtype=np.float32
     )
 
-    if args.algorithm == 'dqn':
-        agent = DQN(approximator, pi, mdp_info,
-                    approximator_params=approximator_params,
-                    **algorithm_params)
-    elif args.algorithm == 'ddqn':
-        agent = DoubleDQN(approximator, pi, mdp_info,
-                          approximator_params=approximator_params,
-                          **algorithm_params)
-    else:
-        raise ValueError
+    agent = DQN(approximator, pi, mdp_info,
+                approximator_params=approximator_params,
+                **algorithm_params)
 
     # Algorithm
     core = Core(agent, mdp)
@@ -232,9 +210,6 @@ def experiment(args, idx):
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
     np.save(folder_name + 'loss-exp-%d.npy' % idx,
             agent.approximator.model._loss.get_losses())
-    np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-            agent.approximator.model._loss.get_reg_losses())
-    np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
@@ -272,15 +247,11 @@ def experiment(args, idx):
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'loss-exp-%d.npy' % idx,
                 agent.approximator.model._loss.get_losses())
-        np.save(folder_name + 'reg_loss-exp-%d.npy' % idx,
-                agent.approximator.model._loss.get_reg_losses())
-        np.save(folder_name + 'v-exp-%d.npy' % idx, agent.v_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores,  agent.approximator.model._loss.get_losses(), \
-           agent.approximator.model._loss.get_reg_losses(), agent.v_list
+    return scores, agent.approximator.model._loss.get_losses()
 
 
 if __name__ == '__main__':
@@ -319,15 +290,9 @@ if __name__ == '__main__':
                               'gradient momentum in rmspropcentered')
     arg_net.add_argument("--epsilon", type=float, default=1e-8,
                          help='Epsilon term used in rmspropcentered')
-    arg_net.add_argument("--reg-coeff", type=float, default=0)
-    arg_net.add_argument("--reg-type", type=str,
-                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
-    arg_net.add_argument("--k", type=float, default=10)
 
     arg_alg = parser.add_argument_group('Algorithm')
-    arg_alg.add_argument("--algorithm", default='dqn', choices=['dqn', 'ddqn'])
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
-    arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--history-length", type=int, default=1,
@@ -398,10 +363,6 @@ if __name__ == '__main__':
 
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
-    l1_loss = np.array([o[2] for o in out])
-    v = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss.npy', loss)
-    np.save(folder_name + 'reg_loss.npy', l1_loss)
-    np.save(folder_name + 'v_raw.npy', v)

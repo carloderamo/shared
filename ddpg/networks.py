@@ -6,14 +6,13 @@ import numpy as np
 
 class ActorNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
-                 n_hidden_2, use_cuda, dropout, features):
+                 n_hidden_2, use_cuda, features):
         super().__init__()
 
         self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
-        self._dropout = dropout
         self._features = features
         self._n_shared = 2
 
@@ -26,9 +25,6 @@ class ActorNetwork(nn.Module):
             [nn.Linear(n_hidden_2, self._max_actions) for _ in range(
                 self._n_games)]
         )
-
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
 
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2.weight)
         nn.init.uniform_(self._h2.weight, a=-1 / np.sqrt(fan_in),
@@ -50,8 +46,6 @@ class ActorNetwork(nn.Module):
         cat_h1 = torch.cat(h1)
 
         h_f = F.relu(self._h2(cat_h1))
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
 
         a = [torch.tanh(self._h3[i](h_f)) for i in range(self._n_games)]
         a = torch.stack(a, dim=1)
@@ -99,8 +93,7 @@ class ActorNetwork(nn.Module):
 
 class CriticNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
-                 n_hidden_2, use_cuda, dropout,
-                 features):
+                 n_hidden_2, use_cuda, features):
         super().__init__()
 
         self._n_input = input_shape
@@ -108,7 +101,6 @@ class CriticNetwork(nn.Module):
         self._max_actions = max(n_actions_per_head)[0]
         self._n_actions_per_head = n_actions_per_head
         self._use_cuda = use_cuda
-        self._dropout = dropout
         self._features = features
         self._n_shared = 2
 
@@ -126,9 +118,6 @@ class CriticNetwork(nn.Module):
                 len(n_actions_per_head))]
         )
 
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
-
         fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self._h2_s.weight)
         nn.init.uniform_(self._h2_s.weight, a=-1 / np.sqrt(fan_in),
                          b=1 / np.sqrt(fan_in))
@@ -143,7 +132,7 @@ class CriticNetwork(nn.Module):
             nn.init.uniform_(self._h3[i].weight, a=-3e-3, b=3e-3)
             nn.init.uniform_(self._h3[i].bias, a=-3e-3, b=3e-3)
 
-    def forward(self, state, action, idx=None, get_features=False):
+    def forward(self, state, action, idx=None):
         state = state.float()
         action = action.float()
         if not isinstance(idx, np.ndarray):
@@ -165,9 +154,6 @@ class CriticNetwork(nn.Module):
         else:
             raise ValueError
 
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
-
         q = [self._h3[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1).squeeze(-1)
 
@@ -179,10 +165,7 @@ class CriticNetwork(nn.Module):
             q_idx = q.gather(1, idx.unsqueeze(-1))
             q = torch.squeeze(q_idx, 1)
 
-        if get_features:
-            return q, h_f
-        else:
-            return q
+        return q
 
     def get_shared_weights(self):
         p2 = list()

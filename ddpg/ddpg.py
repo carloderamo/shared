@@ -28,7 +28,7 @@ class DDPG(Agent):
                  mdp_info, batch_size, initial_replay_size, max_replay_size,
                  tau, actor_params, critic_params, policy_params,
                  n_actions_per_head, history_length=1, n_input_per_mdp=None,
-                 n_games=1, dtype=np.uint8, log_q=False):
+                 n_games=1, dtype=np.uint8):
         self._batch_size = batch_size
         self._n_games = n_games
         if n_input_per_mdp is None:
@@ -71,8 +71,6 @@ class DDPG(Agent):
 
         policy = policy_class(self._actor_approximator, **policy_params)
 
-        self._log_q = log_q
-
         super().__init__(policy, mdp_info)
 
         n_samples = self._batch_size * self._n_games
@@ -91,8 +89,6 @@ class DDPG(Agent):
             dtype=dtype
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
-
-        self.q_list = list()
 
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
@@ -128,12 +124,10 @@ class DDPG(Agent):
             q = self._reward + q_next
 
             self._critic_approximator.fit(self._state, self._action, q,
-                                          idx=self._state_idxs,
-                                          get_features=True)
+                                          idx=self._state_idxs)
             self._actor_approximator.fit(self._state, self._state,
                                          self._state_idxs,
-                                         idx=self._state_idxs,
-                                         get_features=True)
+                                         idx=self._state_idxs)
 
             self._n_updates += 1
 

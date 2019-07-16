@@ -5,10 +5,7 @@ import sys
 
 from joblib import delayed, Parallel
 import numpy as np
-import torch
-import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 
 import pickle
 
@@ -23,7 +20,7 @@ from ddpg import DDPG
 from policy import OrnsteinUhlenbeckPolicy
 
 from networks import ActorNetwork, CriticNetwork
-from losses import *
+from losses import LossFunction
 
 
 def print_epoch(epoch):
@@ -119,21 +116,7 @@ def experiment(idx, args):
 
     # Approximator
     n_games = len(args.games)
-    if args.reg_type == 'l1':
-        loss = FeaturesL1Loss(args.reg_coeff, n_games,
-                              args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'l1-weights':
-        loss = WeightsL1Loss(n_actions_per_head, args.reg_coeff, n_games,
-                             args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'gl1-weights':
-        loss = WeightsGLLoss(n_actions_per_head, args.reg_coeff, n_games,
-                             args.batch_size, args.evaluation_frequency)
-    elif args.reg_type == 'kl':
-        loss = FeaturesKLLoss(args.k, args.reg_coeff, n_games,
-                              args.batch_size, args.evaluation_frequency)
-    else:
-        loss = LossFunction(args.reg_coeff, n_games, args.batch_size,
-                            args.evaluation_frequency)
+    loss = LossFunction(n_games, args.batch_size, args.evaluation_frequency)
 
     actor_approximator = PyTorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
@@ -147,7 +130,6 @@ def experiment(idx, args):
         n_hidden_2=args.hidden_neurons[1],
         optimizer=optimizer_actor,
         use_cuda=args.use_cuda,
-        dropout=args.dropout,
         features=args.features
     )
 
@@ -163,7 +145,6 @@ def experiment(idx, args):
         optimizer=optimizer_actor,
         loss=loss,
         use_cuda=args.use_cuda,
-        dropout=args.dropout,
         features=args.features
     )
 
@@ -221,9 +202,6 @@ def experiment(idx, args):
     np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
     np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
             agent._critic_approximator.model._loss.get_losses())
-    np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
-            agent._critic_approximator.model._loss.get_reg_losses())
-    np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
     for n_epoch in range(1, max_steps // evaluation_frequency + 1):
         if n_epoch >= args.unfreeze_epoch > 0:
             agent.unfreeze_shared_weights()
@@ -260,17 +238,11 @@ def experiment(idx, args):
         np.save(folder_name + 'scores-exp-%d.npy' % idx, scores)
         np.save(folder_name + 'critic_loss-exp-%d.npy' % idx,
                 agent._critic_approximator.model._loss.get_losses())
-        np.save(folder_name + 'critic_l1_loss-exp-%d.npy' % idx,
-                agent._critic_approximator.model._loss.get_reg_losses())
-
-        if len(agent.q_list) > 0:
-            np.save(folder_name + 'q-exp-%d.npy' % idx, agent.q_list)
 
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, agent._critic_approximator.model._loss.get_losses(), \
-           agent._critic_approximator.model._loss.get_reg_losses(), agent.q_list
+    return scores, agent._critic_approximator.model._loss.get_losses()
 
 
 if __name__ == '__main__':
@@ -299,14 +271,9 @@ if __name__ == '__main__':
     arg_net.add_argument("--learning-rate-critic", type=float, default=1e-3,
                          help='Learning rate value of the optimizer. Only used'
                               'in rmspropcentered')
-    arg_net.add_argument("--reg-coeff", type=float, default=0)
-    arg_net.add_argument("--reg-type", type=str,
-                         choices=['l1', 'l1-weights', 'gl1-weights', 'kl'])
-    arg_net.add_argument("--k", type=float, default=10)
 
     arg_alg = parser.add_argument_group('Algorithm')
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
-    arg_alg.add_argument("--dropout", action='store_true')
     arg_alg.add_argument("--batch-size", type=int, default=64,
                          help='Batch size for each fit of the network.')
     arg_alg.add_argument("--tau", type=float, default=1e-3)
@@ -359,10 +326,6 @@ if __name__ == '__main__':
 
     scores = np.array([o[0] for o in out])
     critic_loss = np.array([o[1] for o in out])
-    critic_l1_loss = np.array([o[2] for o in out])
-    qs = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'critic_loss_raw.npy', critic_loss)
-    np.save(folder_name + 'critic_l1_loss_raw.npy', critic_l1_loss)
-    np.save(folder_name + 'qs_raw.npy', qs)

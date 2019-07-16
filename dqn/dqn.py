@@ -20,15 +20,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 reg_type=None, dtype=np.uint8):
-
-        if reg_type == 'l1-weights' or reg_type == 'gl1-weights':
-            self._get_features = False
-            self._get_weights = True
-        else:
-            self._get_features = True
-            self._get_weights = False
-
+                 dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -80,8 +72,6 @@ class DQN(Agent):
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
 
-        self.v_list = list()
-
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
@@ -121,10 +111,7 @@ class DQN(Agent):
             q = reward + q_next
 
             self.approximator.fit(self._state, self._action, q,
-                                  idx=self._state_idxs,
-                                  get_features=self._get_features,
-                                  get_weights=self._get_weights,
-                                  **self._fit_params)
+                                  idx=self._state_idxs, **self._fit_params)
 
             self._n_updates += 1
 
@@ -157,7 +144,6 @@ class DQN(Agent):
 
         out_q = np.zeros(self._batch_size * self._n_games)
 
-        v_list = list()
         for i in range(self._n_games):
             start = self._batch_size * i
             stop = start + self._batch_size
@@ -167,37 +153,5 @@ class DQN(Agent):
             n_actions = self._n_action_per_head[i][0]
             out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
             out_q[start:stop] *= self.mdp_info.gamma[i]
-
-            v_list.append(out_q[start:stop].mean())
-
-        self.v_list.append(np.array(v_list))
-
-        return out_q
-
-
-class DoubleDQN(DQN):
-    def _next_q(self):
-        q = self.approximator.predict(self._next_state,
-                                      idx=self._next_state_idxs)
-        double_q = self.target_approximator.predict(self._next_state,
-                                                    idx=self._next_state_idxs)
-        if np.any(self._absorbing):
-            double_q *= 1 - self._absorbing.reshape(-1, 1)
-
-        out_q = np.zeros(self._batch_size * self._n_games)
-
-        v_list = list()
-        for i in range(self._n_games):
-            start = self._batch_size * i
-            stop = start + self._batch_size
-
-            n_actions = self._n_action_per_head[i][0]
-            idxs = np.argmax(q[start:stop, :n_actions], axis=1)
-            out_q[start:stop] = double_q[np.arange(start, stop),
-                                         idxs] * self.mdp_info.gamma[i]
-
-            v_list.append(out_q[start:stop].mean())
-
-        self.v_list.append(np.array(v_list))
 
         return out_q

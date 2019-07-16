@@ -6,15 +6,14 @@ import numpy as np
 
 
 class GymNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, dropout,
-                 features, n_features=80):
+    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, features,
+                 dropout, n_features=80):
         super(GymNetwork, self).__init__()
 
         self._n_input = input_shape
         self._n_games = len(n_actions_per_head)
         self._max_actions = max(n_actions_per_head)[0]
         self._use_cuda = use_cuda
-        self._dropout = dropout
         self._n_shared = 4
         self._features = features
 
@@ -29,10 +28,6 @@ class GymNetwork(nn.Module):
                 self._n_games)]
         )
 
-        if self._dropout:
-            self._h2_dropout = nn.Dropout2d()
-            self._h3_dropout = nn.Dropout2d()
-
         nn.init.xavier_uniform_(self._h2.weight,
                                 gain=nn.init.calculate_gain('relu'))
         nn.init.xavier_uniform_(self._h3.weight,
@@ -43,10 +38,7 @@ class GymNetwork(nn.Module):
             nn.init.xavier_uniform_(self._h4[i].weight,
                                     gain=nn.init.calculate_gain('linear'))
 
-    def forward(self, state, action=None, idx=None, get_features=False,
-                get_weights=False):
-        assert not(get_features and get_weights)
-
+    def forward(self, state, action=None, idx=None):
         state = state.float()
 
         h1 = list()
@@ -56,8 +48,6 @@ class GymNetwork(nn.Module):
         cat_h1 = torch.cat(h1)
 
         h_f = F.relu(self._h2(cat_h1))
-        if self._dropout:
-            h_f = self._h2_dropout(h_f)
 
         if self._features == 'relu':
             h_f = F.relu(self._h3(h_f))
@@ -65,8 +55,6 @@ class GymNetwork(nn.Module):
             h_f = torch.sigmoid(self._h3(h_f))
         else:
             raise ValueError
-        if self._dropout:
-            h_f = self._h3_dropout(h_f)
 
         q = [self._h4[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
@@ -90,12 +78,7 @@ class GymNetwork(nn.Module):
 
             q = torch.squeeze(q_idx, 1)
 
-        if get_features:
-            return q, h_f
-        elif get_weights:
-            return q, self._h4
-        else:
-            return q
+        return q
 
     def get_shared_weights(self):
         p2 = list()
