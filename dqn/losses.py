@@ -18,7 +18,7 @@ class LossFunction(object):
     def get_reg_losses(self):
         return self._reg_losses
 
-    def __call__(self, yhat, y):
+    def __call__(self, yhat, y, reduction):
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
 
         if self._need_log():
@@ -30,8 +30,6 @@ class LossFunction(object):
                 temp_losses.append(torch.mean(loss[start:stop]).item())
 
             self._losses.append(temp_losses)
-
-        loss = torch.mean(loss)
 
         return loss
 

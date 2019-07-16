@@ -3,9 +3,9 @@ from copy import deepcopy
 import numpy as np
 
 from mushroom.algorithms.agent import Agent
-from mushroom.approximators.regressor import Ensemble, Regressor
+from mushroom.approximators.regressor import Regressor
 
-from replay_memory import ReplayMemory
+from replay_memory import PrioritizedReplayMemory, ReplayMemory
 
 
 class DQN(Agent):
@@ -17,7 +17,7 @@ class DQN(Agent):
     """
     def __init__(self, approximator, policy, mdp_info, batch_size,
                  initial_replay_size, max_replay_size, n_actions_per_head,
-                 history_length=4, n_input_per_mdp=None,
+                 history_length=4, n_input_per_mdp=None, replay_memory=None,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
                  dtype=np.uint8):
@@ -36,10 +36,17 @@ class DQN(Agent):
         self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
 
-        self._replay_memory = [
-            ReplayMemory(initial_replay_size,
-                         max_replay_size) for _ in range(self._n_games)
-        ]
+        if replay_memory is not None:
+            self._replay_memory = replay_memory
+            if isinstance(replay_memory[0], PrioritizedReplayMemory):
+                self._fit = self._fit_prioritized
+            else:
+                self._fit = self._fit_standard
+        else:
+            self._replay_memory = [ReplayMemory(
+                initial_replay_size, max_replay_size) for _ in range(self._n_games)
+            ]
+            self._fit = self._fit_standard
 
         self._n_updates = 0
 
@@ -62,7 +69,7 @@ class DQN(Agent):
              self._history_length) + self.mdp_info.observation_space.shape),
             dtype=dtype
         ).squeeze()
-        self._action = np.zeros((n_samples, 1))
+        self._action = np.zeros((n_samples, 1), dtype=np.int)
         self._reward = np.zeros(n_samples)
         self._next_state_idxs = np.zeros(n_samples, dtype=np.int)
         self._next_state = np.zeros(
@@ -73,6 +80,13 @@ class DQN(Agent):
         self._absorbing = np.zeros(n_samples)
 
     def fit(self, dataset):
+        self._fit(dataset)
+
+        self._n_updates += 1
+        if self._n_updates % self._target_update_frequency == 0:
+            self._update_target()
+
+    def _fit_standard(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
         for g in games:
@@ -113,10 +127,58 @@ class DQN(Agent):
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs, **self._fit_params)
 
-            self._n_updates += 1
+    def _fit_prioritized(self, dataset):
+        s = np.array([d[0][0] for d in dataset]).ravel()
+        games = np.unique(s)
+        for g in games:
+            idxs = np.argwhere(s == g).ravel()
+            d = list()
+            for idx in idxs:
+                d.append(dataset[idx])
 
-            if self._n_updates % self._target_update_frequency == 0:
-                self._update_target()
+            self._replay_memory[g].add(
+                d, np.ones(len(d)) * self._replay_memory[g].max_priority
+            )
+
+        fit_condition = np.all([rm.initialized for rm in self._replay_memory])
+
+        idxs = np.zeros(len(self._state_idxs), dtype=np.int)
+        is_weight = np.zeros(len(self._state_idxs))
+        if fit_condition:
+            for i in range(len(self._replay_memory)):
+                game_state, game_action, game_reward, game_next_state,\
+                    game_absorbing, _, game_idxs, game_is_weight =\
+                    self._replay_memory[i].get(self._batch_size)
+
+                start = self._batch_size * i
+                stop = start + self._batch_size
+
+                self._state_idxs[start:stop] = np.ones(self._batch_size) * i
+                self._state[start:stop, :self._n_input_per_mdp[i][0]] = game_state
+                self._action[start:stop] = game_action
+                self._reward[start:stop] = game_reward
+                self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
+                self._next_state[start:stop, :self._n_input_per_mdp[i][0]] = game_next_state
+                self._absorbing[start:stop] = game_absorbing
+
+                idxs[start:stop] = game_idxs
+                is_weight[start:stop] = game_is_weight
+
+            if self._clip_reward:
+                reward = np.clip(self._reward, -1, 1)
+            else:
+                reward = self._reward
+
+            q_next = self._next_q()
+            q = reward + q_next
+            td_error = q - self.approximator.predict(self._state, self._action,
+                                                     idx=self._state_idxs)
+
+            for er in self._replay_memory:
+                er.update(td_error, idxs)
+
+            self.approximator.fit(self._state, self._action, q, weights=is_weight,
+                                  idx=self._state_idxs, **self._fit_params)
 
     def get_shared_weights(self):
         return self.approximator.model.network.get_shared_weights()

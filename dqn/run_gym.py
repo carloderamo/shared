@@ -21,6 +21,7 @@ from dqn import DQN
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import LossFunction
+from replay_memory import PrioritizedReplayMemory
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -156,6 +157,15 @@ def experiment(args, idx):
 
     approximator = PyTorchApproximator
 
+    if args.prioritized:
+        replay_memory = [PrioritizedReplayMemory(
+            initial_replay_size, max_replay_size, alpha=.6,
+            beta=LinearParameter(.4, threshold_value=1,
+                                 n=max_steps // train_frequency)
+        ) for _ in range(n_games)]
+    else:
+        replay_memory = None
+
     # Agent
     algorithm_params = dict(
         batch_size=args.batch_size,
@@ -163,6 +173,7 @@ def experiment(args, idx):
         initial_replay_size=initial_replay_size,
         max_replay_size=max_replay_size,
         target_update_frequency=target_update_frequency // train_frequency,
+        replay_memory=replay_memory,
         n_input_per_mdp=n_input_per_mdp,
         n_actions_per_head=n_actions_per_head,
         clip_reward=False,
@@ -273,6 +284,8 @@ if __name__ == '__main__':
                          help='Initial size of the replay memory.')
     arg_mem.add_argument("--max-replay-size", type=int, default=5000,
                          help='Max size of the replay memory.')
+    arg_mem.add_argument("--prioritized", action='store_true',
+                         help='Whether to use prioritized memory or not.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
     arg_net.add_argument("--optimizer",
