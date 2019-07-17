@@ -11,7 +11,6 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric import PyTorchApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearParameter, Parameter
@@ -22,6 +21,8 @@ from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import LossFunction
 from replay_memory import PrioritizedReplayMemory
+from pytorch_network import CustomPyTorchApproximator
+
 
 """
 This script runs Atari experiments with DQN as presented in:
@@ -155,13 +156,14 @@ def experiment(args, idx):
         features=args.features
     )
 
-    approximator = PyTorchApproximator
+    approximator = CustomPyTorchApproximator
 
     if args.prioritized:
         replay_memory = [PrioritizedReplayMemory(
             initial_replay_size, max_replay_size, alpha=.6,
             beta=LinearParameter(.4, threshold_value=1,
-                                 n=max_steps // train_frequency)
+                                 n=max_steps // train_frequency),
+            lambda_coeff=Parameter(1.)
         ) for _ in range(n_games)]
     else:
         replay_memory = None
