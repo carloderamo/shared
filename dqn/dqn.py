@@ -78,6 +78,8 @@ class DQN(Agent):
             dtype=dtype
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
+        self._idxs = np.zeros(n_samples, dtype=np.int)
+        self._is_weight = np.zeros(n_samples)
 
     def fit(self, dataset):
         self._fit(dataset)
@@ -142,8 +144,6 @@ class DQN(Agent):
 
         fit_condition = np.all([rm.initialized for rm in self._replay_memory])
 
-        idxs = np.zeros(len(self._state_idxs), dtype=np.int)
-        is_weight = np.zeros(len(self._state_idxs))
         if fit_condition:
             for i in range(len(self._replay_memory)):
                 game_state, game_action, game_reward, game_next_state,\
@@ -160,9 +160,8 @@ class DQN(Agent):
                 self._next_state_idxs[start:stop] = np.ones(self._batch_size) * i
                 self._next_state[start:stop, :self._n_input_per_mdp[i][0]] = game_next_state
                 self._absorbing[start:stop] = game_absorbing
-
-                idxs[start:stop] = game_idxs
-                is_weight[start:stop] = game_is_weight
+                self._idxs[start:stop] = game_idxs
+                self._is_weight[start:stop] = game_is_weight
 
             if self._clip_reward:
                 reward = np.clip(self._reward, -1, 1)
@@ -171,14 +170,20 @@ class DQN(Agent):
 
             q_next = self._next_q()
             q = reward + q_next
-            td_error = q - self.approximator.predict(self._state, self._action,
-                                                     idx=self._state_idxs)
+            q_current = self.approximator.predict(self._state, self._action,
+                                                  idx=self._state_idxs)
+            td_error = q - q_current
+
+            grads = np.zeros_like(td_error)
+
 
             for er in self._replay_memory:
-                er.update(td_error, idxs)
+                er.update(td_error, grads, self._idxs)
 
-            self.approximator.fit(self._state, self._action, q, weights=is_weight,
-                                  idx=self._state_idxs, **self._fit_params)
+            self.approximator.fit(self._state, self._action, q,
+                                  weights=self._is_weight,
+                                  idx=self._state_idxs,
+                                  **self._fit_params)
 
     def get_shared_weights(self):
         return self.approximator.model.network.get_shared_weights()
