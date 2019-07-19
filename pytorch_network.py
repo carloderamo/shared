@@ -23,6 +23,6 @@ class CustomPyTorchApproximator(PyTorchApproximator):
             for pars in params:
                 for p in pars:
                     g = torch.autograd.grad(loss, p, retain_graph=True)[0]
-                    self.grads[idx] = torch.norm(g)
+                    self.grads[idx] += torch.norm(g)
 
         return loss.item()
