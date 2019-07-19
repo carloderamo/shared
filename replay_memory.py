@@ -20,13 +20,12 @@ class ReplayMemory(ReplayMemory):
 
 
 class PrioritizedReplayMemory(PrioritizedReplayMemory):
-    def __init__(self, initial_size, max_size, alpha, beta, lambda_coeff,
+    def __init__(self, initial_size, max_size, alpha, beta,
                  epsilon=.01):
         self._initial_size = initial_size
         self._max_size = max_size
         self._alpha = alpha
         self._beta = beta
-        self._lambda = lambda_coeff
         self._epsilon = epsilon
 
         self._tree = SumTree(max_size)
@@ -65,11 +64,3 @@ class PrioritizedReplayMemory(PrioritizedReplayMemory):
         return np.array(states), np.array(actions), np.array(rewards),\
             np.array(next_states), np.array(absorbing), np.array(last),\
             idxs, is_weight
-
-    def update(self, error, grad, idx):
-        p = self._get_priority(error, grad)
-        self._tree.update(idx, p)
-
-    def _get_priority(self, error, grad):
-        return (np.abs(error) + self._epsilon) ** self._alpha +\
-               self._lambda.get_value() * grad
