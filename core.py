@@ -17,6 +17,8 @@ class Core(object):
         self._episode_steps = [None for _ in range(self._n_mdp)]
         self._n_steps_per_fit = None
 
+        self.prioritized = False
+
     def learn(self, n_steps=None, n_steps_per_fit=None, render=False,
               quiet=False):
         self._n_steps_per_fit = n_steps_per_fit
@@ -50,7 +52,12 @@ class Core(object):
         dataset = list()
         last = [True] * self._n_mdp
         while move_condition():
-            for i in range(self._n_mdp):
+            if self.prioritized:
+                p = self.agent.replay_memory_priorities
+                mdps = [np.random.choice(self._n_mdp, p=p)]
+            else:
+                mdps = np.arange(self._n_mdp)
+            for i in mdps:
                 if last[i]:
                     self.reset(i)
 

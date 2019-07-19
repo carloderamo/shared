@@ -157,7 +157,7 @@ def experiment(args, idx):
 
     approximator = CustomPyTorchApproximator
 
-    if args.prioritized:
+    if args.er_prior:
         replay_memory = [PrioritizedReplayMemory(
             initial_replay_size, max_replay_size, alpha=.6,
             beta=LinearParameter(.4, threshold_value=1,
@@ -178,6 +178,7 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         clip_reward=False,
         history_length=args.history_length,
+        sampling_prior=args.sampling_prior,
         dtype=np.float32
     )
 
@@ -230,8 +231,10 @@ def experiment(args, idx):
         print('- Learning:')
         # learning step
         pi.set_parameter(None)
+        core.prioritized = args.sampling_prior
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
+        core.prioritized = False
 
         print('- Evaluation:')
         # evaluation step
@@ -284,8 +287,10 @@ if __name__ == '__main__':
                          help='Initial size of the replay memory.')
     arg_mem.add_argument("--max-replay-size", type=int, default=5000,
                          help='Max size of the replay memory.')
-    arg_mem.add_argument("--prioritized", action='store_true',
+    arg_mem.add_argument("--er-prior", action='store_true',
                          help='Whether to use prioritized memory or not.')
+    arg_mem.add_argument("--sampling-prior", action='store_true',
+                         help='Whether to use prioritized sampling or not.')
 
     arg_net = parser.add_argument_group('Deep Q-Network')
     arg_net.add_argument("--optimizer",
