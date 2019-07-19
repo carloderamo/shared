@@ -141,6 +141,7 @@ class DQN(Agent):
                     )
                 grads = self.approximator.model.grads
                 self.replay_memory_priorities = grads / grads.sum()
+                self.approximator.model.grads *= 0.
 
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs, **self._fit_params)
@@ -203,6 +204,7 @@ class DQN(Agent):
                     )
                 grads = self.approximator.model.grads
                 self.replay_memory_priorities = grads / grads.sum()
+                self.approximator.model.grads *= 0.
 
             for er in self._replay_memory:
                 er.update(td_error, self._idxs)

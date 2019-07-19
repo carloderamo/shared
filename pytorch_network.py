@@ -7,6 +7,7 @@ from mushroom.approximators.parametric.pytorch_network import PyTorchApproximato
 class CustomPyTorchApproximator(PyTorchApproximator):
     def __init__(self, n_actions_per_head, **pars):
         super().__init__(n_actions_per_head=n_actions_per_head, **pars)
+
         self.grads = np.zeros(len(n_actions_per_head))
 
     def _fit_batch(self, batch, use_weights, kwargs):
