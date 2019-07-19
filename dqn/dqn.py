@@ -199,7 +199,6 @@ class DQN(Agent):
                 self._state[idxs], self._action[idxs], q[idxs],
                 weights=self._is_weight[idxs],
                 idx=self._state_idxs[idxs],
-                er_idx=i,
                 params=self.approximator.model.network.get_shared_weights_tensor(),
                 **self._fit_params
             )
