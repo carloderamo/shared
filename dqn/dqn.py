@@ -150,11 +150,13 @@ class DQN(Agent):
                 self._n_games, size=self._n_games * self._batch_size,
                 p=self._replay_memory_priorities
             )
-            counts = np.ones(self._n_games, dtype=np.int)
+            counts = np.zeros(self._n_games, dtype=np.int)
             idx, c = np.unique(replay_memory_idxs, return_counts=True)
             counts[idx] = c
             start = 0
             for i, c in enumerate(counts):
+                if c == 0:
+                    continue
                 game_state, game_action, game_reward, game_next_state,\
                     game_absorbing, _, game_idxs, game_is_weight =\
                     self._replay_memory[i].get(counts[i])
