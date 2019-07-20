@@ -19,10 +19,11 @@ class CustomPyTorchApproximator(PyTorchApproximator):
             loss.backward()
             self._optimizer.step()
         else:
+            self._optimizer.zero_grad()
+            loss.backward()
             self.grad = 0.
             for pars in params:
                 for p in pars:
-                    g = torch.autograd.grad(loss, p, retain_graph=True)[0]
-                    self.grad += torch.norm(g)
+                    self.grad += torch.norm(p.grad.data)
 
         return loss.item()
