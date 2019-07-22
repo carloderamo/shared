@@ -11,6 +11,7 @@ import pickle
 
 sys.path.append('..')
 
+from mushroom.approximators.parametric.pytorch_network import PyTorchApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearParameter, Parameter
@@ -20,7 +21,6 @@ from dqn import DQN
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import LossFunction
-from pytorch_network import CustomPyTorchApproximator
 from replay_memory import PrioritizedReplayMemory
 
 """
@@ -155,7 +155,7 @@ def experiment(args, idx):
         features=args.features
     )
 
-    approximator = CustomPyTorchApproximator
+    approximator = PyTorchApproximator
 
     if args.prioritized:
         replay_memory = [PrioritizedReplayMemory(
