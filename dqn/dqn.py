@@ -20,7 +20,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None, replay_memory=None,
                  target_update_frequency=2500, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 sampling_prior=False, dtype=np.uint8):
+                 dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -80,9 +80,6 @@ class DQN(Agent):
         self._absorbing = np.zeros(n_samples)
         self._idxs = np.zeros(n_samples, dtype=np.int)
         self._is_weight = np.zeros(n_samples)
-        self.replay_memory_priorities = np.ones(self._n_games) / self._n_games
-
-        self._sampling_prior = sampling_prior
 
     def fit(self, dataset):
         self._fit(dataset)
@@ -128,19 +125,6 @@ class DQN(Agent):
 
             q_next = self._next_q()
             q = reward + q_next
-
-            if self._sampling_prior:
-                grads = np.zeros(self._n_games)
-                for i in range(self._n_games):
-                    idxs = np.argwhere(self._state_idxs == i).ravel()
-                    self.approximator.fit(
-                        self._state[idxs], self._action[idxs], q[idxs],
-                        idx=self._state_idxs[idxs],
-                        params=self.approximator.model.network.get_shared_weights_tensor(),
-                        **self._fit_params
-                    )
-                    grads[i] = self.approximator.model.grad
-                self.replay_memory_priorities = grads / grads.sum()
 
             self.approximator.fit(self._state, self._action, q,
                                   idx=self._state_idxs, **self._fit_params)
@@ -189,20 +173,6 @@ class DQN(Agent):
             q_current = self.approximator.predict(self._state, self._action,
                                                   idx=self._state_idxs)
             td_error = q - q_current
-
-            if self._sampling_prior:
-                grads = np.zeros(self._n_games)
-                for i in range(self._n_games):
-                    idxs = np.argwhere(self._state_idxs == i).ravel()
-                    self.approximator.fit(
-                        self._state[idxs], self._action[idxs], q[idxs],
-                        weights=self._is_weight[idxs],
-                        idx=self._state_idxs[idxs],
-                        params=self.approximator.model.network.get_shared_weights_tensor(),
-                        **self._fit_params
-                    )
-                    grads[i] = self.approximator.model.grad
-                self.replay_memory_priorities = grads / grads.sum()
 
             for er in self._replay_memory:
                 er.update(td_error, self._idxs)
