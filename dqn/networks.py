@@ -92,18 +92,6 @@ class GymNetwork(nn.Module):
 
         return p2, p3
 
-    def get_shared_weights_tensor(self):
-        p2 = list()
-        p3 = list()
-
-        for p in self._h2.parameters():
-            p2.append(p)
-
-        for p in self._h3.parameters():
-            p3.append(p)
-
-        return p2, p3
-
     def set_shared_weights(self, weights):
         w2, w3 = weights
 
