@@ -6,7 +6,7 @@ import numpy as np
 
 class ActorNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
-                 n_hidden_2, use_cuda, features):
+                 n_hidden_2, use_cuda, features, dropout):
         super().__init__()
 
         self._n_input = input_shape
@@ -93,7 +93,7 @@ class ActorNetwork(nn.Module):
 
 class CriticNetwork(nn.Module):
     def __init__(self, input_shape, _, n_actions_per_head, n_hidden_1,
-                 n_hidden_2, use_cuda, features):
+                 n_hidden_2, use_cuda, features, dropout):
         super().__init__()
 
         self._n_input = input_shape

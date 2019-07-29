@@ -16,7 +16,7 @@ class ActorLoss(nn.Module):
         self._critic = critic
 
     def forward(self, arg, state, idxs):
-        action, h_f = arg
+        action = arg
 
         q = self._critic.model.network(state, action, idx=idxs)
 
@@ -169,9 +169,6 @@ class DDPG(Agent):
                                             idx=self._next_state_idxs)
         q = self._target_critic_approximator(self._next_state, a,
                                              idx=self._next_state_idxs).ravel()
-
-        if self._log_q:
-            self.q_list.append(q.mean())
 
         out_q = np.zeros(self._batch_size * self._n_games)
         for i in range(self._n_games):

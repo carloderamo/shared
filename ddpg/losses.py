@@ -3,8 +3,7 @@ import torch.nn.functional as F
 
 
 class LossFunction(object):
-    def __init__(self, reg_coeff, n_games, batch_size, eval_frequency):
-        self._reg_coeff = reg_coeff
+    def __init__(self, n_games, batch_size, eval_frequency):
         self._n_games = n_games
         self._batch_size = batch_size
         self._eval_frequency = eval_frequency
@@ -24,7 +23,6 @@ class LossFunction(object):
 
         if self._need_log():
             temp_losses = list()
-            temp_l1_losses = list()
 
             for i in range(self._n_games):
                 start = i * self._batch_size
@@ -32,7 +30,6 @@ class LossFunction(object):
                 temp_losses.append(torch.mean(loss[start:stop]).item())
 
             self._losses.append(temp_losses)
-            self._reg_losses.append(temp_l1_losses)
 
         loss = torch.mean(loss)
 

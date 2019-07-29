@@ -11,7 +11,7 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric import PyTorchApproximator
+from mushroom.approximators.parametric import TorchApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 
@@ -61,7 +61,7 @@ def experiment(idx, args):
     mdp = list()
     gamma_eval = list()
     for i, g in enumerate(zip(domains, tasks)):
-        mdp.append(Mujoco(g[0], g[1], args.horizon[i], args.gamma[i]))
+        mdp.append(DMControl(g[0], g[1], args.horizon[i], args.gamma[i]))
         gamma_eval.append(args.gamma[i])
     if args.render:
         mdp[0].render()
@@ -116,9 +116,9 @@ def experiment(idx, args):
 
     # Approximator
     n_games = len(args.games)
-    loss = LossFunction(n_games, args.batch_size, args.evaluation_frequency)
+    loss = LossFunction(n_games, args.batch_size, evaluation_frequency)
 
-    actor_approximator = PyTorchApproximator
+    actor_approximator = TorchApproximator
     actor_input_shape = [m.info.observation_space.shape for m in mdp]
 
     actor_approximator_params = dict(
@@ -133,7 +133,7 @@ def experiment(idx, args):
         features=args.features
     )
 
-    critic_approximator = PyTorchApproximator
+    critic_approximator = TorchApproximator
     critic_input_shape = [m.info.observation_space.shape for m in mdp]
     critic_approximator_params = dict(
         network=CriticNetwork,
