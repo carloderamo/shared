@@ -11,7 +11,7 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric.pytorch_network import PyTorchApproximator
+from mushroom.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom.environments import *
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearParameter, Parameter
@@ -155,7 +155,7 @@ def experiment(args, idx):
         features=args.features
     )
 
-    approximator = PyTorchApproximator
+    approximator = TorchApproximator
 
     if args.prioritized:
         replay_memory = [PrioritizedReplayMemory(
