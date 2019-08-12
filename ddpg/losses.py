@@ -9,14 +9,10 @@ class LossFunction(object):
         self._eval_frequency = eval_frequency
 
         self._losses = list()
-        self._reg_losses = list()
         self._counter = 0
 
     def get_losses(self):
         return self._losses
-
-    def get_reg_losses(self):
-        return self._reg_losses
 
     def __call__(self, yhat, y):
         loss = F.smooth_l1_loss(yhat, y, reduce=False)
