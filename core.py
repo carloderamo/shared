@@ -97,7 +97,7 @@ class Core(object):
         return [i, state], action, reward, [i, next_state], absorbing, last
 
     def reset(self, i):
-        self._state[i] = self.mdp[i].reset()
+        self._state[i] = self.mdp[i].reset().copy()
         self.agent.episode_start()
         self.agent.next_action = None
         self._episode_steps[i] = 0

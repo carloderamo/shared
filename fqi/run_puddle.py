@@ -31,7 +31,7 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [PuddleWorld(), PuddleWorld()]
+    mdp = [PuddleWorld(thrust=.2)]
     n_games = len(mdp)
     input_shape = [m.info.observation_space.shape for m in mdp]
     n_actions = mdp[0].info.action_space.n
@@ -43,7 +43,7 @@ def experiment():
                            n_actions_per_head=n_actions_per_head)
 
     # Approximator
-    optimizer = {'class': optim.Adam, 'params': dict(lr=1e-2)}
+    optimizer = {'class': optim.Adam, 'params': dict()}
     loss = LossFunction(n_games)
 
     approximator_params = dict(
@@ -54,14 +54,16 @@ def experiment():
         n_actions_per_head=n_actions_per_head,
         optimizer=optimizer,
         loss=loss,
-        features='sigmoid',
-        use_cuda=False
+        features='relu',
+        use_cuda=False,
+        quiet=False
     )
 
     approximator = TorchApproximator
 
     # Agent
-    algorithm_params = dict(n_iterations=20)
+    algorithm_params = dict(n_iterations=20,
+                            fit_params=dict(patience=10, epsilon=1e-3))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
@@ -76,7 +78,9 @@ def experiment():
     test_epsilon = Parameter(0.)
     pi.set_parameter(test_epsilon)
 
-    dataset = core.evaluate(n_steps=1000)
+    dataset = core.evaluate(n_steps=1000, render=True)
+
+    print(np.mean(compute_J(dataset, mdp[0].info.gamma)))
 
     return (np.mean(compute_J(dataset, mdp[0].info.gamma)),)
 
@@ -86,7 +90,7 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S') + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    n_exp = 2
+    n_exp = 1
     out = Parallel(n_jobs=-1)(delayed(experiment)() for i in range(n_exp))
 
     scores = np.array([o[0] for o in out])

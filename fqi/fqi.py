@@ -36,9 +36,9 @@ class FQI(BatchTD):
         """
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
-            self.fit(dataset)
+            self._fit(dataset)
 
-    def fit(self, x):
+    def _fit(self, x):
         """
         Single fit iteration.
 

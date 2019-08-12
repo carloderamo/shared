@@ -13,7 +13,7 @@ class LossFunction(object):
         return self._losses
 
     def __call__(self, yhat, y):
-        loss = F.smooth_l1_loss(yhat, y, reduce=True)
+        loss = F.mse_loss(yhat, y, reduce=True)
 
         return loss
 
