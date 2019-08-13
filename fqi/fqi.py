@@ -34,11 +34,25 @@ class FQI(BatchTD):
         Fit loop.
 
         """
+        s = np.array([d[0][0] for d in dataset]).ravel()
+        games = np.unique(s)
+        d = list()
+        idxs = list()
+        for n, g in enumerate(games):
+            idx = np.argwhere(s == g).ravel()
+            for i in idx:
+                d.append(dataset[i])
+            idxs.append(idx % (n + 1))
+
+        idxs = np.array(idxs).ravel()
+
+        state, action, reward, next_state, absorbing, _ = self.parse_dataset(d)
+
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
-            self._fit(dataset)
+            self._fit(state, action, reward, next_state, absorbing, idxs)
 
-    def _fit(self, x):
+    def _fit(self, state, action, reward, next_state, absorbing, idxs):
         """
         Single fit iteration.
 
@@ -46,19 +60,6 @@ class FQI(BatchTD):
             x (list): the dataset.
 
         """
-        s = np.array([d[0][0] for d in x]).ravel()
-        games = np.unique(s)
-        d = list()
-        idxs = list()
-        for n, g in enumerate(games):
-            idx = np.argwhere(s == g).ravel()
-            for i in idx:
-                d.append(x[i])
-            idxs.append(idx % (n + 1))
-
-        idxs = np.array(idxs).ravel()
-
-        state, action, reward, next_state, absorbing, _ = self.parse_dataset(d)
         if self._target is None:
             self._target = reward
         else:

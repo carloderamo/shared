@@ -55,7 +55,7 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        use_cuda=False,
+        use_cuda=True,
         quiet=False
     )
 
@@ -63,7 +63,7 @@ def experiment():
 
     # Agent
     algorithm_params = dict(n_iterations=20,
-                            fit_params=dict(patience=10, epsilon=1e-3))
+                            fit_params=dict(patience=10, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
@@ -72,7 +72,7 @@ def experiment():
 
     # Train
     pi.set_parameter(epsilon)
-    core.learn(n_steps=1000, n_steps_per_fit=1000)
+    core.learn(n_steps=10000, n_steps_per_fit=10000)
 
     # Test
     test_epsilon = Parameter(0.)
