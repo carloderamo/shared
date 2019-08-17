@@ -16,8 +16,8 @@ from mushroom.utils.parameters import Parameter
 from core import Core
 from fqi import FQI
 from losses import LossFunction
-from networks import PuddleNetwork
-from policy import EpsGreedyMultiple
+from networks import LQRNetwork
+from policy import EpsGreedyMultipleDiscretized
 
 """
 This script aims to replicate the experiments on the Car on Hill MDP as
@@ -31,31 +31,30 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [PuddleWorld(thrust=.2)]
+    mdp = [LQR.generate(dimensions=1, max_pos=10., max_action=8.)]
     n_games = len(mdp)
-    input_shape = [m.info.observation_space.shape for m in mdp]
-    n_actions = mdp[0].info.action_space.n
-    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
+    discrete_actions = np.linspace(mdp[0].info.action_space.low[0],
+                                   mdp[0].info.action_space.high[0],
+                                   20)
+    input_shape = [(m.info.observation_space.shape[0] +
+                    m.info.action_space.shape[0],) for m in mdp]
 
     # Policy
     epsilon = Parameter(value=1.)
-    pi = EpsGreedyMultiple(parameter=epsilon,
-                           n_actions_per_head=n_actions_per_head)
+    pi = EpsGreedyMultipleDiscretized(parameter=epsilon,
+                                      n_actions_per_head=discrete_actions)
 
     # Approximator
     optimizer = {'class': optim.Adam, 'params': dict()}
     loss = LossFunction(n_games)
 
     approximator_params = dict(
-        network=PuddleNetwork,
+        network=LQRNetwork,
         input_shape=input_shape,
-        output_shape=(max(n_actions_per_head)[0],),
-        n_actions=n_actions,
-        n_actions_per_head=n_actions_per_head,
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        use_cuda=True,
+        use_cuda=False,
         quiet=False
     )
 
@@ -63,7 +62,8 @@ def experiment():
 
     # Agent
     algorithm_params = dict(n_iterations=20,
-                            fit_params=dict(patience=10, epsilon=1e-5))
+                            discrete_actions=discrete_actions,
+                            fit_params=dict(n_epochs=1, patience=10, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 

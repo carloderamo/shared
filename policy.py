@@ -10,8 +10,9 @@ class Multiple(TDPolicy):
     def __init__(self, parameter, n_actions_per_head):
         super().__init__()
 
-        assert isinstance(parameter, Parameter) and isinstance(n_actions_per_head,
-                                                               list)
+        assert isinstance(parameter, Parameter) and\
+            isinstance(n_actions_per_head, list) or isinstance(n_actions_per_head,
+                                                               np.ndarray)
         self._n_actions_per_head = n_actions_per_head
 
         n_heads = len(n_actions_per_head)
@@ -78,95 +79,50 @@ class EpsGreedyMultiple(Multiple):
         return np.array([np.random.choice(self._n_actions_per_head[idx][0])])
 
 
-class BoltzmannMultiple(Multiple):
-    def __call__(self, args):
-        idx = args[0]
-        state = args[1]
-        q_beta = self._approximator.predict(
-            state, idx=np.array([idx])) * self._pars[idx](state)
-        q_beta -= q_beta.max()
-        qs = np.exp(q_beta)
-
-        if len(args) == 3:
-            action = args[2]
-
-            return qs[action] / np.sum(qs)
-        else:
-            return qs / np.sum(qs)
-
-    def draw_action(self, state):
-        return np.array([np.random.choice(self._approximator.n_actions,
-                                          p=self(state))])
-
-
-class EpsGreedyEnsemble(TDPolicy):
-    def __init__(self, epsilon, n):
-        """
-        Constructor.
-
-        Args:
-            epsilon (Parameter): the exploration coefficient. It indicates
-                the probability of performing a random actions in the current
-                step.
-
-        """
-        super().__init__()
-
-        if isinstance(epsilon, list):
-            self._explorative_epsilons = deepcopy(epsilon)
-        else:
-            self._explorative_epsilons = [deepcopy(epsilon) for _ in range(n)]
-        self._epsilons = [None] * n
-
+class EpsGreedyMultipleDiscretized(Multiple):
     def __call__(self, *args):
-        state = args[0]
-        idx = np.asscalar(state[0])
-        state = np.array(state[1])
-
-        q = self._approximator[idx].predict(np.expand_dims(state, axis=0)).ravel()
+        idx = args[0]
+        state = np.array(args[1])
+        q = self._approximator.predict(
+            np.expand_dims(state, axis=0),
+            idx=idx).ravel()[0]
         max_a = np.argwhere(q == np.max(q)).ravel()
 
-        p = self._epsilons[idx].get_value(state) / self._approximator[idx].n_actions
+        p = self._epsilon.get_value(state) / self._n_actions_per_head[idx][0]
 
         if len(args) == 2:
             action = args[1]
             if action in max_a:
-                return p + (1. - self._epsilons[idx].get_value(state)) / len(max_a)
+                return p + (1. - self._epsilon.get_value(state)) / len(max_a)
             else:
                 return p
         else:
-            probs = np.ones(self._approximator[idx].n_actions) * p
-            probs[max_a] += (1. - self._epsilons[idx].get_value(state)) / len(max_a)
+            probs = np.ones(self._n_actions_per_head[idx][0]) * p
+            probs[max_a] += (1. - self._epsilon.get_value(state)) / len(max_a)
 
             return probs
 
     def draw_action(self, state):
         idx = state[0]
         state = np.array(state[1])
-        if not np.random.uniform() < self._epsilons[idx](state):
-            q = self._approximator[idx].predict(state)
+        state_action = np.append(np.expand_dims(np.repeat(state, len(self._n_actions_per_head)),
+                                                1), self._n_actions_per_head.reshape(-1, 1), 1)
+
+        if not np.random.uniform() < self._pars[idx](state):
+            q = self._approximator.predict(
+                state_action, idx=np.array([idx]))
+            print(q.shape)
+            exit()
             max_a = np.argwhere(q == np.max(q)).ravel()
 
             if len(max_a) > 1:
-                max_a = np.array([np.random.choice(max_a)])
+                max_a = np.array([np.random.choice(
+                    max_a[max_a < self._n_actions_per_head[idx][0]]
+                )])
 
             return max_a
 
-        return np.array([np.random.choice(self._approximator[idx].n_actions)])
-
-    def set_epsilon(self, epsilon):
-        assert isinstance(epsilon, Parameter) or epsilon is None
-
-        if epsilon is None:
-            for i in range(len(self._epsilons)):
-                self._epsilons[i] = self._explorative_epsilons[i]
-        else:
-            for i in range(len(self._epsilons)):
-                self._epsilons[i] = epsilon
-
-    def update(self, state):
-        idx = state[0]
-        self._epsilons[idx].update(state)
+        return np.array([np.random.choice(self._n_actions_per_head)])
 
 
 class OrnsteinUhlenbeckPolicy(ParametricPolicy):

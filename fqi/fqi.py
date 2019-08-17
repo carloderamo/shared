@@ -12,7 +12,8 @@ class FQI(BatchTD):
 
     """
     def __init__(self, approximator, policy, mdp_info, n_iterations,
-                 fit_params=None, approximator_params=None, quiet=False):
+                 discrete_actions, fit_params=None, approximator_params=None,
+                 quiet=False):
         """
         Constructor.
 
@@ -22,6 +23,7 @@ class FQI(BatchTD):
 
         """
         self._n_iterations = n_iterations
+        self._discrete_actions = discrete_actions
         self._quiet = quiet
 
         super().__init__(approximator, policy, mdp_info, fit_params,
@@ -44,15 +46,24 @@ class FQI(BatchTD):
                 d.append(dataset[i])
             idxs.append(idx % (n + 1))
 
-        idxs = np.array(idxs).ravel()
+        state_idxs = np.array(idxs).ravel()
 
         state, action, reward, next_state, absorbing, _ = self.parse_dataset(d)
+        state_action = np.append(state, action, 1)
+        next_state_repeat = np.repeat(next_state, len(self._discrete_actions))
+        discrete_action_repeat = np.repeat(self._discrete_actions, len(next_state))
+        next_state_action = np.append(next_state_repeat.reshape(-1, 1),
+                                      discrete_action_repeat.reshape(-1, 1),
+                                      1)
+        next_state_idxs = np.repeat(idxs, len(self._discrete_actions))
 
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
-            self._fit(state, action, reward, next_state, absorbing, idxs)
+            self._fit(state_action, reward, next_state_action, absorbing, state_idxs,
+                      next_state_idxs)
 
-    def _fit(self, state, action, reward, next_state, absorbing, idxs):
+    def _fit(self, state_action, reward, next_state_action, absorbing, state_idxs,
+             next_state_idxs):
         """
         Single fit iteration.
 
@@ -63,15 +74,16 @@ class FQI(BatchTD):
         if self._target is None:
             self._target = reward
         else:
-            q = self.approximator.predict(next_state, idx=idxs)
+            q = self.approximator.predict(next_state_action,
+                                          idx=next_state_idxs)
             if np.any(absorbing):
                 q *= 1 - absorbing.reshape(-1, 1)
 
+            q = q.reshape(len(reward), len(self._discrete_actions))
             max_q = np.max(q, axis=1)
             self._target = reward + self.mdp_info.gamma * max_q
 
-        self.approximator.fit(state, action, self._target,
-                              idx=idxs, **self._fit_params)
+        self.approximator.fit(state_action, self._target, idx=state_idxs, **self._fit_params)
 
     def parse_dataset(self, dataset):
         assert len(dataset) > 0

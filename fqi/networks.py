@@ -5,14 +5,13 @@ import torch.nn.functional as F
 import numpy as np
 
 
-class PuddleNetwork(nn.Module):
-    def __init__(self, input_shape, _, n_actions_per_head, use_cuda, features,
-                 dropout, n_features=20):
-        super(PuddleNetwork, self).__init__()
+class LQRNetwork(nn.Module):
+    def __init__(self, input_shape, _, use_cuda, features,
+                 dropout, n_features=5):
+        super(LQRNetwork, self).__init__()
 
         self._n_input = input_shape
-        self._n_games = len(n_actions_per_head)
-        self._max_actions = max(n_actions_per_head)[0]
+        self._n_games = len(self._n_input)
         self._use_cuda = use_cuda
         self._n_shared = 2
         self._features = features
@@ -23,7 +22,7 @@ class PuddleNetwork(nn.Module):
         )
         self._h2 = nn.Linear(n_features, n_features)
         self._q = nn.ModuleList(
-            [nn.Linear(n_features, self._max_actions) for _ in range(
+            [nn.Linear(n_features, 1) for _ in range(
                 self._n_games)]
         )
 
@@ -54,13 +53,6 @@ class PuddleNetwork(nn.Module):
         q = [self._q[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
 
-        if action is not None:
-            action = action.long()
-            q_acted = torch.squeeze(
-                q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
-
-            q = q_acted
-
         if idx is not None:
             idx = torch.from_numpy(idx)
             if self._use_cuda:
@@ -69,7 +61,7 @@ class PuddleNetwork(nn.Module):
                 q_idx = q.gather(1, idx.unsqueeze(-1))
             else:
                 q_idx = q.gather(1, idx.view(-1, 1).repeat(
-                    1, self._max_actions).unsqueeze(1))
+                    1, 1).unsqueeze(1))
 
             q = torch.squeeze(q_idx, 1)
 
