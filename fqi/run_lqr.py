@@ -35,7 +35,7 @@ def experiment():
     n_games = len(mdp)
     discrete_actions = np.linspace(mdp[0].info.action_space.low[0],
                                    mdp[0].info.action_space.high[0],
-                                   20)
+                                   100)
     input_shape = [(m.info.observation_space.shape[0] +
                     m.info.action_space.shape[0],) for m in mdp]
 
@@ -63,7 +63,7 @@ def experiment():
     # Agent
     algorithm_params = dict(n_iterations=20,
                             discrete_actions=discrete_actions,
-                            fit_params=dict(n_epochs=1, patience=10, epsilon=1e-5))
+                            fit_params=dict(patience=10, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
@@ -72,13 +72,13 @@ def experiment():
 
     # Train
     pi.set_parameter(epsilon)
-    core.learn(n_steps=10000, n_steps_per_fit=10000)
+    core.learn(n_steps=500, n_steps_per_fit=500)
 
     # Test
     test_epsilon = Parameter(0.)
     pi.set_parameter(test_epsilon)
 
-    dataset = core.evaluate(n_steps=1000, render=True)
+    dataset = core.evaluate(n_steps=1000, render=False)
 
     print(np.mean(compute_J(dataset, mdp[0].info.gamma)))
 

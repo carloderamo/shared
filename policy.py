@@ -80,49 +80,26 @@ class EpsGreedyMultiple(Multiple):
 
 
 class EpsGreedyMultipleDiscretized(Multiple):
-    def __call__(self, *args):
-        idx = args[0]
-        state = np.array(args[1])
-        q = self._approximator.predict(
-            np.expand_dims(state, axis=0),
-            idx=idx).ravel()[0]
-        max_a = np.argwhere(q == np.max(q)).ravel()
-
-        p = self._epsilon.get_value(state) / self._n_actions_per_head[idx][0]
-
-        if len(args) == 2:
-            action = args[1]
-            if action in max_a:
-                return p + (1. - self._epsilon.get_value(state)) / len(max_a)
-            else:
-                return p
-        else:
-            probs = np.ones(self._n_actions_per_head[idx][0]) * p
-            probs[max_a] += (1. - self._epsilon.get_value(state)) / len(max_a)
-
-            return probs
-
     def draw_action(self, state):
         idx = state[0]
         state = np.array(state[1])
-        state_action = np.append(np.expand_dims(np.repeat(state, len(self._n_actions_per_head)),
-                                                1), self._n_actions_per_head.reshape(-1, 1), 1)
 
         if not np.random.uniform() < self._pars[idx](state):
+            state_action = np.append(
+                np.expand_dims(np.repeat(state, len(self._n_actions_per_head)),
+                               1), self._n_actions_per_head.reshape(-1, 1), 1)
+            idx = np.repeat(idx, len(state_action))
             q = self._approximator.predict(
-                state_action, idx=np.array([idx]))
-            print(q.shape)
-            exit()
+                state_action, idx=idx).ravel()
             max_a = np.argwhere(q == np.max(q)).ravel()
 
-            if len(max_a) > 1:
-                max_a = np.array([np.random.choice(
-                    max_a[max_a < self._n_actions_per_head[idx][0]]
-                )])
+            if len(max_a):
+                max_a = np.array([np.random.choice(max_a)])
 
             return max_a
 
-        return np.array([np.random.choice(self._n_actions_per_head)])
+        return np.random.uniform(self._n_actions_per_head[0],
+                                 self._n_actions_per_head[-1], size=1)
 
 
 class OrnsteinUhlenbeckPolicy(ParametricPolicy):
