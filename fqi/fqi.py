@@ -2,7 +2,6 @@ import numpy as np
 from tqdm import trange
 
 from mushroom.algorithms.value.batch_td import BatchTD
-from mushroom.utils.dataset import parse_dataset
 
 
 class FQI(BatchTD):
@@ -51,11 +50,12 @@ class FQI(BatchTD):
         state, action, reward, next_state, absorbing, _ = self.parse_dataset(d)
         state_action = np.append(state, action, 1)
         next_state_repeat = np.repeat(next_state, len(self._discrete_actions))
-        discrete_action_repeat = np.repeat(self._discrete_actions, len(next_state))
+        discrete_action_repeat = np.expand_dims(
+            self._discrete_actions, 0).repeat(len(reward), 0)
         next_state_action = np.append(next_state_repeat.reshape(-1, 1),
-                                      discrete_action_repeat.reshape(-1, 1),
-                                      1)
+                                      discrete_action_repeat.reshape(-1, 1), 1)
         next_state_idxs = np.repeat(idxs, len(self._discrete_actions))
+        absorbing = np.repeat(absorbing, len(self._discrete_actions))
 
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
@@ -83,6 +83,7 @@ class FQI(BatchTD):
             max_q = np.max(q, axis=1)
             self._target = reward + self.mdp_info.gamma * max_q
 
+        self.approximator.model.network.reset()
         self.approximator.fit(state_action, self._target, idx=state_idxs, **self._fit_params)
 
     def parse_dataset(self, dataset):

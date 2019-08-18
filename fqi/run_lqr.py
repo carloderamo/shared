@@ -31,11 +31,12 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [LQR.generate(dimensions=1, max_pos=10., max_action=8.)]
+    mdp = [LQR.generate(dimensions=1, max_pos=10., max_action=2.,
+                        random_init=True, episodic=True)]
     n_games = len(mdp)
     discrete_actions = np.linspace(mdp[0].info.action_space.low[0],
                                    mdp[0].info.action_space.high[0],
-                                   100)
+                                   20)
     input_shape = [(m.info.observation_space.shape[0] +
                     m.info.action_space.shape[0],) for m in mdp]
 
@@ -54,6 +55,7 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
+        n_features=5,
         use_cuda=False,
         quiet=False
     )
@@ -61,9 +63,9 @@ def experiment():
     approximator = TorchApproximator
 
     # Agent
-    algorithm_params = dict(n_iterations=20,
+    algorithm_params = dict(n_iterations=5,
                             discrete_actions=discrete_actions,
-                            fit_params=dict(patience=10, epsilon=1e-5))
+                            fit_params=dict(n_epochs=100))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 

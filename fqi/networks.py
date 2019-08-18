@@ -26,13 +26,7 @@ class LQRNetwork(nn.Module):
                 self._n_games)]
         )
 
-        nn.init.xavier_uniform_(self._h2.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        for i in range(self._n_games):
-            nn.init.xavier_uniform_(self._h1[i].weight,
-                                    gain=nn.init.calculate_gain('relu'))
-            nn.init.xavier_uniform_(self._q[i].weight,
-                                    gain=nn.init.calculate_gain('linear'))
+        self.reset()
 
     def forward(self, state, action=None, idx=None):
         state = state.float()
@@ -74,6 +68,15 @@ class LQRNetwork(nn.Module):
             p2.append(p.data.detach().cpu().numpy())
 
         return p2
+
+    def reset(self):
+        nn.init.xavier_uniform_(self._h2.weight,
+                                gain=nn.init.calculate_gain('relu'))
+        for i in range(self._n_games):
+            nn.init.xavier_uniform_(self._h1[i].weight,
+                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self._q[i].weight,
+                                    gain=nn.init.calculate_gain('linear'))
 
     def set_shared_weights(self, weights):
         w2 = weights

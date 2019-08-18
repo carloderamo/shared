@@ -93,7 +93,7 @@ class EpsGreedyMultipleDiscretized(Multiple):
                 state_action, idx=idx).ravel()
             max_a = np.argwhere(q == np.max(q)).ravel()
 
-            if len(max_a):
+            if len(max_a) > 1:
                 max_a = np.array([np.random.choice(max_a)])
 
             return max_a
