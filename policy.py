@@ -96,7 +96,7 @@ class EpsGreedyMultipleDiscretized(Multiple):
             if len(max_a) > 1:
                 max_a = np.array([np.random.choice(max_a)])
 
-            return max_a
+            return self._n_actions_per_head[max_a]
 
         return np.random.uniform(self._n_actions_per_head[0],
                                  self._n_actions_per_head[-1], size=1)

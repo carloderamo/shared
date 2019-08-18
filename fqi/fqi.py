@@ -57,6 +57,8 @@ class FQI(BatchTD):
         next_state_idxs = np.repeat(idxs, len(self._discrete_actions))
         absorbing = np.repeat(absorbing, len(self._discrete_actions))
 
+        reward /= 100.
+
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
             self._fit(state_action, reward, next_state_action, absorbing, state_idxs,
