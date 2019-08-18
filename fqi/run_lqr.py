@@ -27,6 +27,12 @@ presented in:
 """
 
 
+def get_stats(dataset, gamma):
+    J = np.mean(compute_J(dataset, gamma))
+
+    return J
+
+
 def experiment():
     np.random.seed()
 
@@ -74,7 +80,7 @@ def experiment():
 
     # Train
     pi.set_parameter(epsilon)
-    core.learn(n_steps=500, n_steps_per_fit=500)
+    core.learn(n_steps=1000, n_steps_per_fit=1000)
 
     # Test
     test_epsilon = Parameter(0.)
@@ -82,9 +88,15 @@ def experiment():
 
     dataset = core.evaluate(n_steps=1000, render=False)
 
-    print(np.mean(compute_J(dataset, mdp[0].info.gamma)))
+    scores = [list() for _ in range(len(mdp))]
+    for i in range(len(mdp)):
+        d = dataset[i::len(mdp)]
+        current_score = get_stats(d, mdp[0].info.gamma)
+        scores[i].append(current_score)
 
-    return (np.mean(compute_J(dataset, mdp[0].info.gamma)),)
+    print(scores)
+
+    return (scores,)
 
 
 if __name__ == '__main__':
