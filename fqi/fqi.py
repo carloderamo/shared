@@ -25,6 +25,8 @@ class FQI(BatchTD):
         self._discrete_actions = discrete_actions
         self._quiet = quiet
 
+        self._qs = list()
+
         super().__init__(approximator, policy, mdp_info, fit_params,
                          approximator_params)
 
@@ -57,8 +59,6 @@ class FQI(BatchTD):
         next_state_idxs = np.repeat(idxs, len(self._discrete_actions))
         absorbing = np.repeat(absorbing, len(self._discrete_actions))
 
-        reward /= 100.
-
         for _ in trange(self._n_iterations, dynamic_ncols=True,
                         disable=self._quiet, leave=False):
             self._fit(state_action, reward, next_state_action, absorbing, state_idxs,
@@ -74,19 +74,22 @@ class FQI(BatchTD):
 
         """
         if self._target is None:
-            self._target = reward
+            self._target = reward.copy()
         else:
             q = self.approximator.predict(next_state_action,
                                           idx=next_state_idxs)
             if np.any(absorbing):
-                q *= 1 - absorbing.reshape(-1, 1)
+                q *= 1 - absorbing
 
             q = q.reshape(len(reward), len(self._discrete_actions))
             max_q = np.max(q, axis=1)
             self._target = reward + self.mdp_info.gamma * max_q
 
         self.approximator.model.network.reset()
-        self.approximator.fit(state_action, self._target, idx=state_idxs, **self._fit_params)
+        self.approximator.fit(state_action, self._target, idx=state_idxs,
+                              **self._fit_params)
+
+        self._qs.append(self.approximator.predict(state_action, idx=state_idxs))
 
     def parse_dataset(self, dataset):
         assert len(dataset) > 0

@@ -10,6 +10,7 @@ sys.path.append('..')
 
 from mushroom.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom.environments import *
+from mushroom.utils.callbacks import CollectDataset
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
 
@@ -18,6 +19,7 @@ from fqi import FQI
 from losses import LossFunction
 from networks import LQRNetwork
 from policy import EpsGreedyMultipleDiscretized
+from utils import computeOptimalK, computeQFunction
 
 """
 This script aims to replicate the experiments on the Car on Hill MDP as
@@ -61,7 +63,7 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        n_features=5,
+        n_features=25,
         use_cuda=False,
         quiet=False
     )
@@ -69,18 +71,36 @@ def experiment():
     approximator = TorchApproximator
 
     # Agent
-    algorithm_params = dict(n_iterations=5,
-                            discrete_actions=discrete_actions,
-                            fit_params=dict(patience=10, epsilon=1e-5))
+    algorithm_params = dict(n_iterations=5, discrete_actions=discrete_actions,
+                            fit_params=dict(patience=100, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
     # Algorithm
-    core = Core(agent, mdp)
+    collect_dataset = CollectDataset()
+    core = Core(agent, mdp, callbacks=[collect_dataset])
 
     # Train
     pi.set_parameter(epsilon)
-    core.learn(n_steps=1000, n_steps_per_fit=1000)
+
+    core.learn(n_steps=500, n_steps_per_fit=500)
+
+    dataset = collect_dataset.get()
+
+    K = computeOptimalK(mdp[0].A, mdp[0].B, mdp[0].Q, mdp[0].R, mdp[0].info.gamma)
+    qs = list()
+    for d in dataset:
+        qs.append(computeQFunction(
+            d[0][1], d[1], K, mdp[0].A, mdp[0].B, mdp[0].Q, mdp[0].R,
+            np.array([[0]]), mdp[0].info.gamma, n_random_xn=100)
+        )
+    qs = np.array(qs)
+    qs_hat = np.array(agent._qs)
+
+    avi_diff = list()
+    for i in range(len(qs_hat)):
+        avi_diff.append(np.linalg.norm(qs_hat[i] - qs, ord=1) / len(qs))
+    print(avi_diff)
 
     # Test
     test_epsilon = Parameter(0.)
@@ -94,9 +114,7 @@ def experiment():
         current_score = get_stats(d, mdp[0].info.gamma)
         scores[i].append(current_score)
 
-    print(scores)
-
-    return (scores,)
+    return scores, avi_diff
 
 
 if __name__ == '__main__':
@@ -108,7 +126,7 @@ if __name__ == '__main__':
     out = Parallel(n_jobs=-1)(delayed(experiment)() for i in range(n_exp))
 
     scores = np.array([o[0] for o in out])
-    # loss = np.array([o[1] for o in out])
+    avi_diff = np.array([o[1] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    # np.save(folder_name + 'loss.npy', loss)
+    np.save(folder_name + 'avi_diff.npy', avi_diff)

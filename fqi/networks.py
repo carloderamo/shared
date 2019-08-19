@@ -46,17 +46,13 @@ class LQRNetwork(nn.Module):
 
         q = [self._q[i](h_f) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
+        q = q.squeeze(-1)
 
         if idx is not None:
             idx = torch.from_numpy(idx)
             if self._use_cuda:
                 idx = idx.cuda()
-            if q.dim() == 2:
-                q_idx = q.gather(1, idx.unsqueeze(-1))
-            else:
-                q_idx = q.gather(1, idx.view(-1, 1).repeat(
-                    1, 1).unsqueeze(1))
-
+            q_idx = q.gather(1, idx.unsqueeze(-1))
             q = torch.squeeze(q_idx, 1)
 
         return q
