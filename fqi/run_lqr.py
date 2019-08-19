@@ -63,8 +63,8 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        n_features=25,
-        use_cuda=False,
+        n_features=15,
+        use_cuda=True,
         quiet=False
     )
 
@@ -85,7 +85,10 @@ def experiment():
 
     core.learn(n_steps=500, n_steps_per_fit=500)
 
-    dataset = collect_dataset.get()
+    temp_dataset = collect_dataset.get()
+    dataset = list()
+    for i in range(len(mdp)):
+        dataset += temp_dataset[i::len(mdp)]
 
     K = computeOptimalK(mdp[0].A, mdp[0].B, mdp[0].Q, mdp[0].R, mdp[0].info.gamma)
     qs = list()
