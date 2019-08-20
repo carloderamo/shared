@@ -44,7 +44,7 @@ def experiment():
     n_games = len(mdp)
     discrete_actions = np.linspace(mdp[0].info.action_space.low[0],
                                    mdp[0].info.action_space.high[0],
-                                   100)
+                                   10000)
     input_shape = [(m.info.observation_space.shape[0] +
                     m.info.action_space.shape[0],) for m in mdp]
 
@@ -63,15 +63,16 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        n_features=15,
+        n_features=50,
         use_cuda=True,
-        quiet=False
+        quiet=False,
+        reinitialize=True
     )
 
     approximator = TorchApproximator
 
     # Agent
-    algorithm_params = dict(n_iterations=5, discrete_actions=discrete_actions,
+    algorithm_params = dict(n_iterations=50, discrete_actions=discrete_actions,
                             fit_params=dict(patience=100, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)

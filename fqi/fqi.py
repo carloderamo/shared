@@ -85,7 +85,6 @@ class FQI(BatchTD):
             max_q = np.max(q, axis=1)
             self._target = reward + self.mdp_info.gamma * max_q
 
-        self.approximator.model.network.reset()
         self.approximator.fit(state_action, self._target, idx=state_idxs,
                               **self._fit_params)
 

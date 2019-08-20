@@ -26,7 +26,7 @@ class LQRNetwork(nn.Module):
                 self._n_games)]
         )
 
-        self.reset()
+        self.weights_init()
 
     def forward(self, state, action=None, idx=None):
         state = state.float()
@@ -65,7 +65,7 @@ class LQRNetwork(nn.Module):
 
         return p2
 
-    def reset(self):
+    def weights_init(self):
         nn.init.xavier_uniform_(self._h2.weight,
                                 gain=nn.init.calculate_gain('relu'))
         for i in range(self._n_games):
