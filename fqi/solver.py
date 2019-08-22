@@ -7,23 +7,30 @@ def step(mdp, state, action):
     return mdp.step(action)
 
 
-def bfs(mdp, frontier, k):
+def bfs(mdp, frontier, k, max_k):
+    if len(frontier) == 0 or k == max_k:
+        return k
+
     new_frontier = list()
     for f in frontier:
-        s, r0, _, _ = step(mdp, f, [0])
-        new_frontier.append(s)
-        s, r1, _, _ = step(mdp, f, [1])
-        new_frontier.append(s)
-
-        print(r0, r1, k)
-
-        if r0 == 1 or r1 == 1:
+        s, r, _, _ = step(mdp, f, [0])
+        if r == 1:
             return k
+        elif r == 0:
+            new_frontier.append(s)
 
-    return bfs(mdp, new_frontier, k + 1)
+        s, r, _, _ = step(mdp, f, [1])
+        if r == 1:
+            return k
+        elif r == 0:
+            new_frontier.append(s)
+
+        print(k)
+
+    return bfs(mdp, new_frontier, k + 1, max_k)
 
 
-def solve_car_on_hill(mdp, states, actions, gamma):
+def solve_car_on_hill(mdp, states, actions, gamma, max_k=50):
     q = list()
     k = list()
     for s, a in zip(states, actions):
@@ -35,7 +42,7 @@ def solve_car_on_hill(mdp, states, actions, gamma):
         elif reward == -1:
             k = 1
         else:
-            k = bfs(mdp, [state], 1)
+            k = bfs(mdp, [state], 1, max_k)
 
     print(k)
 
