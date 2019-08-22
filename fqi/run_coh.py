@@ -3,13 +3,14 @@ import pathlib
 import sys
 
 import numpy as np
+import pickle
 from joblib import Parallel, delayed
 import torch.optim as optim
 
 sys.path.append('..')
 
 from mushroom.approximators.parametric.torch_approximator import TorchApproximator
-from mushroom.environments import *
+from mushroom.environments import CarOnHill
 from mushroom.utils.callbacks import CollectDataset
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
@@ -17,9 +18,9 @@ from mushroom.utils.parameters import Parameter
 from core import Core
 from fqi import FQI
 from losses import LossFunction
-from networks import LQRNetwork
-from policy import EpsGreedyMultipleDiscretized
-from utils import computeOptimalK, computeQFunction
+from networks import Network
+from policy import EpsGreedyMultiple
+from solver import solve_car_on_hill
 
 """
 This script aims to replicate the experiments on the Car on Hill MDP as
@@ -39,27 +40,28 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [LQR.generate(dimensions=1, max_action=2., random_init=True)
-           ]
+    mdp = [CarOnHill()]
     n_games = len(mdp)
-    discrete_actions = np.linspace(mdp[0].info.action_space.low[0],
-                                   mdp[0].info.action_space.high[0],
-                                   10000)
-    input_shape = [(m.info.observation_space.shape[0] +
-                    m.info.action_space.shape[0],) for m in mdp]
+    input_shape = [(m.info.observation_space.shape[0],) for m in mdp]
+    n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
+
+    solve_car_on_hill(mdp[0], np.array([[-.5, 0]]), np.array([[1]]),
+                      mdp[0].info.gamma)
+    exit()
 
     # Policy
     epsilon = Parameter(value=1.)
-    pi = EpsGreedyMultipleDiscretized(parameter=epsilon,
-                                      n_actions_per_head=discrete_actions)
+    pi = EpsGreedyMultiple(parameter=epsilon,
+                           n_actions_per_head=n_actions_per_head)
 
     # Approximator
     optimizer = {'class': optim.Adam, 'params': dict()}
     loss = LossFunction(n_games)
 
     approximator_params = dict(
-        network=LQRNetwork,
+        network=Network,
         input_shape=input_shape,
+        output_shape=n_actions_per_head,
         optimizer=optimizer,
         loss=loss,
         features='relu',
@@ -72,7 +74,8 @@ def experiment():
     approximator = TorchApproximator
 
     # Agent
-    algorithm_params = dict(n_iterations=50, discrete_actions=discrete_actions,
+    algorithm_params = dict(n_iterations=50,
+                            n_actions_per_head=n_actions_per_head,
                             fit_params=dict(patience=100, epsilon=1e-5))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
@@ -91,13 +94,7 @@ def experiment():
     for i in range(len(mdp)):
         dataset += temp_dataset[i::len(mdp)]
 
-    K = computeOptimalK(mdp[0].A, mdp[0].B, mdp[0].Q, mdp[0].R, mdp[0].info.gamma)
-    qs = list()
-    for d in dataset:
-        qs.append(computeQFunction(
-            d[0][1], d[1], K, mdp[0].A, mdp[0].B, mdp[0].Q, mdp[0].R,
-            np.array([[0]]), mdp[0].info.gamma, n_random_xn=100)
-        )
+
     qs = np.array(qs)
     qs_hat = np.array(agent._qs)
 

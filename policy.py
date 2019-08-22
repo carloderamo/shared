@@ -79,29 +79,6 @@ class EpsGreedyMultiple(Multiple):
         return np.array([np.random.choice(self._n_actions_per_head[idx][0])])
 
 
-class EpsGreedyMultipleDiscretized(Multiple):
-    def draw_action(self, state):
-        idx = state[0]
-        state = np.array(state[1])
-
-        if not np.random.uniform() < self._pars[idx](state):
-            state_action = np.append(
-                np.expand_dims(np.repeat(state, len(self._n_actions_per_head)),
-                               1), self._n_actions_per_head.reshape(-1, 1), 1)
-            idx = np.repeat(idx, len(state_action))
-            q = self._approximator.predict(
-                state_action, idx=idx).ravel()
-            max_a = np.argwhere(q == np.max(q)).ravel()
-
-            if len(max_a) > 1:
-                max_a = np.array([np.random.choice(max_a)])
-
-            return self._n_actions_per_head[max_a]
-
-        return np.random.uniform(self._n_actions_per_head[0],
-                                 self._n_actions_per_head[-1], size=1)
-
-
 class OrnsteinUhlenbeckPolicy(ParametricPolicy):
     def __init__(self, mu, sigma, theta, dt, n_actions_per_head,
                  max_action_value, x0=None):
