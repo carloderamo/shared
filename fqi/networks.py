@@ -50,10 +50,6 @@ class Network(nn.Module):
 
         if action is not None:
             action = action.long()
-            print(q.shape, action.repeat(1, self._n_games).unsqueeze(-1).shape)
-            exit()
-            print(q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)))
-            exit()
             q_acted = torch.squeeze(
                 q.gather(2, action.repeat(1, self._n_games).unsqueeze(-1)), -1)
 
@@ -67,7 +63,7 @@ class Network(nn.Module):
                 q_idx = q.gather(1, idx.unsqueeze(-1))
             else:
                 q_idx = q.gather(1, idx.view(-1, 1).repeat(
-                    1, self._max_actions).unsqueeze(1))
+                    1, self._n_output[0][0]).unsqueeze(1))
 
             q = torch.squeeze(q_idx, 1)
 
