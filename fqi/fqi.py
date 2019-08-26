@@ -13,7 +13,8 @@ class FQI(BatchTD):
     """
     def __init__(self, approximator, policy, mdp_info, n_iterations,
                  n_actions_per_head, test_states, test_actions, test_idxs,
-                 fit_params=None, approximator_params=None, quiet=False):
+                 len_datasets, fit_params=None, approximator_params=None,
+                 quiet=False):
         """
         Constructor.
 
@@ -28,6 +29,7 @@ class FQI(BatchTD):
         self._test_states = test_states
         self._test_actions = test_actions
         self._test_idxs = test_idxs
+        self._len_datasets = len_datasets
         self._quiet = quiet
 
         self._qs = list()
@@ -42,8 +44,10 @@ class FQI(BatchTD):
         Fit loop.
 
         """
-        idxs = np.arange(self._n_games, dtype=np.int).repeat(
-            len(dataset) // self._n_games)
+        idxs = list()
+        for i, l in enumerate(self._len_datasets):
+            idxs += (np.ones(l, dtype=np.int) * i).tolist()
+        idxs = np.array(idxs)
 
         state, action, reward, next_state, absorbing, _ = parse_dataset(dataset)
 

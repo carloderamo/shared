@@ -39,7 +39,7 @@ def experiment():
     np.random.seed()
 
     # MDP
-    use_mdp = [0]
+    use_mdp = [0, 1, 2]
     all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(2, 9.81, 4),
                 CarOnHill(1, 9.81, 2)]
 
@@ -74,6 +74,8 @@ def experiment():
     else:
         test_q = np.load('test_q.npy')
 
+    test_q = test_q.reshape(1, -1).repeat(len(mdp), 0).ravel()
+
     test_states = np.array([test_states]).repeat(len(mdp), 0).reshape(-1, 2)
     test_actions = np.array([test_actions]).repeat(len(mdp), 0).reshape(-1, 1)
     test_idxs = np.ones(len(test_states), dtype=np.int) * np.arange(len(mdp)).repeat(
@@ -102,18 +104,22 @@ def experiment():
 
     approximator = TorchApproximator
 
+    dataset = list()
+    len_datasets = list()
+    for i in use_mdp:
+        d = pickle.load(open('dataset_%d.pkl' % i, 'rb'))
+        len_datasets.append(len(d))
+        dataset += d
+
     # Agent
     algorithm_params = dict(n_iterations=20,
                             n_actions_per_head=n_actions_per_head,
                             test_states=test_states, test_actions=test_actions,
-                            test_idxs=test_idxs,
+                            test_idxs=test_idxs, len_datasets=len_datasets,
                             fit_params=dict(patience=100, epsilon=1e-6))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
-    dataset = list()
-    for i in use_mdp:
-        dataset += pickle.load(open('dataset_%d.pkl' % i, 'rb'))
     agent.fit(dataset)
 
     qs_hat = np.array(agent._qs)
