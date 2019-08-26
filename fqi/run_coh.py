@@ -90,7 +90,7 @@ def experiment():
         optimizer=optimizer,
         loss=loss,
         features='relu',
-        n_features=10,
+        n_features=30,
         use_cuda=True,
         quiet=False,
         reinitialize=True
@@ -107,11 +107,10 @@ def experiment():
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
-    # Algorithm
-    core = Core(agent, mdp)
-
-    # Train
-    core.learn(n_steps=60000, n_steps_per_fit=60000)
+    dataset = list()
+    for i in range(len(mdp)):
+        dataset += pickle.load(open('dataset_%d.pkl' % i, 'rb'))
+    agent.fit(dataset)
 
     qs_hat = np.array(agent._qs)
     avi_diff = list()
@@ -130,6 +129,4 @@ if __name__ == '__main__':
     n_exp = 1
     out = Parallel(n_jobs=-1)(delayed(experiment)() for i in range(n_exp))
 
-    avi_diff = np.array([out])
-
-    np.save(folder_name + 'avi_diff.npy', avi_diff)
+    np.save(folder_name + 'avi_diff.npy', out)

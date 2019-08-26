@@ -24,6 +24,7 @@ class FQI(BatchTD):
         """
         self._n_iterations = n_iterations
         self._n_actions_per_head = n_actions_per_head
+        self._n_games = len(self._n_actions_per_head)
         self._test_states = test_states
         self._test_actions = test_actions
         self._test_idxs = test_idxs
@@ -41,7 +42,8 @@ class FQI(BatchTD):
         Fit loop.
 
         """
-        idxs = np.zeros(len(dataset), dtype=np.int)
+        idxs = np.arange(self._n_games, dtype=np.int).repeat(
+            len(dataset) // self._n_games)
 
         state, action, reward, next_state, absorbing, _ = parse_dataset(dataset)
 
