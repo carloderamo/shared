@@ -10,10 +10,10 @@ import torch.optim as optim
 sys.path.append('..')
 
 from mushroom.approximators.parametric.torch_approximator import TorchApproximator
-from mushroom.environments import CarOnHill
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
 
+from car_on_hill import CarOnHill
 from core import Core
 from fqi import FQI
 from losses import LossFunction
@@ -39,7 +39,7 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [CarOnHill()]
+    mdp = [CarOnHill(1, 9.81, 4)]#, CarOnHill(2, 9.81, 4), CarOnHill(1, 9.81, 2)]
     n_games = len(mdp)
     input_shape = [(m.info.observation_space.shape[0],) for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
@@ -132,7 +132,7 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S') + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    n_exp = 1
+    n_exp = 8
     out = Parallel(n_jobs=-1)(delayed(experiment)() for i in range(n_exp))
 
     np.save(folder_name + 'avi_diff.npy', out)
