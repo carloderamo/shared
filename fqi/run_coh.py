@@ -39,7 +39,13 @@ def experiment():
     np.random.seed()
 
     # MDP
-    mdp = [CarOnHill(1, 9.81, 4)]#, CarOnHill(2, 9.81, 4), CarOnHill(1, 9.81, 2)]
+    use_mdp = [0, 1, 2]
+    all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(2, 9.81, 4),
+                CarOnHill(1, 9.81, 2)]
+
+    mdp = list()
+    for i in use_mdp:
+        mdp += all_mdps[i]
     n_games = len(mdp)
     input_shape = [(m.info.observation_space.shape[0],) for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
@@ -106,7 +112,7 @@ def experiment():
                 approximator_params=approximator_params, **algorithm_params)
 
     dataset = list()
-    for i in range(len(mdp)):
+    for i in use_mdp:
         dataset += pickle.load(open('dataset_%d.pkl' % i, 'rb'))
     agent.fit(dataset)
 
