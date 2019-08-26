@@ -45,7 +45,7 @@ class Network(nn.Module):
         else:
             raise ValueError
 
-        q = [self._q[i](h_f) for i in range(self._n_games)]
+        q = [torch.tanh(self._q[i](h_f)) for i in range(self._n_games)]
         q = torch.stack(q, dim=1)
 
         if action is not None:

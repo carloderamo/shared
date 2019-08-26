@@ -11,7 +11,6 @@ sys.path.append('..')
 
 from mushroom.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom.environments import CarOnHill
-from mushroom.utils.callbacks import CollectDataset
 from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import Parameter
 
@@ -63,8 +62,8 @@ def experiment():
     if not load_test_q:
         test_q = list()
         for m in mdp:
-            test_q.append(solve_car_on_hill(m, test_states, test_actions,
-                                            m.info.gamma))
+            test_q += solve_car_on_hill(m, test_states, test_actions,
+                                        m.info.gamma)
         np.save('test_q.npy', test_q)
     else:
         test_q = np.load('test_q.npy')
@@ -92,8 +91,7 @@ def experiment():
         features='relu',
         n_features=30,
         use_cuda=True,
-        quiet=False,
-        reinitialize=True
+        quiet=False
     )
 
     approximator = TorchApproximator
@@ -103,7 +101,7 @@ def experiment():
                             n_actions_per_head=n_actions_per_head,
                             test_states=test_states, test_actions=test_actions,
                             test_idxs=test_idxs,
-                            fit_params=dict(patience=100, epsilon=1e-5))
+                            fit_params=dict(patience=100, epsilon=1e-6))
     agent = FQI(approximator, pi, mdp[0].info,
                 approximator_params=approximator_params, **algorithm_params)
 
@@ -117,6 +115,14 @@ def experiment():
     for i in range(len(qs_hat)):
         avi_diff.append(np.linalg.norm(qs_hat[i] - test_q, ord=1) / len(test_q))
     print(avi_diff)
+
+    # Algorithm
+    core = Core(agent, mdp)
+    test_epsilon = Parameter(0.)
+    pi.set_parameter(test_epsilon)
+    dataset = core.evaluate(n_steps=100)
+
+    print(np.mean(compute_J(dataset, mdp[0].info.gamma)))
 
     return avi_diff
 
