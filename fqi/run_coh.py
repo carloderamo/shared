@@ -35,11 +35,10 @@ def get_stats(dataset, gamma):
     return J
 
 
-def experiment(load_test_q):
+def experiment(load_test_q, use_mdp):
     np.random.seed()
 
     # MDP
-    use_mdp = [0, 1, 2, 3, 4]
     all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1.2, 9.81, 4),
                 CarOnHill(.8, 9.81, 4), CarOnHill(1, 9.81, 3.5),
                 CarOnHill(1, 9.81, 4.5)]
@@ -151,7 +150,8 @@ if __name__ == '__main__':
 
     n_exp = 1
     load_test_q = True
-    out = Parallel(n_jobs=-1)(delayed(experiment)(load_test_q,
+    use_mdp = [0, 1, 2, 3, 4]
+    out = Parallel(n_jobs=-1)(delayed(experiment)(load_test_q, use_mdp
                                                   ) for i in range(n_exp))
 
     np.save(folder_name + 'avi_diff.npy', out)
