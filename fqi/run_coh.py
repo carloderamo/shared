@@ -47,6 +47,9 @@ def experiment(load_test_q):
     mdp = list()
     for i in use_mdp:
         mdp.append(all_mdps[i])
+
+    names = ['%1.1f_%1.1f' % (m._m, m._discrete_actions[-1]) for m in mdp]
+
     n_games = len(mdp)
     input_shape = [(m.info.observation_space.shape[0],) for m in mdp]
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
@@ -67,16 +70,16 @@ def experiment(load_test_q):
     # Test Q
     test_q = list()
     if not load_test_q:
-        for i in use_mdp:
-            current_test_q = solve_car_on_hill(all_mdps[i], test_states,
+        for i, j in enumerate(use_mdp):
+            current_test_q = solve_car_on_hill(all_mdps[j], test_states,
                                                test_actions,
-                                               all_mdps[i].info.gamma)
-            np.save('test_q_%d.npy' % i, current_test_q)
+                                               all_mdps[j].info.gamma)
+            np.save('test_q_%s.npy' % names[i], current_test_q)
 
             test_q += current_test_q
     else:
-        for i in use_mdp:
-            test_q += np.load('test_q_%d.npy' % i)
+        for i in range(len(mdp)):
+            test_q += np.load('test_q_%s.npy' % names[i])
 
     test_states = np.array([test_states]).repeat(len(mdp), 0).reshape(-1, 2)
     test_actions = np.array([test_actions]).repeat(len(mdp), 0).reshape(-1, 1)
@@ -108,8 +111,8 @@ def experiment(load_test_q):
 
     dataset = list()
     len_datasets = list()
-    for i in use_mdp:
-        d = pickle.load(open('dataset_%d.pkl' % i, 'rb'))
+    for i in range(len(mdp)):
+        d = pickle.load(open('dataset_%s.pkl' % names[i], 'rb'))
         len_datasets.append(len(d))
         dataset += d
 
