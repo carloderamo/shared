@@ -35,13 +35,14 @@ def get_stats(dataset, gamma):
     return J
 
 
-def experiment():
+def experiment(load_test_q):
     np.random.seed()
 
     # MDP
-    use_mdp = [0, 1, 2]
-    all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(2, 9.81, 4),
-                CarOnHill(1, 9.81, 2)]
+    use_mdp = [0, 1, 2, 3, 4]
+    all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1.2, 9.81, 4),
+                CarOnHill(.8, 9.81, 4), CarOnHill(1, 9.81, 3.8),
+                CarOnHill(1, 9.81, 4.2)]
 
     mdp = list()
     for i in use_mdp:
@@ -63,18 +64,19 @@ def experiment():
         [np.zeros(len(test_states) // 2),
          np.ones(len(test_states) // 2)]).reshape(-1, 1).astype(np.int)
 
-    load_test_q = True
     # Test Q
+    test_q = list()
     if not load_test_q:
-        test_q = list()
-        for m in mdp:
-            test_q += solve_car_on_hill(m, test_states, test_actions,
-                                        m.info.gamma)
-        np.save('test_q.npy', test_q)
-    else:
-        test_q = np.load('test_q.npy')
+        for i in use_mdp:
+            current_test_q = solve_car_on_hill(all_mdps[i], test_states,
+                                               test_actions,
+                                               all_mdps[i].info.gamma)
+            np.save('test_q_%d.npy' % i, current_test_q)
 
-    test_q = test_q.reshape(1, -1).repeat(len(mdp), 0).ravel()
+            test_q += current_test_q
+    else:
+        for i in use_mdp:
+            test_q += np.load('test_q_%d.npy' % i)
 
     test_states = np.array([test_states]).repeat(len(mdp), 0).reshape(-1, 2)
     test_actions = np.array([test_actions]).repeat(len(mdp), 0).reshape(-1, 1)
@@ -144,7 +146,9 @@ if __name__ == '__main__':
         '%Y-%m-%d_%H-%M-%S') + '/'
     pathlib.Path(folder_name).mkdir(parents=True)
 
-    n_exp = 8
-    out = Parallel(n_jobs=-1)(delayed(experiment)() for i in range(n_exp))
+    n_exp = 1
+    load_test_q = True
+    out = Parallel(n_jobs=-1)(delayed(experiment)(load_test_q,
+                                                  ) for i in range(n_exp))
 
     np.save(folder_name + 'avi_diff.npy', out)
