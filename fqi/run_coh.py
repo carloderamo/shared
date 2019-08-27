@@ -76,6 +76,7 @@ def experiment(load_test_q, use_mdp):
             np.save('test_q_%s.npy' % names[i], current_test_q)
 
             test_q += current_test_q
+        test_q = np.array(test_q)
     else:
         for i in range(len(mdp)):
             test_q += np.load('test_q_%s.npy' % names[i])
