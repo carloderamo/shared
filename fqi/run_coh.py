@@ -41,8 +41,8 @@ def experiment(load_test_q):
     # MDP
     use_mdp = [0, 1, 2, 3, 4]
     all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1.2, 9.81, 4),
-                CarOnHill(.8, 9.81, 4), CarOnHill(1, 9.81, 3.8),
-                CarOnHill(1, 9.81, 4.2)]
+                CarOnHill(.8, 9.81, 4), CarOnHill(1, 9.81, 3.5),
+                CarOnHill(1, 9.81, 4.5)]
 
     mdp = list()
     for i in use_mdp:
