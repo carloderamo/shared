@@ -64,7 +64,8 @@ def experiment(mdp, test_states, test_actions, test_q, names):
         loss=loss,
         features='sigmoid',
         n_features=30,
-        use_cuda=True
+        use_cuda=True,
+        quiet=False
     )
 
     approximator = TorchApproximator
@@ -116,8 +117,8 @@ def experiment(mdp, test_states, test_actions, test_q, names):
 
 if __name__ == '__main__':
     n_exp = 20
-
     use_mdp = [0, 1, 2, 3]
+    load_test_q = True
 
     # MDP
     all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1, 9.81, 4.5),
@@ -142,7 +143,6 @@ if __name__ == '__main__':
         [np.zeros(len(test_states) // 2),
          np.ones(len(test_states) // 2)]).reshape(-1, 1).astype(np.int)
 
-    load_test_q = True
     # Test Q
     test_q = list()
     if not load_test_q:
