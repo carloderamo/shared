@@ -35,7 +35,7 @@ class Network(nn.Module):
         h1 = list()
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
-            h1.append(F.relu(self._h1[i](state[idxs, :self._n_input[i][0]])))
+            h1.append(torch.sigmoid(self._h1[i](state[idxs, :self._n_input[i][0]])))
         cat_h1 = torch.cat(h1)
 
         if self._features == 'relu':
