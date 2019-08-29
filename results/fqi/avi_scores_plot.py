@@ -21,7 +21,7 @@ for g in games:
 a = np.array(a)
 
 a_mean, a_err = get_mean_and_confidence(a.mean(0))
-plt.ylabel(r'$ Q^* - Q$', fontsize='x-large')
+plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='x-large')
 plt.xlabel('# Iterations', fontsize='x-large')
 plt.xticks([0, 25, 50], fontsize='x-large')
 plt.yticks(fontsize='x-large')
