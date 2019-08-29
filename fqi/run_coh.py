@@ -93,7 +93,7 @@ def experiment(mdp, test_states, test_actions, test_q, names):
     idxs = np.array(idxs)
 
     state, action, reward, next_state, absorbing, _ = parse_dataset(dataset)
-    for _ in trange(30, dynamic_ncols=True, disable=False, leave=False):
+    for _ in trange(50, dynamic_ncols=True, disable=False, leave=False):
         agent._fit(state, action, reward, next_state, absorbing, idxs)
         # Algorithm
         core = Core(agent, mdp)
