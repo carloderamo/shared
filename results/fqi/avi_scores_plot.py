@@ -21,10 +21,10 @@ for g in games:
 a = np.array(a)
 
 a_mean, a_err = get_mean_and_confidence(a.mean(0))
-plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='x-large')
-plt.xlabel('# Iterations', fontsize='x-large')
-plt.xticks([0, 25, 50], fontsize='x-large')
-plt.yticks(fontsize='x-large')
+plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='xx-large')
+plt.xlabel('# Iterations', fontsize='xx-large')
+plt.xticks([0, 25, 50], fontsize='xx-large')
+plt.yticks(fontsize='xx-large')
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
     
@@ -34,7 +34,7 @@ a_mean, a_err = get_mean_and_confidence(a)
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
 plt.grid()
-plt.legend(['FQI', 'MULTI'], fontsize='x-large')
+plt.legend(['FQI', 'MULTI'], fontsize='xx-large')
 
 plt.subplot(1, 2, 2)
 a = list()
@@ -43,10 +43,10 @@ for g in games:
 a = np.array(a)
 
 a_mean, a_err = get_mean_and_confidence(a.mean(0))
-plt.ylabel('Performance', fontsize='x-large')
-plt.xlabel('# Iterations', fontsize='x-large')
-plt.xticks([0, 25, 50], fontsize='x-large')
-plt.yticks(fontsize='x-large')
+plt.ylabel('Performance', fontsize='xx-large')
+plt.xlabel('# Iterations', fontsize='xx-large')
+plt.xticks([0, 25, 50], fontsize='xx-large')
+plt.yticks(fontsize='xx-large')
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
     
