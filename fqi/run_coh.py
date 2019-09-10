@@ -116,19 +116,22 @@ def experiment(mdp, test_states, test_actions, test_q, names):
 
 
 if __name__ == '__main__':
-    n_exp = 20
-    use_mdp = [0, 1, 2, 3]
+    n_exp = 1
+    use_mdp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     load_test_q = True
 
     # MDP
     all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1, 9.81, 4.5),
-                CarOnHill(.8, 9.81, 4), CarOnHill(1.2, 9.81, 4.5)]
+                CarOnHill(.8, 9.81, 4), CarOnHill(1.2, 9.81, 4.5), CarOnHill(1, 9.81, 4.125), CarOnHill(1, 9.81, 4.25), CarOnHill(1, 9.81, 4.375),
+                CarOnHill(.85, 9.81, 4), CarOnHill(.9, 9.81, 4), CarOnHill(.95, 9.81, 4),
+                CarOnHill(1.05, 9.81, 4.5), CarOnHill(1.1, 9.81, 4.5), CarOnHill(1.15, 9.81, 4.5),
+                CarOnHill(1.2, 9.81, 4.375), CarOnHill(1.2, 9.81, 4.625), CarOnHill(1.2, 9.81, 4.75)]
 
     mdp = list()
     for i in use_mdp:
         mdp.append(all_mdps[i])
 
-    names = ['%1.1f_%1.1f' % (m._m, m._discrete_actions[-1]) for m in mdp]
+    names = ['%1.3f_%1.3f' % (m._m, m._discrete_actions[-1]) for m in mdp]
 
     test_states_0 = np.linspace(mdp[0].info.observation_space.low[0],
                                 mdp[0].info.observation_space.high[0], 10)
@@ -156,6 +159,7 @@ if __name__ == '__main__':
     else:
         for i in range(len(mdp)):
             test_q += np.load('test_q_%s.npy' % names[i]).tolist()
+
     test_q = np.array(test_q)
 
     folder_name = './logs/%s/' % ''.join(names)
