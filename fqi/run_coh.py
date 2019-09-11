@@ -121,11 +121,12 @@ if __name__ == '__main__':
     load_test_q = True
 
     # MDP
-    all_mdps = [CarOnHill(1, 9.81, 4), CarOnHill(1, 9.81, 4.5),
-                CarOnHill(.8, 9.81, 4), CarOnHill(1.2, 9.81, 4.5), CarOnHill(1, 9.81, 4.125), CarOnHill(1, 9.81, 4.25), CarOnHill(1, 9.81, 4.375),
-                CarOnHill(.85, 9.81, 4), CarOnHill(.9, 9.81, 4), CarOnHill(.95, 9.81, 4),
-                CarOnHill(1.05, 9.81, 4.5), CarOnHill(1.1, 9.81, 4.5), CarOnHill(1.15, 9.81, 4.5),
-                CarOnHill(1.2, 9.81, 4.375), CarOnHill(1.2, 9.81, 4.625), CarOnHill(1.2, 9.81, 4.75)]
+    all_mdps = [
+        CarOnHill(1, 9.81, 4), CarOnHill(1, 9.81, 4.125), CarOnHill(1, 9.81, 4.25), CarOnHill(1, 9.81, 4.375),
+        CarOnHill(.8, 9.81, 4), CarOnHill(.85, 9.81, 4), CarOnHill(.9, 9.81, 4), CarOnHill(.95, 9.81, 4),
+        CarOnHill(1, 9.81, 4.5), CarOnHill(1.05, 9.81, 4.5), CarOnHill(1.1, 9.81, 4.5), CarOnHill(1.15, 9.81, 4.5),
+        CarOnHill(1.2, 9.81, 4.375), CarOnHill(1.2, 9.81, 4.5), CarOnHill(1.2, 9.81, 4.625), CarOnHill(1.2, 9.81, 4.75)
+    ]
 
     mdp = list()
     for i in use_mdp:
