@@ -117,7 +117,10 @@ def experiment(mdp, test_states, test_actions, test_q, names):
 
 if __name__ == '__main__':
     n_exp = 1
-    use_mdp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+    use_mdp = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    np.random.shuffle(use_mdp)
+
     load_test_q = True
 
     # MDP
