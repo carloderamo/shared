@@ -116,9 +116,9 @@ def experiment(mdp, test_states, test_actions, test_q, names):
 
 
 if __name__ == '__main__':
-    n_exp = 1
+    n_exp = 100
 
-    use_mdp = np.array([0, 4, 8, 13, 1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 14, 15])
+    use_mdp = np.array([0])  # , 4, 8, 13, 1, 2, 3, 5, 6, 7, 9, 10, 11, 12, 14, 15])
 
     load_test_q = True
 
@@ -168,7 +168,7 @@ if __name__ == '__main__':
     folder_name = './logs/%s/' % ''.join(names)
     pathlib.Path(folder_name).mkdir(parents=True, exist_ok=True)
 
-    out = Parallel(n_jobs=-1)(delayed(experiment)(
+    out = Parallel(n_jobs=8)(delayed(experiment)(
         mdp, test_states, test_actions, test_q, names) for i in range(n_exp))
 
     avi_diff = np.array([o[0] for o in out])
