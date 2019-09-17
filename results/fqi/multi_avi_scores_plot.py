@@ -21,6 +21,10 @@ for i in n_tasks:
     a_mean, a_err = get_mean_and_confidence(a)
     plt.plot(a_mean, linewidth=3)
     plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
+plt.xticks([0, 25, 50], fontsize='xx-large')
+plt.yticks(fontsize='xx-large')
+plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='xx-large')
+plt.xlabel('# Iterations', fontsize='xx-large')
 plt.grid()
 plt.legend(n_tasks, fontsize='xx-large')
     
