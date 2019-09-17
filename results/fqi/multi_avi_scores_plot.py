@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.stats as st
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 
 
 def get_mean_and_confidence(data):
@@ -12,21 +13,34 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-games = ['1.000_4.000', '1.000_4.500', '0.800_4.000', '1.200_4.500', '1.000_4.125', '1.000_4.250', '1.000_4.375', '0.850_4.000']]
-n_tasks = [1, 2, 4, 8]
-    
+games = ['1.000_4.000', '1.000_4.500', '0.800_4.000', '1.200_4.500', '1.000_4.125', '1.000_4.250', '1.000_4.375', '0.850_4.000']
+n_tasks = [1,  4, 8]
+
+fig, ax = plt.subplots()
 for i in n_tasks:
     a = np.load(''.join(games[:i]) + '/avi_diff.npy')
 
     a_mean, a_err = get_mean_and_confidence(a)
-    plt.plot(a_mean, linewidth=3)
-    plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
+    ax.plot(a_mean, linewidth=3)
+    ax.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
 plt.xticks([0, 25, 50], fontsize='xx-large')
 plt.yticks(fontsize='xx-large')
 plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='xx-large')
 plt.xlabel('# Iterations', fontsize='xx-large')
 plt.grid()
 plt.legend(n_tasks, fontsize='xx-large')
+
+axins = zoomed_inset_axes(ax, 2, loc=9) # zoom-factor: 2.5, location: upper-left
+for i in n_tasks:
+    a = np.load(''.join(games[:i]) + '/avi_diff.npy')
+    
+    a_mean, a_err = get_mean_and_confidence(a)
+    axins.plot(a_mean, linewidth=3)
+    axins.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
+    x1, x2, y1, y2 = 40, 50, .13, .22 # specify the limits
+    axins.set_xlim(x1, x2) # apply the x-limits
+    axins.set_ylim(y1, y2) # apply the y-limits
+axins.grid()
     
 plt.show()
-    
+
