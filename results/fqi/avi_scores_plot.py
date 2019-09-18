@@ -12,7 +12,7 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-games = ['1.000_4.000', '1.000_4.500', '0.800_4.000', '1.200_4.500']
+games = ['1.000_4.000', '0.800_4.000', '1.000_4.500', '1.200_4.500']
 
 plt.subplot(1, 2, 1)
 a = list()
