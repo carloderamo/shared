@@ -20,11 +20,13 @@ for g in games:
     a.append(np.load(g + '/avi_diff.npy'))
 a = np.array(a)
 
+fs = 25
+
 a_mean, a_err = get_mean_and_confidence(a.mean(0))
-plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='xx-large')
-plt.xlabel('# Iterations', fontsize='xx-large')
-plt.xticks([0, 25, 50], fontsize='xx-large')
-plt.yticks(fontsize='xx-large')
+plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize=fs)
+plt.xlabel('# Iterations', fontsize=fs)
+plt.xticks([0, 25, 50], fontsize=fs)
+plt.yticks(fontsize=fs)
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
     
@@ -34,7 +36,7 @@ a_mean, a_err = get_mean_and_confidence(a)
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
 plt.grid()
-plt.legend(['FQI', 'MULTI'], fontsize='xx-large')
+plt.legend(['FQI', 'MULTI'], fontsize=fs)
 
 plt.subplot(1, 2, 2)
 a = list()
@@ -43,10 +45,10 @@ for g in games:
 a = np.array(a)
 
 a_mean, a_err = get_mean_and_confidence(a.mean(0))
-plt.ylabel('Performance', fontsize='xx-large')
-plt.xlabel('# Iterations', fontsize='xx-large')
-plt.xticks([0, 25, 50], fontsize='xx-large')
-plt.yticks(fontsize='xx-large')
+plt.ylabel('Performance', fontsize=fs)
+plt.xlabel('# Iterations', fontsize=fs)
+plt.xticks([0, 25, 50], fontsize=fs)
+plt.yticks(fontsize=fs)
 plt.plot(a_mean, linewidth=3)
 plt.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
     

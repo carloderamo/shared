@@ -24,12 +24,15 @@ for i in n_tasks:
     a_mean, a_err = get_mean_and_confidence(a)
     ax.plot(a_mean, linewidth=3)
     ax.fill_between(np.arange(a_mean.shape[-1]), a_mean - a_err, a_mean + a_err, alpha=.5)
-plt.xticks([0, 25, 50], fontsize='xx-large')
-plt.yticks(fontsize='xx-large')
-plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize='xx-large')
-plt.xlabel('# Iterations', fontsize='xx-large')
+    
+fs = 25
+    
+plt.xticks([0, 25, 50], fontsize=fs)
+plt.yticks(fontsize=fs)
+plt.ylabel(r'$\Vert Q^* - Q^{\pi_K}\Vert$', fontsize=fs)
+plt.xlabel('# Iterations', fontsize=fs)
 plt.grid()
-plt.legend(n_tasks, fontsize='xx-large')
+plt.legend(n_tasks, fontsize=fs)
 
 axins = zoomed_inset_axes(ax, 2, loc=9) # zoom-factor: 2.5, location: upper-left
 mark_inset(ax, axins, loc1=4, loc2=3, fc="none", ec="0.5")
@@ -43,6 +46,8 @@ for i in n_tasks:
     axins.set_xlim(x1, x2) # apply the x-limits
     axins.set_ylim(y1, y2) # apply the y-limits
 axins.grid()
+axins.set_xticks([])
+axins.set_yticks([])
     
 plt.show()
 
