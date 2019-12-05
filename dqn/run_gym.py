@@ -17,7 +17,7 @@ from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearParameter, Parameter
 
 from core import Core
-from dqn import DQN
+from dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
 from networks import GymNetwork
 from losses import LossFunction
@@ -181,9 +181,14 @@ def experiment(args, idx):
         dtype=np.float32
     )
 
-    agent = DQN(approximator, pi, mdp_info,
-                approximator_params=approximator_params,
-                **algorithm_params)
+    if args.algorithm == 'dqn':
+        agent = DQN(approximator, pi, mdp_info,
+                    approximator_params=approximator_params,
+                    **algorithm_params)
+    elif args.algorithm == 'ddqn':
+        agent = DoubleDQN(approximator, pi, mdp_info,
+                          approximator_params=approximator_params,
+                          **algorithm_params)
 
     # Algorithm
     core = Core(agent, mdp)
@@ -305,6 +310,11 @@ if __name__ == '__main__':
                          help='Epsilon term used in rmspropcentered')
 
     arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
+                         default='dqn',
+                         help='Name of the algorithm. dqn is for standard'
+                              'DQN, ddqn is for Double DQN and adqn is for'
+                              'Averaged DQN.')
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--batch-size", type=int, default=100,
                          help='Batch size for each fit of the network.')
