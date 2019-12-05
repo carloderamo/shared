@@ -17,7 +17,7 @@ from mushroom.utils.dataset import compute_J
 from mushroom.utils.parameters import LinearParameter, Parameter
 
 from core import Core
-from dqn import DQN
+from dqn import DQN, DoubleDQN
 from policy import EpsGreedyMultiple
 from networks import AtariNetwork
 from losses import LossFunction
@@ -53,7 +53,7 @@ def experiment(args, idx):
     gamma_eval = list()
     for i, g in enumerate(args.games):
         mdp.append(Atari(g))
-        gamma_eval.append(mdp[0].info.gamma)
+        gamma_eval.append(mdp[i].info.gamma)
 
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
@@ -130,7 +130,6 @@ def experiment(args, idx):
                            n_actions_per_head=n_actions_per_head)
 
     # Approximator
-    input_shape = [m.info.observation_space.shape for m in mdp]
     n_games = len(args.games)
     loss = LossFunction(n_games, args.batch_size,
                         args.evaluation_frequency)
@@ -174,9 +173,14 @@ def experiment(args, idx):
         history_length=args.history_length
     )
 
-    agent = DQN(approximator, pi, mdp_info,
-                approximator_params=approximator_params,
-                **algorithm_params)
+    if args.algorithm == 'dqn':
+        agent = DQN(approximator, pi, mdp_info,
+                    approximator_params=approximator_params,
+                    **algorithm_params)
+    elif args.algorithm == 'ddqn':
+        agent = DoubleDQN(approximator, pi, mdp_info,
+                          approximator_params=approximator_params,
+                          **algorithm_params)
 
     # Algorithm
     core = Core(agent, mdp)
@@ -300,6 +304,11 @@ if __name__ == '__main__':
                          help='Epsilon term used in rmspropcentered')
 
     arg_alg = parser.add_argument_group('Algorithm')
+    arg_alg.add_argument("--algorithm", choices=['dqn', 'ddqn'],
+                         default='dqn',
+                         help='Name of the algorithm. dqn is for standard'
+                              'DQN, ddqn is for Double DQN and adqn is for'
+                              'Averaged DQN.')
     arg_alg.add_argument("--features", choices=['relu', 'sigmoid'])
     arg_alg.add_argument("--batch-size", type=int, default=32,
                          help='Batch size for each fit of the network.')

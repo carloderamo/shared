@@ -1,9 +1,11 @@
 from copy import deepcopy
 
-import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
 
 from mushroom.algorithms.agent import Agent
 from mushroom.approximators.regressor import Regressor
+from mushroom.approximators.parametric.torch_approximator import *
 
 from replay_memory import PrioritizedReplayMemory, ReplayMemory
 
@@ -217,5 +219,35 @@ class DQN(Agent):
             n_actions = self._n_action_per_head[i][0]
             out_q[start:stop] = np.max(q[start:stop, :n_actions], axis=1)
             out_q[start:stop] *= self.mdp_info.gamma[i]
+
+        return out_q
+
+
+class DoubleDQN(DQN):
+    """
+    Double DQN algorithm.
+    "Deep Reinforcement Learning with Double Q-Learning".
+    Hasselt H. V. et al.. 2016.
+
+    """
+    def _next_q(self):
+        q = self.approximator.predict(self._next_state,
+                                      idx=self._next_state_idxs)
+        out_q = np.zeros(self._batch_size * self._n_games)
+
+        for i in range(self._n_games):
+            start = self._batch_size * i
+            stop = start + self._batch_size
+            n_actions = self._n_action_per_head[i][0]
+            max_a = np.argmax(q[start:stop, :n_actions], axis=1)
+
+            double_q = self.target_approximator.predict(
+                self._next_state[start:stop], max_a,
+                idx=self._next_state_idxs[start:stop]
+            )
+            if np.any(self._absorbing[start:stop]):
+                double_q *= 1 - self._absorbing[start:stop].reshape(-1, 1)
+
+            out_q[start:stop] = double_q * self.mdp_info.gamma[i]
 
         return out_q
