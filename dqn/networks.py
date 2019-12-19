@@ -50,13 +50,13 @@ class AtariNetwork(nn.Module):
                                     gain=nn.init.calculate_gain('linear'))
 
     def forward(self, state, action=None, idx=None):
-        state = state.float()
+        state = state.float() / 255.
 
         h = list()
         for i in np.unique(idx):
             idxs = np.argwhere(idx == i).ravel()
             h_f = F.relu(
-                self._h1[i](state[idxs, :self._n_input[0]].float() / 255.)
+                self._h1[i](state[idxs, :self._n_input[0]])
             )
             h_f = F.relu(self._h2[i](h_f))
             h.append(F.relu(self._h3[i](h_f)))

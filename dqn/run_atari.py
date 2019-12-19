@@ -13,7 +13,7 @@ sys.path.append('..')
 
 from mushroom.approximators.parametric.torch_approximator import TorchApproximator
 from mushroom.environments import *
-from mushroom.utils.dataset import compute_J
+from mushroom.utils.dataset import compute_metrics
 from mushroom.utils.parameters import LinearParameter, Parameter
 
 from core import Core
@@ -36,11 +36,12 @@ def print_epoch(epoch):
     print('----------------------------------------------------------------')
 
 
-def get_stats(dataset, gamma, idx, games):
-    J = np.mean(compute_J(dataset, gamma[idx]))
-    print(games[idx] + ': J: %f' % J)
+def get_stats(dataset, idx, games):
+    score = compute_metrics(dataset)
+    print(games[idx] + ': min_reward: %f, max_reward: %f, mean_reward: %f,'
+          ' games_completed: %d' % score)
 
-    return J
+    return score
 
 
 def experiment(args, idx):
@@ -50,10 +51,8 @@ def experiment(args, idx):
 
     # MDP
     mdp = list()
-    gamma_eval = list()
     for i, g in enumerate(args.games):
         mdp.append(Atari(g))
-        gamma_eval.append(mdp[i].info.gamma)
 
     n_actions_per_head = [(m.info.action_space.n,) for m in mdp]
 
@@ -207,7 +206,7 @@ def experiment(args, idx):
                             quiet=args.quiet)
     for i in range(len(mdp)):
         d = dataset[i::len(mdp)]
-        scores[i].append(get_stats(d, gamma_eval, i, args.games))
+        scores[i].append(get_stats(d, i, args.games)[2])
 
     if args.unfreeze_epoch > 0:
         agent.freeze_shared_weights()
@@ -239,7 +238,7 @@ def experiment(args, idx):
         current_score_sum = 0
         for i in range(len(mdp)):
             d = dataset[i::len(mdp)]
-            current_score = get_stats(d, gamma_eval, i, args.games)
+            current_score = get_stats(d, i, args.games)[2]
             scores[i].append(current_score)
             current_score_sum += current_score
 
