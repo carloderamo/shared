@@ -11,10 +11,10 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric.torch_approximator import TorchApproximator
-from mushroom.environments import *
-from mushroom.utils.dataset import compute_J
-from mushroom.utils.parameters import LinearParameter, Parameter
+from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
+from mushroom_rl.environments import *
+from mushroom_rl.utils.dataset import compute_J
+from mushroom_rl.utils.parameters import LinearParameter, Parameter
 
 from core import Core
 from dqn import DQN, DoubleDQN

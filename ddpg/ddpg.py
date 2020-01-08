@@ -3,8 +3,8 @@ from copy import deepcopy
 import numpy as np
 
 import torch.nn as nn
-from mushroom.algorithms import Agent
-from mushroom.approximators import Regressor
+from mushroom_rl.algorithms import Agent
+from mushroom_rl.approximators import Regressor
 
 from replay_memory import ReplayMemory
 
@@ -71,7 +71,7 @@ class DDPG(Agent):
 
         policy = policy_class(self._actor_approximator, **policy_params)
 
-        super().__init__(policy, mdp_info)
+        super().__init__(mdp_info, policy)
 
         n_samples = self._batch_size * self._n_games
         self._state_idxs = np.zeros(n_samples, dtype=np.int)

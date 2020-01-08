@@ -1,6 +1,6 @@
 import numpy as np
 
-from mushroom.utils.replay_memory import PrioritizedReplayMemory, ReplayMemory, SumTree
+from mushroom_rl.utils.replay_memory import PrioritizedReplayMemory, ReplayMemory, SumTree
 
 
 class ReplayMemory(ReplayMemory):

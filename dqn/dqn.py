@@ -3,9 +3,9 @@ from copy import deepcopy
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mushroom.algorithms.agent import Agent
-from mushroom.approximators.regressor import Regressor
-from mushroom.approximators.parametric.torch_approximator import *
+from mushroom_rl.algorithms.agent import Agent
+from mushroom_rl.approximators.regressor import Regressor
+from mushroom_rl.approximators.parametric.torch_approximator import *
 
 from replay_memory import PrioritizedReplayMemory, ReplayMemory
 
@@ -62,7 +62,7 @@ class DQN(Agent):
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
 
-        super().__init__(policy, mdp_info)
+        super().__init__(mdp_info, policy)
 
         n_samples = self._batch_size * self._n_games
         self._state_idxs = np.zeros(n_samples, dtype=np.int)

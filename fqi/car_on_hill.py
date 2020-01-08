@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.integrate import odeint
 
-from mushroom.environments import Environment, MDPInfo
-from mushroom.utils import spaces
+from mushroom_rl.environments import Environment, MDPInfo
+from mushroom_rl.utils import spaces
 
 
 class CarOnHill(Environment):

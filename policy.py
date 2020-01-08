@@ -2,8 +2,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from mushroom.policy import ParametricPolicy, TDPolicy
-from mushroom.utils.parameters import Parameter
+from mushroom_rl.policy import ParametricPolicy, TDPolicy
+from mushroom_rl.utils.parameters import Parameter
 
 
 class Multiple(TDPolicy):

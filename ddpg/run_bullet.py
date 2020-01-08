@@ -11,9 +11,9 @@ import pickle
 
 sys.path.append('..')
 
-from mushroom.approximators.parametric import TorchApproximator
-from mushroom.environments import *
-from mushroom.utils.dataset import compute_J
+from mushroom_rl.approximators.parametric import TorchApproximator
+from mushroom_rl.environments import *
+from mushroom_rl.utils.dataset import compute_J
 
 from core import Core
 from ddpg import DDPG

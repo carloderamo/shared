@@ -26,8 +26,8 @@ class FQI(BatchTD):
         self._n_games = len(self._n_actions_per_head)
         self._quiet = quiet
 
-        super().__init__(approximator, policy, mdp_info, fit_params,
-                         approximator_params)
+        super().__init__(mdp_info, policy, approximator, approximator_params,
+                         fit_params)
 
         self._target = None
 
