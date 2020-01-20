@@ -53,8 +53,7 @@ def experiment(args, idx):
     gamma_eval = list()
     for i, g in enumerate(args.games):
         if g == 'pendulum':
-            mdp.append(InvertedPendulumDiscrete(horizon=args.horizon[i],
-                                                gamma=args.gamma[i]))
+            mdp.append(CartPole(horizon=args.horizon[i], gamma=args.gamma[i]))
         elif g == 'caronhill':
             mdp.append(CarOnHill(horizon=args.horizon[i], gamma=args.gamma[i]))
         else:
