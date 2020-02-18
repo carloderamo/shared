@@ -23,7 +23,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None, replay_memory=None,
                  target_update_frequency=100, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 lps_update_frequency=100, lps_samples=1000, window_length=10,
+                 lps_update_frequency=100, lps_samples=1000, window_length=None,
                  dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
@@ -93,6 +93,7 @@ class DQN(Agent):
         self.maxs = [deque(maxlen=window_length) for _ in range(self._n_games)]
 
         self.all_norm_lps = list()
+        self.prev_mean_td_errors = np.zeros(self._n_games)
 
     def fit(self, dataset):
         self._fit(dataset)
@@ -257,6 +258,7 @@ class DQN(Agent):
             td_errors *= self.mdp_info.gamma[i]
             td_errors += reward[start:stop] - q[start:stop]
 
+            '''
             abs_td_errors = np.abs(td_errors)
             self.mins[i].append(abs_td_errors.min())
             self.maxs[i].append(abs_td_errors.max())
@@ -265,6 +267,12 @@ class DQN(Agent):
             norm_abs_td_errors = (abs_td_errors - minim) / (maxim - minim)
 
             self.norm_lps[i] = norm_abs_td_errors.mean()
+            '''
+
+            mean_td_errors = td_errors.mean()
+            self.norm_lps[i] = np.abs(mean_td_errors - self.prev_mean_td_errors[i])
+
+            self.prev_mean_td_errors[i] = mean_td_errors
 
         self.norm_lps /= self.norm_lps.sum()
 
