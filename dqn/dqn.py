@@ -269,10 +269,10 @@ class DQN(Agent):
             self.norm_lps[i] = norm_abs_td_errors.mean()
             '''
 
-            mean_td_errors = td_errors.mean()
-            self.norm_lps[i] = np.abs(mean_td_errors - self.prev_mean_td_errors[i])
+            abs_td_errors = np.abs(td_errors)
+            self.norm_lps[i] = np.abs(abs_td_errors.mean() - self.prev_mean_td_errors[i])
 
-            self.prev_mean_td_errors[i] = mean_td_errors
+            self.prev_mean_td_errors[i] = abs_td_errors
 
         self.norm_lps /= self.norm_lps.sum()
 
