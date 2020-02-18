@@ -271,7 +271,8 @@ def experiment(args, idx):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, agent.approximator.model._loss.get_losses(), core.n_samples_per_task
+    return scores, agent.approximator.model._loss.get_losses(), core.n_samples_per_task,\
+        agent.all_norm_lps
 
 
 if __name__ == '__main__':
@@ -394,7 +395,9 @@ if __name__ == '__main__':
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
     n_samples_per_task = np.array([o[2] for o in out])
+    all_norm_lps = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss.npy', loss)
     np.save(folder_name + 'n_samples_per_task.npy', n_samples_per_task)
+    np.save(folder_name + 'all_norm_lps.npy', all_norm_lps)

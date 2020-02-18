@@ -92,6 +92,8 @@ class DQN(Agent):
         self.mins = [deque(maxlen=window_length) for _ in range(self._n_games)]
         self.maxs = [deque(maxlen=window_length) for _ in range(self._n_games)]
 
+        self.all_norm_lps = list()
+
     def fit(self, dataset):
         self._fit(dataset)
 
@@ -265,6 +267,8 @@ class DQN(Agent):
             self.norm_lps[i] = norm_abs_td_errors.mean()
 
         self.norm_lps /= self.norm_lps.sum()
+
+        self.all_norm_lps.append(self.norm_lps)
 
     def _next_q(self):
         q = self.target_approximator.predict(self._next_state,
