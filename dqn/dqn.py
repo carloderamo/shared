@@ -268,7 +268,7 @@ class DQN(Agent):
 
         self.norm_lps /= self.norm_lps.sum()
 
-        self.all_norm_lps.append(self.norm_lps)
+        self.all_norm_lps.append(self.norm_lps.copy())
 
     def _next_q(self):
         q = self.target_approximator.predict(self._next_state,

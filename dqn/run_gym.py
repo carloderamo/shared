@@ -361,7 +361,7 @@ if __name__ == '__main__':
                          help="Number of epoch where to unfreeze shared weights.")
     arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
     arg_alg.add_argument("--lps-samples", type=int, default=1000)
-    arg_alg.add_argument("--window-length", type=int, default=10)
+    arg_alg.add_argument("--window-length", type=int, default=None)
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
