@@ -12,7 +12,6 @@ def get_mean_and_confidence(data):
 
     return mean, interval
 
-folders = ['dqn', 'multidqn']
 games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendulum']
 reg = ['noreg']
 activation = ['sigmoid']
@@ -34,12 +33,18 @@ for i, g in enumerate(games):
             
             multi = np.load('multidqn/' + s + '/scores.npy')[:, i]
             multi_mean, multi_err = get_mean_and_confidence(multi)
+
+            prism = np.load('prism/' + s + '/scores.npy')[:, i]
+            prism_mean, prism_err = get_mean_and_confidence(prism)
             
             plt.plot(single_mean, linewidth=3)
             plt.fill_between(np.arange(51), single_mean - single_err, single_mean + single_err, alpha=.5)
             
             plt.plot(multi_mean, linewidth=3)
             plt.fill_between(np.arange(51), multi_mean - multi_err, multi_mean + multi_err, alpha=.5)
+
+            plt.plot(prism_mean, linewidth=3)
+            plt.fill_between(np.arange(51), prism_mean - prism_err, prism_mean + prism_err, alpha=.5)
 
             plt.xlabel('#Epochs', fontsize=20)
 
@@ -55,7 +60,7 @@ for i, g in enumerate(games):
             
             j += 1
 
-plt.legend(['DQN', 'MULTI'], fontsize=20, loc='lower right')
+plt.legend(['DQN', 'MULTI', 'PRISM'], fontsize=20, loc='lower right')
 
 plt.show()
 

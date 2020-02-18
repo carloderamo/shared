@@ -177,7 +177,10 @@ def experiment(args, idx):
         n_actions_per_head=n_actions_per_head,
         clip_reward=False,
         history_length=args.history_length,
-        dtype=np.float32
+        dtype=np.float32,
+        lps_update_frequency=args.lps_update_frequency,
+        lps_samples=args.lps_samples,
+        window_length=args.window_length
     )
 
     if args.algorithm == 'dqn':
@@ -234,12 +237,14 @@ def experiment(args, idx):
         print('- Learning:')
         # learning step
         pi.set_parameter(None)
+        core.task_sampling = True
         core.learn(n_steps=evaluation_frequency,
                    n_steps_per_fit=train_frequency, quiet=args.quiet)
 
         print('- Evaluation:')
         # evaluation step
         pi.set_parameter(epsilon_test)
+        core.task_sampling = False
         dataset = core.evaluate(n_steps=test_samples,
                                 render=args.render, quiet=args.quiet)
 
@@ -266,7 +271,7 @@ def experiment(args, idx):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, agent.approximator.model._loss.get_losses()
+    return scores, agent.approximator.model._loss.get_losses(), core.n_samples_per_task
 
 
 if __name__ == '__main__':
@@ -353,6 +358,9 @@ if __name__ == '__main__':
                          help='filename where to save the shared weights')
     arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
                          help="Number of epoch where to unfreeze shared weights.")
+    arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
+    arg_alg.add_argument("--lps-samples", type=int, default=1000)
+    arg_alg.add_argument("--window-length", type=int, default=10)
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -385,6 +393,8 @@ if __name__ == '__main__':
 
     scores = np.array([o[0] for o in out])
     loss = np.array([o[1] for o in out])
+    n_samples_per_task = np.array([o[2] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
     np.save(folder_name + 'loss.npy', loss)
+    np.save(folder_name + 'n_samples_per_task.npy', n_samples_per_task)

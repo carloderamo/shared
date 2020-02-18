@@ -1,3 +1,6 @@
+from copy import copy
+
+import numpy as np
 from tqdm import tqdm
 
 
@@ -14,6 +17,9 @@ class Core(object):
         self._current_steps_counter = 0
         self._episode_steps = [None for _ in range(self._n_mdp)]
         self._n_steps_per_fit = None
+
+        self.task_sampling = False
+        self.n_samples_per_task = list()
 
     def learn(self, n_steps=None, n_steps_per_fit=None, render=False,
               quiet=False):
@@ -48,7 +54,19 @@ class Core(object):
         dataset = list()
         last = [True] * self._n_mdp
         while move_condition():
-            for i in range(self._n_mdp):
+            if self.task_sampling is False:
+                mdps = np.arange(self._n_mdp)
+            else:
+                mdps = np.random.choice(self._n_mdp, size=self._n_mdp,
+                                        p=self.agent.norm_lps)
+
+            sampled_tasks = np.zeros(self._n_mdp) if not self.n_samples_per_task else copy(self.n_samples_per_task[-1])
+            tasks, counts = np.unique(mdps, return_counts=True)
+            for i, t in enumerate(tasks):
+                sampled_tasks[t] += counts[i]
+            self.n_samples_per_task.append(sampled_tasks)
+
+            for i in mdps:
                 if last[i]:
                     self.reset(i)
 

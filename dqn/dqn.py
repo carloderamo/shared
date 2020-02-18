@@ -1,3 +1,4 @@
+from collections import deque
 from copy import deepcopy
 
 import torch.nn as nn
@@ -20,8 +21,9 @@ class DQN(Agent):
     def __init__(self, approximator, policy, mdp_info, batch_size,
                  initial_replay_size, max_replay_size, n_actions_per_head,
                  history_length=4, n_input_per_mdp=None, replay_memory=None,
-                 target_update_frequency=2500, fit_params=None,
+                 target_update_frequency=100, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
+                 lps_update_frequency=100, lps_samples=1000, window_length=10,
                  dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
@@ -37,6 +39,9 @@ class DQN(Agent):
         self._history_length = history_length
         self._max_actions = max(n_actions_per_head)[0]
         self._target_update_frequency = target_update_frequency
+        self._lps_update_frequency = lps_update_frequency
+        self._lps_samples = lps_samples
+        self._dtype = dtype
 
         if replay_memory is not None:
             self._replay_memory = replay_memory
@@ -83,12 +88,19 @@ class DQN(Agent):
         self._idxs = np.zeros(n_samples, dtype=np.int)
         self._is_weight = np.zeros(n_samples)
 
+        self.norm_lps = np.ones(self._n_games) / self._n_games
+        self.mins = [deque(maxlen=window_length) for _ in range(self._n_games)]
+        self.maxs = [deque(maxlen=window_length) for _ in range(self._n_games)]
+
     def fit(self, dataset):
         self._fit(dataset)
 
         self._n_updates += 1
         if self._n_updates % self._target_update_frequency == 0:
             self._update_target()
+
+        if self._n_updates % self._lps_update_frequency == 0:
+            self._update_lps()
 
     def _fit_standard(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
@@ -203,6 +215,56 @@ class DQN(Agent):
         """
         self.target_approximator.model.set_weights(
             self.approximator.model.get_weights())
+
+    def _update_lps(self):
+        n_samples = self._lps_samples * self._n_games
+        state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape),
+            dtype=self._dtype
+        ).squeeze()
+        action = np.zeros((n_samples, 1), dtype=np.int)
+        reward = np.zeros(n_samples)
+        next_state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape),
+            dtype=self._dtype
+        ).squeeze()
+        absorbing = np.zeros(n_samples)
+        idxs = np.zeros(n_samples, dtype=np.int)
+        for i in range(self._n_games):
+            start = self._lps_samples * i
+            stop = start + self._lps_samples
+            state[start:stop, :self._n_input_per_mdp[i][0]],\
+                action[start:stop], reward[start:stop],\
+                next_state[start:stop, :self._n_input_per_mdp[i][0]],\
+                absorbing[start:stop], _ = self._replay_memory[i].get(self._lps_samples)
+            idxs[start:stop] = np.ones(self._lps_samples, dtype=np.int) * i
+
+        next_q = self.target_approximator.predict(next_state, idx=idxs)
+        q = self.target_approximator.predict(state, action, idx=idxs)
+
+        for i in range(self._n_games):
+            start = self._lps_samples * i
+            stop = start + self._lps_samples
+            if np.any(absorbing[start:stop]):
+                next_q[start:stop] *= 1 - absorbing[start:stop].reshape(-1, 1)
+
+            n_actions = self._n_action_per_head[i][0]
+            td_errors = np.max(next_q[start:stop, :n_actions], axis=1)
+            td_errors *= self.mdp_info.gamma[i]
+            td_errors += reward[start:stop] - q[start:stop]
+
+            abs_td_errors = np.abs(td_errors)
+            self.mins[i].append(abs_td_errors.min())
+            self.maxs[i].append(abs_td_errors.max())
+            minim = np.min(self.mins[i])
+            maxim = np.max(self.maxs[i])
+            norm_abs_td_errors = (abs_td_errors - minim) / (maxim - minim)
+
+            self.norm_lps[i] = norm_abs_td_errors.mean()
+
+        self.norm_lps /= self.norm_lps.sum()
 
     def _next_q(self):
         q = self.target_approximator.predict(self._next_state,
