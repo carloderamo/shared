@@ -60,6 +60,7 @@ class Core(object):
             else:
                 eps = self._epsilon()
                 p = eps / self._n_mdp + (1 - eps) * (self.agent.norm_lps) / self.agent.norm_lps.sum()
+                print(p)
                 mdps = np.random.choice(self._n_mdp, size=self._n_mdp, p=p)
 
                 sampled_tasks = np.zeros(self._n_mdp) if not self.n_samples_per_task else copy(self.n_samples_per_task[-1])

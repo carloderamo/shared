@@ -363,8 +363,8 @@ if __name__ == '__main__':
     arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
     arg_alg.add_argument("--lps-samples", type=int, default=1000)
     arg_alg.add_argument("--initial-prism-rate", type=int, default=1)
-    arg_alg.add_argument("--final-prism-rate", type=int, default=.1)
-    arg_alg.add_argument("--final-prism-step", type=int, default=25000)
+    arg_alg.add_argument("--final-prism-rate", type=int, default=0)
+    arg_alg.add_argument("--final-prism-step", type=int, default=40000)
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',

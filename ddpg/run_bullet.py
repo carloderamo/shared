@@ -301,7 +301,7 @@ if __name__ == '__main__':
     arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
     arg_alg.add_argument("--lps-samples", type=int, default=1000)
     arg_alg.add_argument("--initial-prism-rate", type=int, default=1)
-    arg_alg.add_argument("--final-prism-rate", type=int, default=.1)
+    arg_alg.add_argument("--final-prism-rate", type=int, default=0)
     arg_alg.add_argument("--final-prism-step", type=int, default=7500000)
 
     arg_utils = parser.add_argument_group('Utils')
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     with open(folder_name + 'args.pkl', 'wb') as f:
         pickle.dump(args, f)
 
-    out = Parallel(n_jobs=4)(delayed(experiment)(i, args)
+    out = Parallel(n_jobs=-1)(delayed(experiment)(i, args)
                              for i in range(args.n_exp))
 
     scores = np.array([o[0] for o in out])
