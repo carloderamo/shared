@@ -5,9 +5,10 @@ from tqdm import tqdm
 
 
 class Core(object):
-    def __init__(self, agent, mdp, callbacks=None):
+    def __init__(self, agent, mdp, epsilon, callbacks=None):
         self.agent = agent
         self.mdp = mdp
+        self._epsilon = epsilon
         self._n_mdp = len(self.mdp)
         self.callbacks = callbacks if callbacks is not None else list()
 
@@ -57,14 +58,15 @@ class Core(object):
             if self.task_sampling is False:
                 mdps = np.arange(self._n_mdp)
             else:
-                mdps = np.random.choice(self._n_mdp, size=self._n_mdp,
-                                        p=self.agent.norm_lps)
+                eps = self.epsilon()
+                p = eps / self._n_mdp + (1 - eps) * (self.agent.norm_lps) / self.agent.norm_lps.sum()
+                mdps = np.random.choice(self._n_mdp, size=self._n_mdp, p=p)
 
-            sampled_tasks = np.zeros(self._n_mdp) if not self.n_samples_per_task else copy(self.n_samples_per_task[-1])
-            tasks, counts = np.unique(mdps, return_counts=True)
-            for i, t in enumerate(tasks):
-                sampled_tasks[t] += counts[i]
-            self.n_samples_per_task.append(sampled_tasks)
+                sampled_tasks = np.zeros(self._n_mdp) if not self.n_samples_per_task else copy(self.n_samples_per_task[-1])
+                tasks, counts = np.unique(mdps, return_counts=True)
+                for i, t in enumerate(tasks):
+                    sampled_tasks[t] += counts[i]
+                self.n_samples_per_task.append(sampled_tasks)
 
             for i in mdps:
                 if last[i]:

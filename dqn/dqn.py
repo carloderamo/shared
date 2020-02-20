@@ -23,8 +23,7 @@ class DQN(Agent):
                  history_length=4, n_input_per_mdp=None, replay_memory=None,
                  target_update_frequency=100, fit_params=None,
                  approximator_params=None, n_games=1, clip_reward=True,
-                 lps_update_frequency=100, lps_samples=1000, window_length=None,
-                 dtype=np.uint8):
+                 lps_update_frequency=100, lps_samples=1000, dtype=np.uint8):
         self._fit_params = dict() if fit_params is None else fit_params
 
         self._batch_size = batch_size
@@ -89,11 +88,7 @@ class DQN(Agent):
         self._is_weight = np.zeros(n_samples)
 
         self.norm_lps = np.ones(self._n_games) / self._n_games
-        self.mins = [deque(maxlen=window_length) for _ in range(self._n_games)]
-        self.maxs = [deque(maxlen=window_length) for _ in range(self._n_games)]
-
         self.all_norm_lps = list()
-        self.prev_mean_td_errors = np.zeros(self._n_games)
 
     def fit(self, dataset):
         self._fit(dataset)
@@ -247,6 +242,7 @@ class DQN(Agent):
         next_q = self.target_approximator.predict(next_state, idx=idxs)
         q = self.target_approximator.predict(state, action, idx=idxs)
 
+        norm_lps = np.zeros((self._n_games, self._lps_samples))
         for i in range(self._n_games):
             start = self._lps_samples * i
             stop = start + self._lps_samples
@@ -258,23 +254,9 @@ class DQN(Agent):
             td_errors *= self.mdp_info.gamma[i]
             td_errors += reward[start:stop] - q[start:stop]
 
-            '''
-            abs_td_errors = np.abs(td_errors)
-            self.mins[i].append(abs_td_errors.min())
-            self.maxs[i].append(abs_td_errors.max())
-            minim = np.min(self.mins[i])
-            maxim = np.max(self.maxs[i])
-            norm_abs_td_errors = (abs_td_errors - minim) / (maxim - minim)
+            norm_lps[i] = np.abs(td_errors)
 
-            self.norm_lps[i] = norm_abs_td_errors.mean()
-            '''
-
-            abs_td_errors = np.abs(td_errors)
-            self.norm_lps[i] = np.abs(abs_td_errors.mean() - self.prev_mean_td_errors[i])
-
-            self.prev_mean_td_errors[i] = abs_td_errors
-
-        self.norm_lps /= self.norm_lps.sum()
+        self.norm_lps = norm_lps.mean(1)
 
         self.all_norm_lps.append(self.norm_lps.copy())
 

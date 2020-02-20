@@ -28,7 +28,8 @@ class DDPG(Agent):
                  mdp_info, batch_size, initial_replay_size, max_replay_size,
                  tau, actor_params, critic_params, policy_params,
                  n_actions_per_head, history_length=1, n_input_per_mdp=None,
-                 n_games=1, dtype=np.uint8):
+                 n_games=1, lps_update_frequency=100, lps_samples=1000,
+                 dtype=np.uint8):
         self._batch_size = batch_size
         self._n_games = n_games
         if n_input_per_mdp is None:
@@ -40,6 +41,8 @@ class DDPG(Agent):
         self._max_actions = max(n_actions_per_head)[0]
         self._history_length = history_length
         self._tau = tau
+        self._lps_update_frequency = lps_update_frequency
+        self._lps_samples = lps_samples
 
         self._replay_memory = [
             ReplayMemory(initial_replay_size,
@@ -90,6 +93,9 @@ class DDPG(Agent):
         ).squeeze()
         self._absorbing = np.zeros(n_samples)
 
+        self.norm_lps = np.ones(self._n_games) / self._n_games
+        self.all_norm_lps = list()
+
     def fit(self, dataset):
         s = np.array([d[0][0] for d in dataset]).ravel()
         games = np.unique(s)
@@ -133,6 +139,9 @@ class DDPG(Agent):
 
             self._update_target()
 
+            if self._n_updates % self._lps_update_frequency == 0:
+                self._update_lps()
+
     def get_shared_weights(self):
         cw = self._critic_approximator.model.network.get_shared_weights()
         aw = self._actor_approximator.model.network.get_shared_weights()
@@ -163,6 +172,52 @@ class DDPG(Agent):
         actor_weights = self._tau * self._actor_approximator.model.get_weights()
         actor_weights += (1 - self._tau) * self._target_actor_approximator.get_weights()
         self._target_actor_approximator.set_weights(actor_weights)
+
+    def _update_lps(self):
+        n_samples = self._lps_samples * self._n_games
+        state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape)
+        ).squeeze()
+        action = np.zeros((n_samples, self._max_actions))
+        reward = np.zeros(n_samples)
+        next_state = np.zeros(
+            ((n_samples,
+             self._history_length) + self.mdp_info.observation_space.shape)
+        ).squeeze()
+        absorbing = np.zeros(n_samples)
+        idxs = np.zeros(n_samples, dtype=np.int)
+        for i in range(self._n_games):
+            start = self._lps_samples * i
+            stop = start + self._lps_samples
+            state[start:stop, :self._n_input_per_mdp[i][0]],\
+                action[start:stop, :self._n_actions_per_head[i][0]], reward[start:stop],\
+                next_state[start:stop, :self._n_input_per_mdp[i][0]],\
+                absorbing[start:stop], _ = self._replay_memory[i].get(self._lps_samples)
+            idxs[start:stop] = np.ones(self._lps_samples, dtype=np.int) * i
+
+        next_action = self._target_actor_approximator(next_state,
+                                                      idx=idxs)
+        next_q = self._target_critic_approximator.predict(next_state,
+                                                          next_action,
+                                                          idx=idxs)
+        q = self._target_critic_approximator.predict(state, action, idx=idxs)
+
+        norm_lps = np.zeros((self._n_games, self._lps_samples))
+        for i in range(self._n_games):
+            start = self._lps_samples * i
+            stop = start + self._lps_samples
+            if np.any(absorbing[start:stop]):
+                next_q[start:stop] *= 1 - absorbing[start:stop]
+
+            td_errors = self.mdp_info.gamma[i] * next_q[start:stop]
+            td_errors += reward[start:stop] - q[start:stop]
+
+            norm_lps[i] = np.abs(td_errors)
+
+        self.norm_lps = norm_lps.mean(1)
+
+        self.all_norm_lps.append(self.norm_lps.copy())
 
     def _next_q(self):
         a = self._target_actor_approximator(self._next_state,

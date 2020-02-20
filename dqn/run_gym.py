@@ -179,8 +179,7 @@ def experiment(args, idx):
         history_length=args.history_length,
         dtype=np.float32,
         lps_update_frequency=args.lps_update_frequency,
-        lps_samples=args.lps_samples,
-        window_length=args.window_length
+        lps_samples=args.lps_samples
     )
 
     if args.algorithm == 'dqn':
@@ -193,7 +192,9 @@ def experiment(args, idx):
                           **algorithm_params)
 
     # Algorithm
-    core = Core(agent, mdp)
+    epsilon = LinearParameter(args.initial_prism_rate, args.final_prism_rate,
+                              args.final_prism_step)
+    core = Core(agent, mdp, epsilon)
 
     # RUN
 
@@ -361,7 +362,9 @@ if __name__ == '__main__':
                          help="Number of epoch where to unfreeze shared weights.")
     arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
     arg_alg.add_argument("--lps-samples", type=int, default=1000)
-    arg_alg.add_argument("--window-length", type=int, default=None)
+    arg_alg.add_argument("--initial-prism-rate", type=int, default=1)
+    arg_alg.add_argument("--final-prism-rate", type=int, default=.1)
+    arg_alg.add_argument("--final-prism-step", type=int, default=25000)
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
