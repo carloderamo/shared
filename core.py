@@ -58,7 +58,7 @@ class Core(object):
             if self.task_sampling is False:
                 mdps = np.arange(self._n_mdp)
             else:
-                eps = self.epsilon()
+                eps = self._epsilon()
                 p = eps / self._n_mdp + (1 - eps) * (self.agent.norm_lps) / self.agent.norm_lps.sum()
                 mdps = np.random.choice(self._n_mdp, size=self._n_mdp, p=p)
 
