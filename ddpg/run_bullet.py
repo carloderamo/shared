@@ -230,6 +230,8 @@ def experiment(idx, args):
             scores[i].append(current_score)
             current_score_sum += current_score
 
+        print('Samples per task: ', core.n_samples_per_task[-1])
+
         # Save shared weights if best score
         if args.save_shared and current_score_sum >= best_score_sum:
             best_score_sum = current_score_sum
