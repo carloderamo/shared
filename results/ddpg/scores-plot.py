@@ -106,5 +106,5 @@ if alg != '':
                     tick.label.set_fontsize(22)
                 ax[i].set_xticks([0, 50, 100])
 
-ax[leg_idx].legend(['DDPG', 'MULTI'], loc='lower right', fontsize=22)
+ax[leg_idx].legend(['DDPG', 'MULTI', 'PRISM'], loc='lower right', fontsize=22)
 plt.show()
