@@ -72,5 +72,39 @@ if alg != '':
                     tick.label.set_fontsize(22)
                 ax[i].set_xticks([0, 50, 100])
 
+if show_pendulum:
+    alg = 'prism_pendulum'
+    games = ['InvertedPendulumBulletEnv-v0', 'InvertedDoublePendulumBulletEnv-v0',
+             'InvertedPendulumSwingupBulletEnv-v0']
+    titles = ['Inverted-Pendulum', 'Inverted-Double-Pendulum', 'Inverted-Pendulum-Swingup']
+else:
+    alg = 'prism_walker'
+    games = ['hop_stand', 'walk_walk', 'chee_run']
+    titles = ['Hopper', 'Walker', 'Half-Cheetah']
+
+if alg != '':
+    for r in reg:
+        for act in activation:
+            name = r + '-' + act
+            path = alg + '/' + name + '/'
+
+            legend_items.append(name)
+            a = np.load(path + 'scores.npy')
+            a_mean, a_err = get_mean_and_confidence(a)
+            for i, g in enumerate(games):
+                ax[i].plot(a_mean[i], linewidth=3)
+                ax[i].fill_between(np.arange(len(a_mean[i])),
+                                   a_mean[i] - a_err[i], a_mean[i] + a_err[i],
+                                   alpha=.5)
+                ax[i].set_xlabel('#Epochs', fontsize=22)
+                if i == 0:
+                    ax[i].set_ylabel('Performance', fontsize=22)
+                for tick in ax[i].xaxis.get_major_ticks():
+                    tick.label.set_fontsize(22)
+                    tick.label
+                for tick in ax[i].yaxis.get_major_ticks():
+                    tick.label.set_fontsize(22)
+                ax[i].set_xticks([0, 50, 100])
+
 ax[leg_idx].legend(['DDPG', 'MULTI'], loc='lower right', fontsize=22)
 plt.show()
