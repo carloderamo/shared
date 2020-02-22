@@ -14,6 +14,7 @@ sys.path.append('..')
 from mushroom_rl.approximators.parametric import TorchApproximator
 from mushroom_rl.environments import *
 from mushroom_rl.utils.dataset import compute_J
+from mushroom_rl.utils.parameters import LinearParameter
 
 from core import Core
 from ddpg import DDPG
@@ -160,14 +161,18 @@ def experiment(idx, args):
         n_games=len(domains),
         n_input_per_mdp=n_input_per_mdp,
         n_actions_per_head=n_actions_per_head,
-        dtype=np.float32
+        dtype=np.float32,
+        lps_update_frequency=args.lps_update_frequency,
+        lps_samples=args.lps_samples
     )
 
     agent = DDPG(actor_approximator, critic_approximator, policy_class,
                  mdp_info, **algorithm_params)
 
     # Algorithm
-    core = Core(agent, mdp)
+    epsilon = LinearParameter(args.initial_prism_rate, args.final_prism_rate,
+                              args.final_prism_step)
+    core = Core(agent, mdp, epsilon)
 
     # RUN
 
@@ -242,7 +247,8 @@ def experiment(idx, args):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, agent._critic_approximator.model._loss.get_losses()
+    return scores, agent._critic_approximator.model._loss.get_losses(), core.n_samples_per_task,\
+        agent.all_norm_lps
 
 
 if __name__ == '__main__':
@@ -293,6 +299,11 @@ if __name__ == '__main__':
                          help='filename where to save the shared weights')
     arg_alg.add_argument("--unfreeze-epoch", type=int, default=0,
                          help="Number of epoch where to unfreeze shared weights.")
+    arg_alg.add_argument("--lps-update-frequency", type=int, default=100)
+    arg_alg.add_argument("--lps-samples", type=int, default=1000)
+    arg_alg.add_argument("--initial-prism-rate", type=int, default=1)
+    arg_alg.add_argument("--final-prism-rate", type=int, default=0)
+    arg_alg.add_argument("--final-prism-step", type=int, default=7500000)
 
     arg_utils = parser.add_argument_group('Utils')
     arg_utils.add_argument('--use-cuda', action='store_true',
@@ -322,10 +333,14 @@ if __name__ == '__main__':
         pickle.dump(args, f)
 
     out = Parallel(n_jobs=-1)(delayed(experiment)(i, args)
-                              for i in range(args.n_exp))
+                             for i in range(args.n_exp))
 
     scores = np.array([o[0] for o in out])
     critic_loss = np.array([o[1] for o in out])
+    n_samples_per_task = np.array([o[2] for o in out])
+    all_norm_lps = np.array([o[3] for o in out])
 
     np.save(folder_name + 'scores.npy', scores)
-    np.save(folder_name + 'critic_loss_raw.npy', critic_loss)
+    np.save(folder_name + 'critic_loss.npy', critic_loss)
+    np.save(folder_name + 'n_samples_per_task.npy', n_samples_per_task)
+    np.save(folder_name + 'all_norm_lps.npy', all_norm_lps)

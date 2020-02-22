@@ -248,7 +248,7 @@ def experiment(idx, args):
     if args.save_shared:
         pickle.dump(best_weights, open(args.save_shared, 'wb'))
 
-    return scores, agent.approximator.model._loss.get_losses(), core.n_samples_per_task,\
+    return scores, agent._critic_approximator.model._loss.get_losses(), core.n_samples_per_task,\
         agent.all_norm_lps
 
 
