@@ -15,6 +15,7 @@ def get_mean_and_confidence(data):
 games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendulum']
 reg = ['noreg']
 activation = ['sigmoid']
+epsilon = 'epsilon_1_.1'
 n_games = len(games)
 n_settings = len(reg) * len(activation)
 
@@ -34,7 +35,7 @@ for i, g in enumerate(games):
             multi = np.load('multidqn/' + s + '/scores.npy')[:, i]
             multi_mean, multi_err = get_mean_and_confidence(multi)
 
-            prism = np.load('prism/' + s + '/scores.npy')[:, i]
+            prism = np.load('prism/' + s + '/' + epsilon + '/scores.npy')[:, i]
             prism_mean, prism_err = get_mean_and_confidence(prism)
             
             plt.plot(single_mean, linewidth=3)
