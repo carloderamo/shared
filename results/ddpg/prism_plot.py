@@ -16,6 +16,7 @@ games = ['Inverted-Pendulum', 'Inverted-Double-Pendulum', 'Inverted-Pendulum-Swi
 xlabels = ['#Target updates', '#Epochs']
 ylabels = ['Learning progress', '#Samples']
 files = ['all_norm_lps.npy', 'n_samples_per_task.npy']
+colors = ['darkred', 'orangered', 'gold']
 
 for i in range(2):
     plt.subplot(1, 2, i + 1)
@@ -24,8 +25,8 @@ for i in range(2):
     for j, g in enumerate(games):
         prism_mean, prism_err = get_mean_and_confidence(prism[..., j])
 
-        plt.plot(prism_mean, linewidth=3)
-        plt.fill_between(np.arange(prism_mean.shape[0]), prism_mean - prism_err, prism_mean + prism_err, alpha=.5)
+        plt.plot(prism_mean, linewidth=3, color=colors[j])
+        plt.fill_between(np.arange(prism_mean.shape[0]), prism_mean - prism_err, prism_mean + prism_err, alpha=.5, color=colors[j])
 
         plt.xlabel(xlabels[i], fontsize=20)
         plt.ylabel(ylabels[i], fontsize=20)
@@ -41,8 +42,7 @@ for i in range(2):
         
         # plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-plt.legend(games, fontsize=20, loc='upper left')
 plt.plot(np.arange(20000), 50 * np.arange(20000), linewidth=3, color='k')
+plt.legend(games, fontsize=20, loc='best', ncol=3, bbox_to_anchor=(.5, -0.1, .5, 0))
 
 plt.show()
-
