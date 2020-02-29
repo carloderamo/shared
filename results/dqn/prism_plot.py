@@ -16,34 +16,40 @@ games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendul
 xlabels = ['#Target updates', '#Epochs']
 ylabels = ['Learning progress', '#Samples']
 files = ['all_norm_lps.npy', 'n_samples_per_task.npy']
-s = 'noreg-sigmoid/epsilon_40000_.2'
+s = ['noreg-sigmoid/epsilon_40000_.2', 'noreg-sigmoid/epsilon_1_.1']
+colors = ['darkred', 'orangered', 'gold', 'mediumseagreen', 'royalblue']
+titles = [r'$\varepsilon=0.2$', r'$\varepsilon=0.1$']
+sp = [1, 3, 2, 4]
 
-for i in range(2):
-    plt.subplot(1, 2, i + 1)
-    prism = np.load('prism/' + s + '/' + files[i])
-    
+for i in range(4):
+    plt.subplot(2, 2, sp[i])
+    prism = np.load('prism/' + s[i // 2] + '/' + files[i % 2])
+
     for j, g in enumerate(games):
         prism_mean, prism_err = get_mean_and_confidence(prism[..., j])
 
-        plt.plot(prism_mean, linewidth=3)
-        plt.fill_between(np.arange(prism_mean.shape[0]), prism_mean - prism_err, prism_mean + prism_err, alpha=.5)
+        plt.plot(prism_mean, linewidth=3, color=colors[j])
+        plt.fill_between(np.arange(prism_mean.shape[0]), prism_mean - prism_err, prism_mean + prism_err, alpha=.5, color=colors[j])
 
-        plt.xlabel(xlabels[i], fontsize=20)
-        plt.ylabel(ylabels[i], fontsize=20)
-        
-        if i == 1:
+        plt.xlabel(xlabels[i % 2], fontsize=20)
+        if i // 2 == 0:
+            plt.ylabel(ylabels[i % 2], fontsize=20)
+
+        if i % 2 == 1:
             plt.xticks([0, 2500, 5000], [0, 25, 50], fontsize=20)
+            plt.plot(np.arange(5000), 10 * np.arange(5000), linewidth=3, color='k')
+
         else:
             plt.xticks(fontsize=20)
+            plt.title(titles[i // 2], fontsize=20)
 
         plt.yticks(fontsize=20)
-        
+
         plt.grid()
-        
+
         # plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-plt.legend(games, fontsize=20, loc='upper left')
-plt.plot(np.arange(5000), 10 * np.arange(5000), linewidth=3, color='k')
+plt.legend(games, fontsize=20, loc='best', bbox_to_anchor=(.5, -.2, .5, 0) , ncol=len(games))
 
 plt.show()
 

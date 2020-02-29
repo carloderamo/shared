@@ -15,7 +15,7 @@ def get_mean_and_confidence(data):
 games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendulum']
 reg = ['noreg']
 activation = ['sigmoid']
-epsilon = 'epsilon_1_.1'
+epsilon = 'epsilon_40000_.2'
 n_games = len(games)
 n_settings = len(reg) * len(activation)
 
