@@ -14,7 +14,7 @@ def get_mean_and_confidence(data):
 
 games = ['Cart-Pole', 'Acrobot', 'Mountain-Car', 'Car-On-Hill', 'Inverted-Pendulum']
 xlabels = ['#Target updates', '#Epochs']
-ylabels = ['Learning progresses', '#Samples']
+ylabels = ['Learning progress', '#Samples']
 files = ['all_norm_lps.npy', 'n_samples_per_task.npy']
 s = 'noreg-sigmoid/epsilon_40000_.2'
 
