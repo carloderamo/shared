@@ -18,7 +18,7 @@ ylabels = ['Learning progress', '#Samples']
 files = ['all_norm_lps.npy', 'n_samples_per_task.npy']
 s = ['noreg-sigmoid/epsilon_40000_.2', 'noreg-sigmoid/epsilon_1_.1']
 colors = ['darkred', 'orangered', 'gold', 'mediumseagreen', 'royalblue']
-titles = [r'$\varepsilon=0.2$', r'$\varepsilon=0.1$']
+titles = [r'Decaying $\varepsilon$', r'$\varepsilon=0.1$']
 sp = [1, 3, 2, 4]
 
 for i in range(4):
@@ -37,8 +37,6 @@ for i in range(4):
 
         if i % 2 == 1:
             plt.xticks([0, 2500, 5000], [0, 25, 50], fontsize=20)
-            plt.plot(np.arange(5000), 10 * np.arange(5000), linewidth=3, color='k')
-
         else:
             plt.xticks(fontsize=20)
             plt.title(titles[i // 2], fontsize=20)
@@ -49,7 +47,12 @@ for i in range(4):
 
         # plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
-plt.legend(games, fontsize=20, loc='best', bbox_to_anchor=(.5, -.2, .5, 0) , ncol=len(games))
+plt.legend(games, fontsize=20, loc='best', bbox_to_anchor=(.5, -.25, .5, 0) , ncol=len(games))
+
+plt.subplot(2, 2, 3)
+plt.plot(np.arange(5000), 10 * np.arange(5000), linewidth=3, color='k')
+plt.subplot(2, 2, 4)
+plt.plot(np.arange(5000), 10 * np.arange(5000), linewidth=3, color='k')
 
 plt.show()
 

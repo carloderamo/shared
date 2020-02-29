@@ -32,9 +32,9 @@ for i in range(2):
         plt.ylabel(ylabels[i], fontsize=20)
         
         if i == 1:
-            plt.xticks([0, 2500, 5000], [0, 25, 50], fontsize=20)
+            plt.xticks([0, 10000, 20000], [0, 25, 50], fontsize=20)
         else:
-            plt.xticks(fontsize=20)
+            plt.xticks([0, 1666, 3333], [0, 5000, 10000], fontsize=20)
 
         plt.yticks(fontsize=20)
         
@@ -43,6 +43,6 @@ for i in range(2):
         # plt.tick_params(axis='x', which='both', bottom=False, top=False, labelbottom=False)
 
 plt.plot(np.arange(20000), 50 * np.arange(20000), linewidth=3, color='k')
-plt.legend(games, fontsize=20, loc='best', ncol=3, bbox_to_anchor=(.5, -0.1, .5, 0))
+plt.legend(games, fontsize=20, loc='best', ncol=3, bbox_to_anchor=(.5, -0.15, .5, 0))
 
 plt.show()
