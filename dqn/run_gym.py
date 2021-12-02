@@ -12,6 +12,7 @@ import pickle
 sys.path.append('..')
 
 from mushroom_rl.approximators.parametric.torch_approximator import TorchApproximator
+from mushroom_rl.core.environment import MDPInfo
 from mushroom_rl.environments import *
 from mushroom_rl.utils.dataset import compute_J
 from mushroom_rl.utils.parameters import LinearParameter, Parameter

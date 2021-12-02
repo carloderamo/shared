@@ -3,7 +3,7 @@ from copy import deepcopy
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mushroom_rl.algorithms.agent import Agent
+from mushroom_rl.core.agent import Agent
 from mushroom_rl.approximators.regressor import Regressor
 from mushroom_rl.approximators.parametric.torch_approximator import *
 
